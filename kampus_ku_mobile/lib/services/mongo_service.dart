@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
-import 'package:kampus_ku_mobile/features/models/log_model.dart';
+// import 'package:kampus_ku_mobile/features/models/log_model.dart';
 import 'package:kampus_ku_mobile/helpers/log_helper.dart'; 
 
 class MongoService {
@@ -53,27 +53,27 @@ class MongoService {
         .toList();
   }
 
-  Future<void> insertLog(LogModel log) async {
-    if (db == null || !db!.isConnected) {
-      await LogHelper.writeLog("WARNING: Mencoba insertLog saat offline", source: _source, level: 1);
-      throw Exception("Offline");
-    }
+  // Future<void> insertLog(LogModel log) async {
+  //   if (db == null || !db!.isConnected) {
+  //     await LogHelper.writeLog("WARNING: Mencoba insertLog saat offline", source: _source, level: 1);
+  //     throw Exception("Offline");
+  //   }
     
-    await db!.collection('logs').insert(log.toMap());
-    await LogHelper.writeLog("SUCCESS: Data baru ditambahkan ke Cloud", source: _source, level: 2);
-  }
+  //   await db!.collection('logs').insert(log.toMap());
+  //   await LogHelper.writeLog("SUCCESS: Data baru ditambahkan ke Cloud", source: _source, level: 2);
+  // }
 
-  Future<void> updateLog(LogModel log) async {
-    if (db == null || !db!.isConnected || log.id == null) {
-      await LogHelper.writeLog("ERROR: Update gagal (Offline atau ID Null)", source: _source, level: 1);
-      throw Exception("Offline or Null ID");
-    }
+  // Future<void> updateLog(LogModel log) async {
+  //   if (db == null || !db!.isConnected || log.id == null) {
+  //     await LogHelper.writeLog("ERROR: Update gagal (Offline atau ID Null)", source: _source, level: 1);
+  //     throw Exception("Offline or Null ID");
+  //   }
     
-    await db!
-        .collection('logs')
-        .update(where.id(ObjectId.fromHexString(log.id!)), log.toMap());
-    await LogHelper.writeLog("SUCCESS: Data berhasil diperbarui di Cloud", source: _source, level: 2);
-  }
+  //   await db!
+  //       .collection('logs')
+  //       .update(where.id(ObjectId.fromHexString(log.id!)), log.toMap());
+  //   await LogHelper.writeLog("SUCCESS: Data berhasil diperbarui di Cloud", source: _source, level: 2);
+  // }
 
   Future<void> deleteLog(String id) async {
     if (db == null || !db!.isConnected) {
