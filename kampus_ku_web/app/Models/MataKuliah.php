@@ -11,5 +11,5 @@ class MataKuliah extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'mata_kuliah';
-    protected $fillable = ['nama_mk', 'kode_mk', 'id_prodi', 'sks'];
+    protected $fillable = ['kode_mk', 'nama_mk', 'sks', 'id_prodi'];
 }
