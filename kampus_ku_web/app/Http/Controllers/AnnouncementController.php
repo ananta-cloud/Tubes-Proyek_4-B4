@@ -5,10 +5,41 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Announcement;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ProgramStudi;
 
 
 class AnnouncementController extends Controller
 {
+
+    public function index()
+    {
+        $user = Auth::user();
+
+        // 1. Inisialisasi Query Builder
+        $query = Announcement::query();
+
+        // 2. Filter RBAC (Role-Based Access Control)
+        if ($user->role === 'MANAJEMEN') {
+            // Manajemen melihat semua pengumuman umum
+            $query->where('target_audience', 'UMUM');
+
+            // Manajemen tidak butuh dropdown prodi saat membuat pengumuman
+            $prodiList = [];
+        } else {
+            // Kajur & TU hanya melihat pengumuman milik jurusannya sendiri
+            $query->where('id_jurusan', $user->id_jurusan);
+
+            // Tarik data Prodi HANYA di bawah jurusan ini untuk dropdown "Target Spesifik"
+            $prodiList = ProgramStudi::where('id_jurusan', $user->id_jurusan)->get();
+        }
+
+        // 3. Eksekusi query: Ambil pengumuman terbaru diurutkan dari yang paling baru
+        $announcements = $query->orderBy('created_at', 'desc')->get();
+
+        // 4. Kirim data ke view admin/pengumuman/index.blade.php
+        return view('admin.pengumuman.index', compact('announcements', 'prodiList'));
+    }
+
     /**
      * MUST HAVE DOCX: Publikasi Pengumuman (Manajemen vs Jurusan)
      */
