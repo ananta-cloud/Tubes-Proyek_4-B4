@@ -11,6 +11,11 @@ class ProgramStudi extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'program_studi';
+
     protected $fillable = ['nama_prodi', 'kode_prodi', 'id_jurusan'];
+
+    protected $casts = [
+        'id_jurusan' => 'objectId'
+    ];
 }
 
