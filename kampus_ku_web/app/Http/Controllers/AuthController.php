@@ -11,7 +11,7 @@ class AuthController extends Controller
 {
     /**
      * =========================================================
-     * WEB AUTHENTICATION (Kajur, Admin TU, Manajemen Kampus)
+     * WEB AUTHENTICATION (Admin TU, Manajemen Kampus, Tim Penjadwalan)
      * Menggunakan Session Laravel standar
      * =========================================================
      */
@@ -38,7 +38,7 @@ class AuthController extends Controller
             // Pengecekan RBAC: Arahkan ke dashboard sesuai role
             if ($user->role === 'MANAJEMEN') {
                 return redirect('/manajemen/announcements');
-            } elseif (in_array($user->role, ['KAJUR', 'ADMIN_TU'])) {
+            } elseif (in_array($user->role, ['KAJUR', 'ADMIN_TU', 'TIM_PENJADWALAN'])) {
                 return redirect('/jurusan/schedules');
             }
 
@@ -107,7 +107,7 @@ class AuthController extends Controller
                 'token' => $token,
                 'user' => [
                     'id' => $user->_id,
-                    'name' => $user->name,
+                    'name' => $user->nama,
                     'email' => $user->email,
                     'role' => $user->role,
                     'id_jurusan' => $user->id_jurusan,
