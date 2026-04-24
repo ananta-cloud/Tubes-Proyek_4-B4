@@ -11,5 +11,11 @@ class MataKuliah extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'mata_kuliah';
+
     protected $fillable = ['nama_mk', 'kode_mk', 'id_prodi', 'sks'];
+
+    protected $casts = [
+        'id_prodi' => 'objectId',
+        'sks' => 'integer'
+    ];
 }

@@ -17,7 +17,7 @@ Route::middleware(['auth'])->group(function () {
     // ==================================================
     // RUTE KAJUR & ADMIN TU
     // ==================================================
-    Route::middleware(['role:KAJUR,ADMIN_TU'])->prefix('jurusan')->group(function () {
+    Route::middleware(['role:ADMIN_TU'])->prefix('jurusan')->group(function () {
         // Render view jadwal
         Route::get('/schedules', [ScheduleController::class, 'index']);
 

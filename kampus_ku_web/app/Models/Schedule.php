@@ -4,9 +4,6 @@ namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
 
-/**
- * 7. MODEL SCHEDULE
- */
 class Schedule extends Model
 {
     protected $connection = 'mongodb';
@@ -16,16 +13,20 @@ class Schedule extends Model
         'id_mk',
         'nama_mk', 'kode_mk', // Partial Embed (PDF Bab 4.2)
         'id_prodi', 'id_jurusan',
+        'id_periode',
         'tipe', // 'KULIAH', 'UTS', 'UAS'
         'hari', 'tanggal', 'jam_mulai', 'jam_selesai',
         'ruangan', 'nama_dosen',
         'status', // 'DRAFT', 'FINAL', 'PUBLISHED'
-        'pesan_pengantar', 'id_periode'
+        'pesan_pengantar'
     ];
 
     protected $casts = [
+        'id_mk' => 'objectId',
+        'id_prodi' => 'objectId',
+        'id_jurusan' => 'objectId',
+        'id_periode' => 'objectId',
         'tanggal' => 'datetime',
-        'jam_mulai' => 'datetime',
-        'jam_selesai' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 }
