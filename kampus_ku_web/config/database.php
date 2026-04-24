@@ -44,6 +44,20 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+            'mongodb' => [
+                'driver'   => 'mongodb',
+                'dsn'      => env('DB_URI', ''),
+                'host'     => env('DB_HOST', '127.0.0.1'),
+                'port'     => env('DB_PORT', 27017),
+                'database' => env('DB_DATABASE', 'sigma_db'),
+                'username' => env('DB_USERNAME', 'kelompokB4'),
+                'password' => env('DB_PASSWORD', 'pariskoperasi'),
+                'options'  => [
+                    'database' => env('DB_AUTHENTICATION_DATABASE', 'admin'),
+                ],
+            ],
+
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
