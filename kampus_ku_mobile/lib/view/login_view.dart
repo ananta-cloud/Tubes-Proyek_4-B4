@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_ku_mobile/view/home_page.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -136,7 +137,9 @@ class _LoginViewState extends State<LoginView> {
                         height: 55,
                         child: ElevatedButton(
                           onPressed: () {
-                            // Aksi ketika tombol ditekan
+                            Navigator.push(context, 
+                              MaterialPageRoute(builder: (context) => const HomePage())
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFE7A36), // Warna Orange
