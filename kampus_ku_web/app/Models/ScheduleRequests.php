@@ -24,9 +24,6 @@ class ScheduleRequests extends Model
     ];
 
     protected $casts = [
-        'id_schedule' => 'objectId',
-        'id_dosen' => 'objectId',
-        'id_processor' => 'objectId',
         'detail_perubahan' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
