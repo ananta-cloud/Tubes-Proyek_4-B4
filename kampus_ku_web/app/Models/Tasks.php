@@ -23,7 +23,6 @@ class Tasks extends Model
     ];
 
     protected $casts = [
-        'id_user' => 'objectId',
         'deadline' => 'datetime',
         'is_synced' => 'boolean',
         'created_at' => 'datetime',

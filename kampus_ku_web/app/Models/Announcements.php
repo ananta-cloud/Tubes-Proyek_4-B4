@@ -28,10 +28,6 @@ class Announcement extends Model
     protected $casts = [
         'read_by_users' => 'array',
 
-        'id_prodi' => 'objectId',
-        'id_jurusan' => 'objectId',
-        'id_publisher' => 'objectId',
-
         'kategori' => 'array',
         'target_angkatan' => 'array',
 

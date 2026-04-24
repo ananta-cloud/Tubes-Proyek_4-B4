@@ -14,8 +14,6 @@ class ProgramStudi extends Model
 
     protected $fillable = ['nama_prodi', 'kode_prodi', 'id_jurusan'];
 
-    protected $casts = [
-        'id_jurusan' => 'objectId'
-    ];
+
 }
 

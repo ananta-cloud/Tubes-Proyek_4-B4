@@ -15,7 +15,6 @@ class MataKuliah extends Model
     protected $fillable = ['nama_mk', 'kode_mk', 'id_prodi', 'sks'];
 
     protected $casts = [
-        'id_prodi' => 'objectId',
-        'sks' => 'integer'
+         'sks' => 'integer'
     ];
 }

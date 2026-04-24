@@ -15,24 +15,52 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth'])->group(function () {
 
     // ==================================================
-    // RUTE KAJUR & ADMIN TU
+    // RUTE ADMIN TU
     // ==================================================
     Route::middleware(['role:ADMIN_TU'])->prefix('jurusan')->group(function () {
-        // Render view jadwal
         Route::get('/schedules', [ScheduleController::class, 'index']);
-
-        // Render view pengumuman jurusan
         Route::get('/announcements', [AnnouncementController::class, 'index']);
-
-        // Render view Master Data Matkul (Yang ada di Canvas)
         Route::get('/master-matkul', [MasterMatkulController::class, 'index']);
+
+        // Finalisasi jadwal (DRAFT → FINAL)
+        Route::patch('/schedules/{id}/finalize', [ScheduleController::class, 'finalize']);
+
+        // Publikasi jadwal (FINAL → PUBLISHED) — Dikontrol RBAC di Controller/Policy
+        Route::patch('/schedules/{id}/publish', [ScheduleController::class, 'publish']);
+    });
+
+    // ==================================================
+    // RUTE TIM PENJADWALAN
+    // ==================================================
+    Route::middleware(['role:TIM_PENJADWALAN'])->prefix('penjadwalan')->name('penjadwalan.')->group(function () {
+
+        // --- Dashboard Utama ---
+        Route::get('/dashboard', [ScheduleController::class, 'dashboard'])->name('dashboard');
+
+        // --- CRUD Jadwal ---
+        Route::prefix('schedules')->name('schedules.')->group(function () {
+            Route::get('/',            [ScheduleController::class, 'index'])->name('index');   // List + Filter
+            Route::get('/create',      [ScheduleController::class, 'create'])->name('create'); // Form input baru
+            Route::post('/',           [ScheduleController::class, 'store'])->name('store');   // Simpan jadwal baru
+            Route::get('/{id}/edit',   [ScheduleController::class, 'edit'])->name('edit');     // Form edit
+            Route::put('/{id}',        [ScheduleController::class, 'update'])->name('update'); // Update jadwal
+            Route::patch('/{id}/finalize', [ScheduleController::class, 'finalize'])->name('finalize'); // DRAFT→FINAL
+            Route::patch('/{id}/publish',  [ScheduleController::class, 'publish'])->name('publish');   // FINAL→PUBLISHED
+        });
+
+        // --- Kelola Request Perubahan dari Dosen ---
+        Route::prefix('requests')->name('requests.')->group(function () {
+            Route::get('/',                        [ScheduleController::class, 'requests'])->name('index');         // List semua request
+            Route::get('/{id}',                    [ScheduleController::class, 'requestDetail'])->name('detail');  // Detail request
+            Route::patch('/{id}/approve',          [ScheduleController::class, 'approveRequest'])->name('approve'); // Approve
+            Route::patch('/{id}/reject',           [ScheduleController::class, 'rejectRequest'])->name('reject');  // Reject
+        });
     });
 
     // ==================================================
     // RUTE MANAJEMEN KAMPUS
     // ==================================================
     Route::middleware(['role:MANAJEMEN'])->prefix('manajemen')->group(function () {
-        // Manajemen Kampus hanya mengurus pengumuman umum
         Route::get('/announcements', [AnnouncementController::class, 'index']);
     });
 

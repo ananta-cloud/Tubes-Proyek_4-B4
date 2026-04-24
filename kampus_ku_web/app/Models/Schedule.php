@@ -22,10 +22,6 @@ class Schedule extends Model
     ];
 
     protected $casts = [
-        'id_mk' => 'objectId',
-        'id_prodi' => 'objectId',
-        'id_jurusan' => 'objectId',
-        'id_periode' => 'objectId',
         'tanggal' => 'datetime',
         'updated_at' => 'datetime'
     ];
