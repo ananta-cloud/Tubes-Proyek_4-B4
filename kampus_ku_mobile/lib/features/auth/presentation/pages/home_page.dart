@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
   // ================= HEADER =================
   Widget _header() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
       decoration: BoxDecoration(
         color: primaryBlue,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
