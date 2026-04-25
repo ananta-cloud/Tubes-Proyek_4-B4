@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Announcement;
 use Illuminate\Support\Facades\Auth;
 
+
 class AnnouncementController extends Controller
 {
     public function index()
@@ -39,7 +40,14 @@ class AnnouncementController extends Controller
 
     public function create()
     {
-        $prodiList = \App\Models\ProgramStudi::where('id_jurusan', Auth::user()->id_jurusan)->get();
+        $user = Auth::user();
+
+        $jurusanId = (string) $user->id_jurusan;
+
+        $prodiList = \App\Models\ProgramStudi::all()->filter(function($prodi) use ($jurusanId) {
+            return (string) $prodi->id_jurusan === $jurusanId;
+        });
+
         return view('admin.announcements.create', compact('prodiList'));
     }
 
@@ -51,7 +59,7 @@ class AnnouncementController extends Controller
             'judul'    => 'required|string',
             'isi'      => 'required|string',
             'kategori' => 'nullable|array',   
-            'kategori.*' => 'string|in:AKADEMIK,BEASISWA,LOMBA,UKM,KARIR,PKM,WIRAUSAHA,KONSELING,FASILITAS,LAINNYA',
+            'kategori' => 'nullable|string',
         ]);
 
         if ($user->role === 'MANAJEMEN') {
@@ -74,6 +82,7 @@ class AnnouncementController extends Controller
             'nama_publisher'  => $user->nama, 
             'role_publisher'  => $user->role,
             'read_by_users'   => [],
+            'kategori' => $request->kategori ? [$request->kategori] : [],
         ]);
 
         // FcmService::sendToTopic(...);

@@ -17,14 +17,14 @@ class Announcement extends Model
         'id_jurusan',
         'id_publisher',
         'nama_publisher', 
-        'role_publisher', // Partial Embed (PDF Bab 4.2)
+        'role_publisher',
         'kategori', // 'Akademik', 'Beasiswa', 'Lomba' dsb.
-        'target_angkatan', // Filter tambahan (Should Have DOCX),
+        'target_angkatan', // Filter tambahan
         'created_at',
         'updated_at',
     ];
 
-    // Array penyimpan user_id yang sudah membaca (Read Confirmation - Should Have DOCX)
+    // Array penyimpan user_id yang sudah membaca (Read Confirmation)
     protected $casts = [
         'read_by_users' => 'array',
 

@@ -27,7 +27,6 @@
     </div>
     @endif
 
-    {{-- Stats Cards — Final (Tunggu Kajur) dihapus, diganti 2 card saja --}}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-slate-400">
             <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Draft</p>
