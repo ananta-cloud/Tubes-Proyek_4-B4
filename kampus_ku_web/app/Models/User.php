@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Auth\User as Authenticatable;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Authenticatable;
-use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 
-
-class User extends Model implements AuthenticatableContract
+class User extends Authenticatable implements JWTSubject
 {
-    use Authenticatable, Notifiable;
+    use Notifiable;
 
     protected $connection = 'mongodb';
     protected $collection = 'users';
@@ -28,28 +26,22 @@ class User extends Model implements AuthenticatableContract
         'created_at'
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = [
+        'password'
+    ];
 
     protected $casts = [
-
         'id_mk_ampu' => 'array',
         'created_at' => 'datetime'
     ];
 
-    // JWT
-    /**
-     * Key yang dijadikan "sub" di dalam payload JWT.
-     * MongoDB pakai _id (string ObjectId), bukan integer.
-     */
+    // JWT IDENTIFIER
     public function getJWTIdentifier()
     {
-        return (string) $this->_id;
+        return $this->getKey();
     }
 
-    /**
-     * Custom claims tambahan di dalam payload JWT.
-     * Kita sisipkan role agar middleware bisa baca tanpa query DB.
-     */
+    // JWT CUSTOM CLAIMS
     public function getJWTCustomClaims(): array
     {
         return [
