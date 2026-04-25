@@ -42,5 +42,4 @@ Route::middleware('jwt')->group(function () {
         Route::post('/bookmarks/{id_schedule}',           [MahasiswaApiController::class, 'addBookmark']);
         Route::delete('/bookmarks/{id_schedule}',         [MahasiswaApiController::class, 'removeBookmark']);
     });
-
 });
