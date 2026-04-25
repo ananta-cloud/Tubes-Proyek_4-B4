@@ -11,6 +11,7 @@ class PeriodeAkademik extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'periode_akademik';
+    
     protected $fillable = [
         'tahun_akademik', 'jenis_semester', 'is_aktif', 'tanggal_mulai', 'tanggal_selesai'
     ];
