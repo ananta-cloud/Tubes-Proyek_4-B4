@@ -30,22 +30,25 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_dotenv: ^6.0.0   # or latest version
+
+  flutter_dotenv: ^6.0.0
   mongo_dart: 0.10.0
   mongo_dart_query: 5.0.3
   intl: ^0.20.2
   connectivity_plus: ^7.0.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  uuid: ^4.0.0 # Untuk generate ID unik
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  uuid: ^4.0.0
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.2
   path_provider: ^2.1.5
   flutter_markdown: ^0.7.7+1
   markdown: ^7.3.0
+
+  http: ^1.6.0               
+  flutter_secure_storage: ^10.0.0  
+
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:
