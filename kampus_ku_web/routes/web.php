@@ -17,8 +17,11 @@ Route::middleware(['auth'])->group(function () {
     // ==================================================
     // RUTE ADMIN TU
     // ==================================================
-    Route::middleware(['role:ADMIN_TU'])->prefix('jurusan')->group(function () {
-        Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::middleware(['role:ADMIN_TU'])->prefix('jurusan')->name('admin.')->group(function () {
+        Route::get('/announcements',                [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('/announcements/create',         [AnnouncementController::class, 'create'])->name('announcements.create');
+        Route::post('/announcements',               [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::delete('/announcements/{id}',        [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
         Route::get('/master-matkul', [MasterMatkulController::class, 'index']);
         
         // Finalisasi jadwal (DRAFT → FINAL)

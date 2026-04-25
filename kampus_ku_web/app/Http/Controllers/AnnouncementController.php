@@ -6,78 +6,99 @@ use Illuminate\Http\Request;
 use App\Models\Announcement;
 use Illuminate\Support\Facades\Auth;
 
-
 class AnnouncementController extends Controller
 {
-    public function index() // ini dashboardnya masih buat manajemen, nanti buat admin TU beda lagi (lihat PDF Bab 4.2)
+    public function index()
     {
-
         $user = Auth::user();
 
-        // Filter pengumuman berdasarkan role
         if ($user->role === 'MANAJEMEN') {
-            // Manajemen lihat semua pengumuman UMUM
-            $announcements = Announcement::where('target_audience', 'UMUM')
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $announcements   = Announcement::where('target_audience', 'UMUM')
+                ->orderBy('created_at', 'desc')->paginate(10);
+            $total_bulan_ini = Announcement::where('target_audience', 'UMUM')
+                ->whereMonth('created_at', now()->month)->count();
+            $view = 'manajemen.dashboard';
         } else {
-            // Admin TU lihat pengumuman by jurusan
-            $announcements = Announcement::where('id_jurusan', $user->id_jurusan)
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $announcements   = Announcement::where('id_jurusan', $user->id_jurusan)
+                ->orderBy('created_at', 'desc')->paginate(10);
+            $total_bulan_ini = Announcement::where('id_jurusan', $user->id_jurusan)
+                ->whereMonth('created_at', now()->month)->count();
+            $view = 'admin.announcements.index';
         }
 
-        return view('manajemen.dashboard', compact('announcements'));
+        $total        = $announcements->total();
+        // $total_dibaca = $announcements->sum(fn($a) => count($a->read_by_users ?? []));
+        $total_dibaca = $announcements->sum(function($a) {
+            $reads = $a->read_by_users;
+            if (is_array($reads)) return count($reads);
+            if (is_string($reads)) return count(json_decode($reads, true) ?? []);
+            return 0;
+        });
+        return view($view, compact('announcements', 'total', 'total_bulan_ini', 'total_dibaca'));
     }
-    /**
-     * MUST HAVE DOCX: Publikasi Pengumuman (Manajemen vs Jurusan)
-     */
+
+    public function create()
+    {
+        $prodiList = \App\Models\ProgramStudi::where('id_jurusan', Auth::user()->id_jurusan)->get();
+        return view('admin.announcements.create', compact('prodiList'));
+    }
+
     public function store(Request $request)
     {
         $user = Auth::user();
 
         $validated = $request->validate([
-            'judul' => 'required|string',
-            'isi' => 'required|string',
-            'kategori' => 'nullable|string', // Kategori: Akademik, Beasiswa, Lomba (Could Have DOCX)
+            'judul'    => 'required|string',
+            'isi'      => 'required|string',
+            'kategori' => 'nullable|array',   
+            'kategori.*' => 'string|in:AKADEMIK,BEASISWA,LOMBA,UKM,KARIR,PKM,WIRAUSAHA,KONSELING,FASILITAS,LAINNYA',
         ]);
 
-        // Filter Target Otomatis berdasarkan Role Pengguna
         if ($user->role === 'MANAJEMEN') {
             $targetAudience = 'UMUM';
-            $idJurusan = null;
-            $idProdi = null;
+            $idJurusan      = null;
+            $idProdi        = null;
         } else {
             $targetAudience = 'PRODI';
-            $idJurusan = $user->id_jurusan;
-            $idProdi = $request->id_prodi ?? null; // Targeting spesifik prodi (Should Have)
+            $idJurusan      = $user->id_jurusan;
+            $idProdi        = $request->id_prodi ?? null;
         }
 
-        $announcement = Announcement::create([
+        Announcement::create([
             ...$validated,
             'target_audience' => $targetAudience,
-            'id_jurusan' => $idJurusan,
-            'id_prodi' => $idProdi,
+            'id_jurusan'      => $idJurusan,
+            'id_prodi'        => $idProdi,
             'target_angkatan' => $request->target_angkatan,
-            'id_publisher' => $user->id,
-            'nama_publisher' => $user->name, // Partial Embed sesuai PDF Bab 4.2
-            'role_publisher' => $user->role,
-            'read_by_users' => [] // Array kosong untuk Read Confirmation
+            'id_publisher'    => $user->_id,   
+            'nama_publisher'  => $user->nama, 
+            'role_publisher'  => $user->role,
+            'read_by_users'   => [],
         ]);
 
-        // FcmService::sendToTopic('all_mahasiswa', 'Pengumuman Baru: ' . $announcement->judul, $announcement->isi);
+        // FcmService::sendToTopic(...);
 
-        return response()->json(['status' => 'success', 'data' => $announcement]);
+        return redirect()->route('admin.announcements.index')
+            ->with('success', 'Pengumuman berhasil diterbitkan.');
+    }
+
+    public function destroy($id)
+    {
+        $announcement = Announcement::findOrFail($id);
+        $announcement->delete();
+
+        return redirect()->route('admin.announcements.index')
+            ->with('success', 'Pengumuman berhasil dihapus.');
     }
 
     /**
-     * COULD HAVE DOCX: Cross-posting Helper (Generate format WA/IG)
+     * Cross-posting Helper — khusus Manajemen
      */
     public function crossPostFormat($id)
     {
         $announcement = Announcement::findOrFail($id);
 
-        $text = "*[PENGUMUMAN POLBAN]*\n\n";
+        $text  = "*[PENGUMUMAN POLBAN]*\n\n";
         $text .= "*" . strtoupper($announcement->judul) . "*\n\n";
         $text .= $announcement->isi . "\n\n";
         $text .= "_Cek detail lengkapnya dan simpan ke bookmark di Aplikasi SIGMA._";
@@ -85,4 +106,3 @@ class AnnouncementController extends Controller
         return response()->json(['whatsapp_format' => $text]);
     }
 }
-
