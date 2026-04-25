@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:kampus_ku_mobile/features/auth/data/models/schedule_local_model.dart';
+import 'package:kampus_ku_mobile/features/auth/data/services/schedule_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,6 +17,49 @@ class _HomePageState extends State<HomePage> {
   final accentOrange = const Color(0xFFFF7A36);
   final bgColor = const Color(0xFFEAF3FA);
   final darkText = const Color(0xFF1F1F3D);
+
+  final scheduleService = ScheduleService();
+  List<ScheduleLocalModel> schedules = [];
+
+  void syncSchedules() async {
+    final apiData = await scheduleService.getSchedules();
+
+    final box = Hive.box<ScheduleLocalModel>('schedules');
+
+    for (var item in apiData) {
+      final schedule = ScheduleLocalModel(
+        id: item['id'],
+        namaMk: item['nama_mk'],
+        hari: item['hari'],
+        jamMulai: item['jam_mulai'],
+        jamSelesai: item['jam_selesai'],
+        ruangan: item['ruangan'],
+        dosen: item['nama_dosen'],
+      );
+
+      await box.put(schedule.id, schedule);
+    }
+
+    print("SYNC DONE: ${box.values.toList()}");
+
+    loadSchedulesFromHive();
+  }
+
+  void loadSchedulesFromHive() {
+    final box = Hive.box<ScheduleLocalModel>('schedules');
+
+    setState(() {
+      schedules = box.values.toList();
+    });
+
+    print("LOADED FROM HIVE: $schedules");
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    syncSchedules();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +227,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _schedulePreviewCard() {
+    if (schedules.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final s = schedules.first;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -205,16 +257,16 @@ class _HomePageState extends State<HomePage> {
             child: Icon(Icons.menu_book, color: accentOrange),
           ),
           const SizedBox(width: 12),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Pemrograman Berbasis Mobile",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                s.namaMk,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 5),
-              Text("07:00 - 10:40"),
-              Text("Lab Komputer 4"),
+              const SizedBox(height: 5),
+              Text("${s.jamMulai} - ${s.jamSelesai}"),
+              Text(s.ruangan),
             ],
           ),
         ],
@@ -292,8 +344,37 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         const SizedBox(height: 20),
-        _scheduleCard(),
-        _scheduleCard(),
+        ...schedules.map((s) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border(left: BorderSide(color: primaryBlue, width: 4)),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                  color: Colors.black.withOpacity(0.05),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${s.jamMulai} - ${s.jamSelesai}"),
+                const SizedBox(height: 5),
+                Text(
+                  s.namaMk,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                Text("${s.ruangan} - ${s.dosen}"),
+              ],
+            ),
+          );
+        }).toList(),
       ],
     );
   }
@@ -322,38 +403,6 @@ class _HomePageState extends State<HomePage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _scheduleCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border(left: BorderSide(color: primaryBlue, width: 4)),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-            color: Colors.black.withOpacity(0.05),
-          ),
-        ],
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("07:00 - 10:40"),
-          SizedBox(height: 5),
-          Text(
-            "Pemrograman Berbasis Mobile",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 5),
-          Text("Lab Komputer 4 - Bpk. Irfan"),
         ],
       ),
     );
