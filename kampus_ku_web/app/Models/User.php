@@ -2,26 +2,52 @@
 
 namespace App\Models;
 
-use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Auth\User as Authenticatable;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Authenticatable;
-use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 
-/**
- * 1. MODEL USER (Mahasiswa, Kajur, Admin TU, Manajemen)
- */
-class User extends Model implements AuthenticatableContract
+class User extends Authenticatable implements JWTSubject
 {
-    use Authenticatable, Notifiable;
+    use Notifiable;
 
     protected $connection = 'mongodb';
     protected $collection = 'users';
 
     protected $fillable = [
-        'name', 'email', 'password',
-        'role', // 'KAJUR', 'ADMIN_TU', 'MANAJEMEN', 'MAHASISWA'
-        'id_jurusan', 'id_prodi' // Nullable untuk role Manajemen
+        'nama',
+        'email',
+        'password',
+        'role',
+        'id_jurusan',
+        'id_prodi',
+        'id_mk_ampu',
+        'device_token',
+        'angkatan',
+        'created_at'
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = [
+        'password'
+    ];
+
+    protected $casts = [
+        'id_mk_ampu' => 'array',
+        'created_at' => 'datetime'
+    ];
+
+    // JWT IDENTIFIER
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    // JWT CUSTOM CLAIMS
+    public function getJWTCustomClaims(): array
+    {
+        return [
+            'role'       => $this->role,
+            'id_jurusan' => $this->id_jurusan,
+            'id_prodi'   => $this->id_prodi,
+        ];
+    }
 }

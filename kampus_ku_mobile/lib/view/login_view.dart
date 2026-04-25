@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kampus_ku_mobile/view/home_page.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -16,6 +15,7 @@ class _LoginViewState extends State<LoginView> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
             Align(
@@ -136,11 +136,7 @@ class _LoginViewState extends State<LoginView> {
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(context, 
-                              MaterialPageRoute(builder: (context) => const HomePage())
-                            );
-                          },
+                          onPressed: () {},
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFE7A36), // Warna Orange
                             shape: RoundedRectangleBorder(
