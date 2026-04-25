@@ -13,11 +13,6 @@ class Schedule extends Model
     const CREATED_AT = null;
 
     protected $fillable = [
-<<<<<<< HEAD
-        'id_mk', 'nama_mk', 'kode_mk', 'id_prodi', 'id_jurusan', 'id_periode',
-        'tipe', 'hari', 'tanggal', 'jam_mulai', 'jam_selesai', 'ruangan',
-        'nama_dosen', 'status', 'pesan_pengantar'
-=======
         'id_mk',
         'nama_mk', 'kode_mk', // Partial Embed (PDF Bab 4.2)
         'id_prodi', 'id_jurusan',
@@ -27,19 +22,11 @@ class Schedule extends Model
         'ruangan', 'nama_dosen',
         'status', // 'DRAFT', 'FINAL', 'PUBLISHED'
         'pesan_pengantar'
->>>>>>> sasa
     ];
 
     // Opsional: Untuk memastikan ID cast kembali ke string saat diambil via API
     protected $casts = [
-<<<<<<< HEAD
-        'id_mk' => 'string',
-        'id_prodi' => 'string',
-        'id_jurusan' => 'string',
-        'id_periode' => 'string',
-=======
         'tanggal' => 'datetime',
         'updated_at' => 'datetime'
->>>>>>> sasa
     ];
 }

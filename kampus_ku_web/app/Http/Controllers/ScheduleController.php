@@ -7,41 +7,59 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Schedule;
 use App\Models\ScheduleRequests;
 use App\Models\MataKuliah;
-use Carbon\Carbon;
 
 class ScheduleController extends Controller
 {
 
-    public function index()
+    /**
+     * Menampilkan daftar jadwal lengkap beserta fitur filter, search, dan statistik
+     */
+    public function index(Request $request)
     {
-        $user = Auth::user();
+        $user      = Auth::user();
+        $idJurusan = $user->id_jurusan;
 
-        // 1. Ambil semua jadwal yang HANYA milik jurusan user yang sedang login
-        // Diurutkan berdasarkan hari dan jam mulai agar rapi
-        $schedules = Schedule::where('id_jurusan', $user->id_jurusan)
-            ->orderBy('hari', 'asc')
-            ->orderBy('jam_mulai', 'asc')
-            ->get();
+        // 1. Inisialisasi query dasar HANYA untuk jurusan user yang sedang login
+        $query = Schedule::where('id_jurusan', $idJurusan);
 
-        // 2. Hitung statistik untuk Dashboard Tracking (Berdasarkan Jurusan)
-        $count_draft = Schedule::where('id_jurusan', $user->id_jurusan)
-            ->where('status', 'DRAFT')
-            ->count();
+        // 2. Fitur Pencarian (Search)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_mk', 'like', "%{$search}%")
+                  ->orWhere('nama_dosen', 'like', "%{$search}%")
+                  ->orWhere('ruangan', 'like', "%{$search}%");
+            });
+        }
 
-        $count_final = Schedule::where('id_jurusan', $user->id_jurusan)
-            ->where('status', 'FINAL')
-            ->count();
+        // 3. Fitur Filter (Berdasarkan Hari, Status, Tipe)
+        if ($request->filled('hari'))   $query->where('hari', $request->hari);
+        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('tipe'))   $query->where('tipe', $request->tipe);
 
-        $count_published = Schedule::where('id_jurusan', $user->id_jurusan)
-            ->where('status', 'PUBLISHED')
-            ->count();
+        // 4. Eksekusi query dengan sorting agar rapi
+        $schedules = $query->orderBy('hari', 'asc')->orderBy('jam_mulai', 'asc')->get();
 
-        // 3. Kirim data ke view admin/jadwal/index.blade.php
-        return view('admin.jadwal.index', compact(
+        // 5. Hitung statistik untuk Dashboard Tracking
+        $count_draft     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'DRAFT')->count();
+        $count_final     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'FINAL')->count();
+        $count_published = Schedule::where('id_jurusan', $idJurusan)->where('status', 'PUBLISHED')->count();
+        $total           = $count_draft + $count_final + $count_published;
+
+        // 6. Hitung request perubahan jadwal yang berstatus PENDING
+        $scheduleIds      = Schedule::where('id_jurusan', $idJurusan)->pluck('_id')->toArray();
+        $pending_requests = ScheduleRequests::whereIn('id_schedule', $scheduleIds)->where('status', 'PENDING')->count();
+
+        // 7. Kirim data ke view
+        // CATATAN: Pastikan path view ini sesuai dengan struktur folder Anda.
+        // Jika sebelumnya Anda menggunakan 'admin.jadwal.index', silakan ubah string di bawah.
+        return view('penjadwalan.schedules.index', compact(
             'schedules',
             'count_draft',
             'count_final',
-            'count_published'
+            'count_published',
+            'total',
+            'pending_requests'
         ));
     }
 
@@ -71,43 +89,6 @@ class ScheduleController extends Controller
         ));
     }
 
-    /**
-     * Daftar jadwal lengkap + filter & search
-     */
-    public function index(Request $request)
-    {
-        $user      = Auth::user();
-        $idJurusan = $user->id_jurusan;
-
-        $query = Schedule::where('id_jurusan', $idJurusan);
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nama_mk', 'like', "%{$search}%")
-                  ->orWhere('nama_dosen', 'like', "%{$search}%")
-                  ->orWhere('ruangan', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->filled('hari'))   $query->where('hari', $request->hari);
-        if ($request->filled('status')) $query->where('status', $request->status);
-        if ($request->filled('tipe'))   $query->where('tipe', $request->tipe);
-
-        $schedules = $query->orderBy('hari')->orderBy('jam_mulai')->get();
-
-        $count_draft     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'DRAFT')->count();
-        $count_final     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'FINAL')->count();
-        $count_published = Schedule::where('id_jurusan', $idJurusan)->where('status', 'PUBLISHED')->count();
-        $total           = $count_draft + $count_final + $count_published;
-
-        $scheduleIds      = Schedule::where('id_jurusan', $idJurusan)->pluck('_id')->toArray();
-        $pending_requests = ScheduleRequests::whereIn('id_schedule', $scheduleIds)->where('status', 'PENDING')->count();
-
-        return view('penjadwalan.schedules.index', compact(
-            'schedules', 'count_draft', 'count_final', 'count_published', 'total', 'pending_requests'
-        ));
-    }
 
     /**
      * Form input jadwal baru

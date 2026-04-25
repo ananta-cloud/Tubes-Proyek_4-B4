@@ -37,7 +37,7 @@ class AnnouncementController extends Controller
         $announcements = $query->orderBy('created_at', 'desc')->get();
 
         // 4. Kirim data ke view admin/pengumuman/index.blade.php
-        return view('admin.pengumuman.index', compact('announcements', 'prodiList'));
+        return view('manajemen.announcements.index', compact('announcements', 'prodiList'));
     }
 
     /**
