@@ -11,7 +11,7 @@ class Schedule extends Model
 
     protected $fillable = [
         'id_mk',
-        'nama_mk', 'kode_mk', // Partial Embed (PDF Bab 4.2)
+        'nama_mk', 'kode_mk',
         'id_prodi', 'id_jurusan',
         'id_periode',
         'tipe', // 'KULIAH', 'UTS', 'UAS'
