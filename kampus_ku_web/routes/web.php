@@ -18,17 +18,14 @@ Route::middleware(['auth'])->group(function () {
     // RUTE ADMIN TU
     // ==================================================
     Route::middleware(['role:ADMIN_TU'])->prefix('jurusan')->group(function () {
-        Route::get('/schedules', [ScheduleController::class, 'index']);
         Route::get('/announcements', [AnnouncementController::class, 'index']);
         Route::get('/master-matkul', [MasterMatkulController::class, 'index']);
-
+        
         // Finalisasi jadwal (DRAFT → FINAL)
+        Route::get('/schedules', [ScheduleController::class, 'index']);
         Route::patch('/schedules/{id}/finalize', [ScheduleController::class, 'finalize']);
-
         // Publikasi jadwal (FINAL → PUBLISHED) — Dikontrol RBAC di Controller/Policy
         Route::patch('/schedules/{id}/publish', [ScheduleController::class, 'publish']);
-
-        Route::get('/master-matkul', [MasterMatkulController::class, 'index'])->name('master-matkul.index');
     });
 
     // ==================================================
@@ -46,8 +43,6 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/',           [ScheduleController::class, 'store'])->name('store');   // Simpan jadwal baru
             Route::get('/{id}/edit',   [ScheduleController::class, 'edit'])->name('edit');     // Form edit
             Route::put('/{id}',        [ScheduleController::class, 'update'])->name('update'); // Update jadwal
-            Route::patch('/{id}/finalize', [ScheduleController::class, 'finalize'])->name('finalize'); // DRAFT→FINAL
-            Route::patch('/{id}/publish',  [ScheduleController::class, 'publish'])->name('publish');   // FINAL→PUBLISHED
         });
 
         // --- Kelola Request Perubahan dari Dosen ---
@@ -57,6 +52,8 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/{id}/approve',          [ScheduleController::class, 'approveRequest'])->name('approve'); // Approve
             Route::patch('/{id}/reject',           [ScheduleController::class, 'rejectRequest'])->name('reject');  // Reject
         });
+
+        Route::get('/master-matkul', [MasterMatkulController::class, 'index'])->name('master-matkul.index');
     });
 
     // ==================================================
