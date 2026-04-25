@@ -19,41 +19,41 @@ class ScheduleController extends ChangeNotifier {
 
     final connectivityResult = await Connectivity().checkConnectivity();
     final box = Hive.box<ScheduleLocalModel>('schedules');
-    await box.clear();
-    //  OFFLINE MODE
+
+    // ================= OFFLINE MODE =================
     if (connectivityResult == ConnectivityResult.none) {
       schedules = box.values.toList();
+
       isLoading = false;
       notifyListeners();
-      print("OFFLINE MODE");
+
+      print("OFFLINE MODE - Loaded ${schedules.length} data from Hive");
       return;
     }
 
-    //  ONLINE MODE
+    // ================= ONLINE MODE =================
     try {
-      final List list = await service.getSchedules();
+      final List<Map<String, dynamic>> list = await service.getSchedules();
 
+      print("DATA FROM API: ${list.length}");
+
+      // Clear hanya saat online
       await box.clear();
 
       for (var item in list) {
-        final schedule = ScheduleLocalModel(
-          id: item['id'] ?? item['_id'].toString(),
-          namaMk: item['nama_mk'],
-          hari: item['hari'],
-          jamMulai: item['jam_mulai'],
-          jamSelesai: item['jam_selesai'],
-          ruangan: item['ruangan'],
-          dosen: item['nama_dosen'],
-        );
-
+        final schedule = ScheduleLocalModel.fromJson(item);
         await box.put(schedule.id, schedule);
       }
 
       schedules = box.values.toList();
 
-      print("SYNC SUCCESS: ${schedules.length} data");
+      print("SYNC SUCCESS: ${schedules.length} data saved to Hive");
     } catch (e) {
       print("ERROR SYNC: $e");
+
+      // fallback ke data lokal jika API gagal
+      schedules = box.values.toList();
+      print("FALLBACK TO HIVE: ${schedules.length} data");
     }
 
     isLoading = false;
