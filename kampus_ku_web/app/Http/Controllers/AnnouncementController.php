@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\Auth;
 
 class AnnouncementController extends Controller
 {
-    public function index()
+    public function index() // ini dashboardnya masih buat manajemen, nanti buat admin TU beda lagi (lihat PDF Bab 4.2)
     {
+
         $user = Auth::user();
 
         // Filter pengumuman berdasarkan role
@@ -26,7 +27,7 @@ class AnnouncementController extends Controller
                 ->get();
         }
 
-        return view('admin.dashboard', compact('announcements'));
+        return view('manajemen.dashboard', compact('announcements'));
     }
     /**
      * MUST HAVE DOCX: Publikasi Pengumuman (Manajemen vs Jurusan)

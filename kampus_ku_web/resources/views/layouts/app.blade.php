@@ -66,7 +66,7 @@
             </a>
 
             {{-- ======================== --}}
-            {{-- MENU ADMIN TU / KAJUR   --}}
+            {{-- MENU ADMIN TU --}}
             {{-- ======================== --}}
             @elseif(auth()->user()->role != 'MANAJEMEN')
 
