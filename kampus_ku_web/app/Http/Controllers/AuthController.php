@@ -38,7 +38,7 @@ class AuthController extends Controller
             } elseif ($user->role === 'TIM_PENJADWALAN') {
                 return redirect('/penjadwalan/dashboard');
             } elseif ($user->role === 'ADMIN_TU') {
-                return redirect('/jurusan/admin/dashboard');
+                return redirect('/jurusan/announcements');
             }
 
             // Cegah role lain login via web admin

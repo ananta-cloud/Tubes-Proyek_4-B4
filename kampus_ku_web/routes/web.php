@@ -27,6 +27,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Publikasi jadwal (FINAL → PUBLISHED) — Dikontrol RBAC di Controller/Policy
         Route::patch('/schedules/{id}/publish', [ScheduleController::class, 'publish']);
+
+        Route::get('/master-matkul', [MasterMatkulController::class, 'index'])->name('master-matkul.index');
     });
 
     // ==================================================
