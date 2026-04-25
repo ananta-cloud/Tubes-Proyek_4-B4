@@ -6,6 +6,6 @@
     <title>Document</title>
 </head>
 <body>
-    <h1>dashboard admin TU</h1>
+    <h1>dashboard manajemen</h1>
 </body>
 </html>

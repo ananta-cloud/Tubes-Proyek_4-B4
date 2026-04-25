@@ -9,6 +9,25 @@ use Illuminate\Support\Facades\Auth;
 
 class AnnouncementController extends Controller
 {
+    public function index()
+    {
+        $user = Auth::user();
+
+        // Filter pengumuman berdasarkan role
+        if ($user->role === 'MANAJEMEN') {
+            // Manajemen lihat semua pengumuman UMUM
+            $announcements = Announcement::where('target_audience', 'UMUM')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            // Admin TU lihat pengumuman by jurusan
+            $announcements = Announcement::where('id_jurusan', $user->id_jurusan)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        return view('admin.dashboard', compact('announcements'));
+    }
     /**
      * MUST HAVE DOCX: Publikasi Pengumuman (Manajemen vs Jurusan)
      */
