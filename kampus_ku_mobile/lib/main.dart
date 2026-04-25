@@ -1,9 +1,33 @@
 import 'package:flutter/material.dart';
-import 'features/auth/presentation/pages/login_page.dart';
-import 'features/auth/data/services/schedule_service.dart';
+import 'presentation/pages/login_page.dart';
+import 'data/services/schedule_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'data/models/schedule_local_model.dart';
+import 'data/models/announcement_model.dart';
+import 'package:provider/provider.dart';
+import 'controller/schedule_controller.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+
+  Hive.registerAdapter(ScheduleLocalModelAdapter());
+  Hive.registerAdapter(AnnouncementModelAdapter());
+
+  await Hive.openBox<ScheduleLocalModel>('schedules');
+  await Hive.openBox<AnnouncementModel>('announcements');
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => ScheduleController(ScheduleService()),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
