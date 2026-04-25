@@ -20,14 +20,15 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScheduleController>().syncSchedules();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<ScheduleController>();
+
     return Scaffold(
       extendBody: true, // 🔥 biar navbar floating
       backgroundColor: bgColor,
@@ -41,7 +42,12 @@ class _HomePageState extends State<HomePage> {
                 child: IndexedStack(
                   key: ValueKey(currentIndex),
                   index: currentIndex,
-                  children: [_home(), _schedule(), _tasks(), _bookmark()],
+                  children: [
+                    _home(controller),
+                    _schedule(controller),
+                    _tasks(),
+                    _bookmark(),
+                  ],
                 ),
               ),
             ),
@@ -134,7 +140,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ================= HOME =================
-  Widget _home() {
+  Widget _home(ScheduleController controller) {
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -154,7 +160,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 20),
 
-        _schedulePreviewCard(),
+        _schedulePreviewCard(controller),
 
         const SizedBox(height: 25),
 
@@ -191,10 +197,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _schedulePreviewCard() {
-    final controller = context
-        .watch<ScheduleController>(); // 👈 TAMBAH JUGA DI SINI
-
+  Widget _schedulePreviewCard(ScheduleController controller) {
     if (controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -293,8 +296,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ================= SCHEDULE =================
-  Widget _schedule() {
-    final controller = context.watch<ScheduleController>();
+  Widget _schedule(ScheduleController controller) {
+    //  LOADING STATE
+    if (controller.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    //  EMPTY STATE
+    if (controller.schedules.isEmpty) {
+      return const Center(
+        child: Text("Tidak ada jadwal", style: TextStyle(fontSize: 16)),
+      );
+    }
+
+    //  DATA STATE
+    final schedules = controller.schedules;
+
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -307,7 +324,9 @@ class _HomePageState extends State<HomePage> {
             color: darkText,
           ),
         ),
+
         const SizedBox(height: 20),
+
         Row(
           children: [
             _day("Senin", "18", true),
@@ -316,9 +335,10 @@ class _HomePageState extends State<HomePage> {
             _day("Kamis", "21", false),
           ],
         ),
+
         const SizedBox(height: 20),
 
-        ...controller.schedules.map((s) {
+        ...schedules.map((s) {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(14),
