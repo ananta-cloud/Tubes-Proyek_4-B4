@@ -6,9 +6,10 @@ use MongoDB\Laravel\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
 
-class User extends Model implements AuthenticatableContract
+class User extends Model implements AuthenticatableContract, JWTSubject
 {
     use Authenticatable, Notifiable;
 
