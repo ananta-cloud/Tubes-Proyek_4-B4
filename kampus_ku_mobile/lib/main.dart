@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/data/services/schedule_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'features/auth/data/models/schedule_local_model.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+
+  Hive.registerAdapter(ScheduleLocalModelAdapter());
+
+  await Hive.openBox<ScheduleLocalModel>('schedules');
+
   runApp(const MyApp());
 }
 
