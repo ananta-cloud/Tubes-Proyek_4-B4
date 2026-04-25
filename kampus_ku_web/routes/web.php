@@ -23,7 +23,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/announcements',               [AnnouncementController::class, 'store'])->name('announcements.store');
         Route::delete('/announcements/{id}',        [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
         Route::get('/master-matkul', [MasterMatkulController::class, 'index']);
-        
+
         // Finalisasi jadwal (DRAFT → FINAL)
         Route::get('/schedules', [ScheduleController::class, 'index']);
         Route::patch('/schedules/{id}/finalize', [ScheduleController::class, 'finalize']);
@@ -62,8 +62,17 @@ Route::middleware(['auth'])->group(function () {
     // ==================================================
     // RUTE MANAJEMEN KAMPUS
     // ==================================================
-    Route::middleware(['role:MANAJEMEN'])->prefix('manajemen')->group(function () {
-        Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::middleware(['auth', 'role:MANAJEMEN'])->prefix('manajemen')->name('manajemen.')->group(function () {
+
+        // Dashboard & Arsip
+        Route::get('/dashboard', [AnnouncementController::class, 'index'])->name('dashboard');
+
+        // CRUD Pengumuman
+        Route::resource('announcements', AnnouncementController::class)->except(['index']);
+
+        // Fitur Tambahan (Read Confirmation & Helper)
+        Route::get('/announcements/{id}/details', [AnnouncementController::class, 'show'])->name('announcements.show');
+        Route::post('/announcements/{id}/broadcast', [AnnouncementController::class, 'broadcast'])->name('announcements.broadcast');
     });
 
 });
