@@ -28,7 +28,6 @@ class Announcement extends Model
     protected $casts = [
         'read_by_users' => 'array',
 
-        'kategori' => 'array',
         'target_angkatan' => 'array',
 
         'created_at' => 'datetime',
@@ -61,4 +60,25 @@ class Announcement extends Model
         'FASILITAS',
         'LAINNYA'
     ];
+
+    public function getKategoriAttribute($value): array
+    {
+        if (is_array($value)) return $value;
+        if (is_string($value)) return json_decode($value, true) ?? [];
+        return [];
+    }
+
+    public function getReadByUsersAttribute($value): array
+    {
+        if (is_array($value)) return $value;
+        if (is_string($value)) return json_decode($value, true) ?? [];
+        return [];
+    }
+
+    public function getTargetAngkatanAttribute($value): array
+    {
+        if (is_array($value)) return $value;
+        if (is_string($value)) return json_decode($value, true) ?? [];
+        return [];
+    }
 }
