@@ -32,8 +32,6 @@ dependencies:
     sdk: flutter
 
   flutter_dotenv: ^6.0.0
-  mongo_dart: 0.10.0
-  mongo_dart_query: 5.0.3
   intl: ^0.20.2
   connectivity_plus: ^7.0.0
   hive: ^2.2.3
