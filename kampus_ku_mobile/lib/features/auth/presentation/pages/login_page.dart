@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../data/repositories/auth_repository.dart';
-import 'home_page.dart';
+
+// PASTIKAN KEDUA IMPORT INI MENGARAH KE FILE YANG BENAR
+import 'home_page.dart'; // File Mahasiswa
+import 'package:kampus_ku_mobile/features/dosen/dosen_main_page.dart'; // File Dosen
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,6 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   void login() async {
     setState(() => isLoading = true);
 
+    // Proses request login ke backend
     final user = await authRepo.login(
       emailController.text,
       passwordController.text,
@@ -28,18 +32,43 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = false);
 
     if (user != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login sukses: ${user.nama}")),
       );
+
+      // ==================================================
+      // 🔥 LOGIKA PERCABANGAN ROLE NAVIGASI
+      // ==================================================
+      // Catatan: Pastikan string 'MAHASISWA' atau 'DOSEN' sesuai dengan 
+      // data yang dikembalikan oleh API / Database Anda.
+      
+      String userRole = user.role?.toUpperCase() ?? '';
+
+      if (userRole == 'MAHASISWA') {
+        // Jika Mahasiswa, pergi ke HomePage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      } else if (userRole == 'DOSEN' || userRole == 'KAJUR') {
+        // Jika Dosen / Kajur, pergi ke DosenMainPage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DosenMainPage()),
+        );
+      } else {
+        // Jika Role tidak dikenali, arahkan ke default (misal Mahasiswa)
+        // atau munculkan error.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      }
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Login gagal"),
+          content: Text("Login gagal, periksa email & password!"),
           behavior: SnackBarBehavior.floating,
           margin: EdgeInsets.fromLTRB(16, 0, 16, 110),
         ),
@@ -51,7 +80,6 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // 🔥 GRADIENT BACKGROUND
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFEEF2FF), Color(0xFFDCE6FF)],
@@ -82,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       SizedBox(height: 5),
                       Text(
-                        "Portal Akademik Mahasiswa",
+                        "Portal Akademik Terpadu", // Diganti agar general
                         style: TextStyle(color: Colors.grey),
                       ),
                     ],
