@@ -93,9 +93,9 @@
             {{-- ======================== --}}
             @else
 
-            <a href="{{ url('/manajemen/announcements') }}"
+            <a href="{{ route('manajemen.dashboard') }}"
                class="w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition
-                      {{ request()->is('manajemen/announcements*') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
+                      {{ request()->routeIs('manajemen.dashboard') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
                 <i class="fas fa-bullhorn w-5 text-center"></i> Pengumuman
                 <span class="ml-auto bg-yellow-400 text-indigo-900 text-[10px] font-bold px-2 py-0.5 rounded-full">Umum</span>
             </a>
