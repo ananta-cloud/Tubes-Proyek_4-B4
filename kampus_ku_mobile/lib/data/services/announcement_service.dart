@@ -1,25 +1,19 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:kampus_ku_mobile/core/network/api_client.dart';
 import '../models/announcement_model.dart';
 
 class AnnouncementService {
-  // Ganti IP ini dengan IP laptop kamu jika menggunakan HP fisik, 
-  // atau 10.0.2.2 jika menggunakan Emulator Android
-  final String baseUrl = "http://10.0.2.2:8000/api"; 
-
-  Future<List<AnnouncementModel>> fetchAnnouncements() async {
+  Future<List<AnnouncementModel>> getAnnouncements() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/announcements'));
+      // Konsisten menggunakan ApiClient seperti ScheduleService
+      final res = await ApiClient.get("/announcements");
+      
+      // Jika response dari Laravel dibungkus dalam key 'data'
+      final List<dynamic> list = res['data'] ?? res; 
 
-      if (response.statusCode == 200) {
-        List jsonResponse = json.decode(response.body);
-        return jsonResponse.map((data) => AnnouncementModel.fromJson(data)).toList();
-      } else {
-        throw Exception('Gagal memuat data dari server');
-      }
+      return list.map((item) => AnnouncementModel.fromJson(item)).toList();
     } catch (e) {
-      print("Error Service: $e");
-      return [];
+      print("Error AnnouncementService: $e");
+      rethrow;
     }
   }
 }

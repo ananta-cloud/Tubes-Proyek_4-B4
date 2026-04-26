@@ -4,6 +4,8 @@ import 'package:kampus_ku_mobile/controller/schedule_controller.dart';
 import 'package:kampus_ku_mobile/controller/announcement_controller.dart';
 import 'package:kampus_ku_mobile/data/repositories/announcement_repository.dart';
 import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
+import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
+import 'package:kampus_ku_mobile/presentation/pages/announcement_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,7 +17,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
 
-  late final AnnouncementController _controller;
+  late final AnnouncementController _announcementController;
 
   final primaryBlue = const Color(0xFF3F5DB3);
   final accentOrange = const Color(0xFFFF7A36);
@@ -26,8 +28,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    final repository = AnnouncementRepository();
-    _controller = AnnouncementController(repository: repository);
+    final repo = AnnouncementRepository();
+    final service = AnnouncementService();
+    
+    // Hubungkan ke controller
+    _announcementController = AnnouncementController(service);
+    // final repository = AnnouncementRepository();
+    // _controller = AnnouncementController(repository: repository);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScheduleController>().syncSchedules();
@@ -36,7 +43,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _announcementController.dispose();
     super.dispose();
   }
 
@@ -157,7 +164,7 @@ class _HomePageState extends State<HomePage> {
   // ================= HOME =================
   Widget _home(ScheduleController controller) {
     return ListenableBuilder(
-      listenable: _controller,
+      listenable: _announcementController,
       builder: (context, _) {
         return ListView(
           children: [
@@ -199,41 +206,25 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 10),
 
-            Row(
-              children: _controller.filters.map((namaFilter) {
-                return GestureDetector(
-                  onTap: () => _controller.setFilter(namaFilter),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: _chip(
-                      namaFilter,
-                      _controller.selectedFilter ==
-                          namaFilter, // Aktif jika sama dengan filter yang dipilih
-                    ),
-                  ),
-                );
-              }).toList(),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _announcementController.filters.map((filter) {
+                  return GestureDetector(
+                    onTap: () => _announcementController.setFilter(filter),
+                    child: _chip(filter, _announcementController.selectedFilter == filter),
+                  );
+                }).toList(),
+              ),
             ),
 
             const SizedBox(height: 10),
 
-            if (_controller.announcements.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Center(
-                  child: Text(
-                    "Belum ada pengumuman.",
-                    style: TextStyle(color: darkText),
-                  ),
-                ),
-              ),
-
-            // Menggambar pengumuman sebanyak data yang ada di controller
-            ..._controller.announcements.map((pengumuman) {
-              // Karena data pengumuman dinamis, kamu perlu memodifikasi fungsi _announcement
-              // agar menerima objek AnnouncementModel, bukan cuma boolean.
-              return _announcement(pengumuman);
-            }),
+            // Daftar Pengumuman Dinamis
+            if (_announcementController.isLoading && _announcementController.announcements.isEmpty)
+              const Center(child: CircularProgressIndicator())
+            else
+              ..._announcementController.announcements.map((data) => _announcement(data)).toList(),
 
             const SizedBox(height: 80),
           ],
@@ -351,13 +342,13 @@ class _HomePageState extends State<HomePage> {
 
     return GestureDetector(
       onTap: () {
-        // // Navigasi ke halaman detail
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => AnnouncementDetailPage(announcement: data),
-        //   ),
-        // );
+        // Navigasi ke halaman detail
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AnnouncementDetailPage(announcement: data),
+          ),
+        );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),
