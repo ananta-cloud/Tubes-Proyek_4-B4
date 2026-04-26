@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../schedule/presentation/pages/home_page.dart';
+import '../../../dosen/dosen_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -28,14 +29,20 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = false);
 
     if (user != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login sukses: ${user.nama}"))
       );
+      if (user.role?.toUpperCase() == 'DOSEN') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DosenMainPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
