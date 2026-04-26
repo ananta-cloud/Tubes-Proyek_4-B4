@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:kampus_ku_mobile/features/announcements/data/models/announcement_local_model.dart';
-import 'detail_announcement_page.dart';
+import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
+import 'announcement_detail_page.dart';
 
 class BookmarksAnnouncementPage extends StatelessWidget {
   const BookmarksAnnouncementPage({super.key});
@@ -21,8 +21,8 @@ class BookmarksAnnouncementPage extends StatelessWidget {
         const SizedBox(height: 20),
         Expanded(
           child: ValueListenableBuilder(
-            valueListenable: Hive.box<AnnouncementLocalModel>('bookmarks').listenable(),
-            builder: (context, Box<AnnouncementLocalModel> box, _) {
+            valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
+            builder: (context, Box<AnnouncementModel> box, _) {
               final bookmarks = box.values.toList();
 
               if (bookmarks.isEmpty) {
@@ -54,7 +54,7 @@ class BookmarksAnnouncementPage extends StatelessWidget {
     );
   }
 
-  Widget _bookmarkItem(BuildContext context, AnnouncementLocalModel ann, Box box) {
+  Widget _bookmarkItem(BuildContext context, AnnouncementModel ann, Box box) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -70,7 +70,7 @@ class BookmarksAnnouncementPage extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => DetailAnnouncementPage(announcement: ann)),
+              MaterialPageRoute(builder: (context) => AnnouncementDetailPage(announcement: ann)),
             );
           },
           child: Padding(

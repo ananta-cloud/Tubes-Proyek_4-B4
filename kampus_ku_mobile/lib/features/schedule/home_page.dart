@@ -5,10 +5,10 @@ import 'package:kampus_ku_mobile/controller/announcement_controller.dart';
 import 'package:kampus_ku_mobile/data/repositories/announcement_repository.dart';
 import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
 import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
-import 'package:kampus_ku_mobile/presentation/pages/announcement_detail_page.dart';
+import 'package:kampus_ku_mobile/features/announcements/announcement_detail_page.dart';
 import 'package:kampus_ku_mobile/controller/task_controller.dart';
 import 'package:kampus_ku_mobile/data/models/task_model.dart';
-import 'package:kampus_ku_mobile/presentation/pages/task_page.dart';
+import 'package:kampus_ku_mobile/features/reminder_task/task_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

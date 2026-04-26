@@ -8,7 +8,7 @@ part of 'announcement_model.dart';
 
 class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
   @override
-  final int typeId = 0;
+  final int typeId = 2;
 
   @override
   AnnouncementModel read(BinaryReader reader) {
@@ -24,13 +24,14 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       namaPublisher: fields[4] as String,
       kategori: (fields[5] as List).cast<String>(),
       createdAt: fields[6] as DateTime,
+      isImportant: fields[7] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, AnnouncementModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       ..writeByte(5)
       ..write(obj.kategori)
       ..writeByte(6)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(7)
+      ..write(obj.isImportant);
   }
 
   @override

@@ -1,29 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:kampus_ku_mobile/features/announcements/data/models/announcement_local_model.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+// Sesuaikan path import jika berbeda
+import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
 
-class DetailAnnouncementPage extends StatefulWidget {
-  final AnnouncementLocalModel announcement;
+class AnnouncementDetailPage extends StatefulWidget {
+  final AnnouncementModel announcement;
 
-  const DetailAnnouncementPage({super.key, required this.announcement});
+  const AnnouncementDetailPage({super.key, required this.announcement});
 
   @override
-  State<DetailAnnouncementPage> createState() => _DetailAnnouncementPageState();
+  State<AnnouncementDetailPage> createState() => _AnnouncementDetailPageState();
 }
 
-class _DetailAnnouncementPageState extends State<DetailAnnouncementPage> {
+class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
   final Color primaryBlue = const Color(0xFF3F5DB3);
   final Color accentOrange = const Color(0xFFFF7A36);
   final Color darkText = const Color(0xFF1F1F3D);
 
-  late Box<AnnouncementLocalModel> bookmarkBox;
+  late Box<AnnouncementModel> bookmarkBox;
   bool isBookmarked = false;
 
   @override
   void initState() {
     super.initState();
     // Membuka box bookmarks
-    bookmarkBox = Hive.box<AnnouncementLocalModel>('bookmarks');
+    bookmarkBox = Hive.box<AnnouncementModel>('bookmarks');
     _checkBookmarkStatus();
   }
 
@@ -36,12 +37,22 @@ class _DetailAnnouncementPageState extends State<DetailAnnouncementPage> {
   void _toggleBookmark() async {
     if (isBookmarked) {
       await bookmarkBox.delete(widget.announcement.id);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Dihapus dari Tersimpan")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Dihapus dari Tersimpan")));
+      }
     } else {
       await bookmarkBox.put(widget.announcement.id, widget.announcement);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil Disimpan!")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil Disimpan!")));
+      }
     }
     _checkBookmarkStatus();
+  }
+
+  // Fungsi mengubah DateTime menjadi String tanggal
+  String _formatDate(DateTime dt) {
+    const months = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
 
   @override
@@ -58,7 +69,8 @@ class _DetailAnnouncementPageState extends State<DetailAnnouncementPage> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border, color: Colors.white),
+            // Warna icon berubah jadi oranye jika disave
+            icon: Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border, color: isBookmarked ? accentOrange : Colors.white),
             onPressed: _toggleBookmark,
           )
         ],
@@ -97,13 +109,15 @@ class _DetailAnnouncementPageState extends State<DetailAnnouncementPage> {
                       ],
                     ),
                   ),
-                  Text(ann.tanggal, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  // 🔥 Menggunakan fungsi helper untuk format DateTime
+                  Text(_formatDate(ann.createdAt), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 20),
               Text(ann.judul, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: darkText)),
               const SizedBox(height: 12),
-              Text("Target: ${ann.kategori}", style: const TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+              // 🔥 Menggunakan .join() karena kategori adalah List<String>
+              Text("Kategori: ${ann.kategori.isNotEmpty ? ann.kategori.join(', ') : 'Umum'}", style: const TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
               const SizedBox(height: 20),
               const Divider(color: Color(0xFFEAF3FA), thickness: 2),
               const SizedBox(height: 20),

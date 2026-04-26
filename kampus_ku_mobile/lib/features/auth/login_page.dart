@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kampus_ku_mobile/data/repositories/auth_repository.dart';
-import 'package:kampus_ku_mobile/presentation/pages/home_page.dart';
+import 'package:kampus_ku_mobile/features/schedule/home_page.dart';
 import 'package:kampus_ku_mobile/features/dosen/dosen_main_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -58,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // 🔥 GRADIENT BACKGROUND
+        // GRADIENT BACKGROUND
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFEEF2FF), Color(0xFFDCE6FF)],
