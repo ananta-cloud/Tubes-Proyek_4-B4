@@ -8,10 +8,30 @@ import '../data/services/schedule_service.dart';
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;
 
-  List<ScheduleLocalModel> schedules = [];
-  bool isLoading = false;
-
   ScheduleController(this.service);
+
+  // ─── State ───────────────────────────────────────
+  List<ScheduleLocalModel> schedules = [];
+  List<ScheduleLocalModel> recentSchedules = [];
+
+  bool isLoading = false;
+  String? errorMsg;
+
+  // Stats
+  int countDraft = 0;
+  int countFinal = 0;
+  int countPublished = 0;
+  int total = 0;
+  int pendingRequests = 0;
+
+  // Filter state
+  String? filterHari;
+  String? filterStatus;
+  String? filterTipe;
+  String searchQuery = '';
+
+  // Collision result
+  Map<String, dynamic>? collisionDetail;
 
   Future<void> syncSchedules() async {
     isLoading = true;
@@ -33,7 +53,9 @@ class ScheduleController extends ChangeNotifier {
 
     // ================= ONLINE MODE =================
     try {
-      final List<Map<String, dynamic>> list = await service.getSchedules();
+      final List<Map<String, dynamic>> list = await service.getSchedules(
+        idJurusan: '12345',
+      );
 
       print("DATA FROM API: ${list.length}");
 
@@ -62,76 +84,216 @@ class ScheduleController extends ChangeNotifier {
 
   // ================= KHUSUS TIM PENJADWALAN =================
 
-  // Fungsi untuk Input Jadwal Baru
-  Future<bool> createSchedule(Map<String, dynamic> data) async {
-    isLoading = true;
+  /// Load jadwal + stats. idJurusan dari user yang login.
+  Future<void> loadSchedules(String idJurusan) async {
+    _setLoading(true);
+    collisionDetail = null;
+
+    try {
+      final raw = await service.getSchedules(
+        idJurusan: idJurusan,
+        hari: filterHari,
+        status: filterStatus,
+        tipe: filterTipe,
+        search: searchQuery.isEmpty ? null : searchQuery,
+      );
+
+      schedules = raw.map((e) => ScheduleLocalModel.fromJson(e)).toList();
+
+      // Simpan ke Hive sebagai cache
+      final box = Hive.box<ScheduleLocalModel>('schedules');
+      await box.clear();
+      for (final s in schedules) {
+        await box.put(s.id, s);
+      }
+
+      await _loadStats(idJurusan);
+    } catch (e) {
+      errorMsg = e.toString();
+      // Fallback ke Hive
+      final box = Hive.box<ScheduleLocalModel>('schedules');
+      schedules = box.values.toList();
+    }
+
+    _setLoading(false);
+  }
+
+  /// Load data khusus dashboard (stats + 5 jadwal terbaru).
+  Future<void> loadDashboard(String idJurusan) async {
+    _setLoading(true);
+
+    try {
+      await _loadStats(idJurusan);
+
+      final raw = await service.getRecentSchedules(idJurusan);
+      recentSchedules = raw.map((e) => ScheduleLocalModel.fromJson(e)).toList();
+    } catch (e) {
+      errorMsg = e.toString();
+    }
+
+    _setLoading(false);
+  }
+
+  Future<void> _loadStats(String idJurusan) async {
+    final stats = await service.getStatusCounts(idJurusan);
+    countDraft = stats['draft'] ?? 0;
+    countFinal = stats['final'] ?? 0;
+    countPublished = stats['published'] ?? 0;
+    total = stats['total'] ?? 0;
+  }
+
+  // ─────────────────────────────────────────────────
+  // FILTER & SEARCH
+  // ─────────────────────────────────────────────────
+
+  void setFilter({String? hari, String? status, String? tipe}) {
+    filterHari = hari;
+    filterStatus = status;
+    filterTipe = tipe;
     notifyListeners();
-
-    try {
-      // Panggil service untuk POST ke Laravel
-      await service.postSchedule(data);
-
-      // Setelah berhasil simpan, sinkronisasi ulang agar data lokal terupdate
-      await syncSchedules();
-      return true;
-    } catch (e) {
-      print("Error Create Schedule: $e");
-      return false;
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
   }
 
-  // Fungsi untuk Update Jadwal (Edit)
-  Future<bool> updateSchedule(String id, Map<String, dynamic> data) async {
-    isLoading = true;
+  void setSearch(String q) {
+    searchQuery = q;
     notifyListeners();
+  }
 
-    try {
-      await service.putSchedule(id, data);
-      await syncSchedules();
-      return true;
-    } catch (e) {
-      print("Error Update Schedule: $e");
-      return false;
-    } finally {
-      isLoading = false;
+  void clearFilter() {
+    filterHari = null;
+    filterStatus = null;
+    filterTipe = null;
+    searchQuery = '';
+    notifyListeners();
+  }
+
+  // ─────────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────────
+
+  /// Return true jika berhasil, false jika collision.
+  Future<bool> createSchedule({
+    required String idJurusan,
+    required String idProdi,
+    required String idMk,
+    required String namaMk,
+    required String kodeMk,
+    required String idPeriode,
+    required String tipe,
+    required String hari,
+    required String jamMulai,
+    required String jamSelesai,
+    required String ruangan,
+    required String namaDosen,
+  }) async {
+    collisionDetail = null;
+
+    // Cek collision dulu
+    final conflict = await service.detectCollision(
+      hari: hari,
+      jamMulai: jamMulai,
+      jamSelesai: jamSelesai,
+      ruangan: ruangan,
+      namaDosen: namaDosen,
+      namaMk: namaMk,
+    );
+
+    if (conflict != null) {
+      collisionDetail = conflict;
       notifyListeners();
-    }
-  }
-
-  // Fungsi untuk Finalisasi (DRAFT -> FINAL)
-  Future<bool> finalizeSchedule(String id) async {
-    try {
-      await service.patchFinalize(id);
-      await syncSchedules();
-      return true;
-    } catch (e) {
       return false;
     }
+
+    final success = await service.createSchedule({
+      'id_mk': idMk,
+      'nama_mk': namaMk,
+      'kode_mk': kodeMk,
+      'id_prodi': idProdi,
+      'id_jurusan': idJurusan,
+      'id_periode': idPeriode,
+      'tipe': tipe,
+      'hari': hari,
+      'jam_mulai': jamMulai,
+      'jam_selesai': jamSelesai,
+      'ruangan': ruangan,
+      'nama_dosen': namaDosen,
+    });
+
+    if (success) await loadSchedules(idJurusan);
+    return success;
   }
 
-  // Fungsi untuk Approve Request Perubahan dari Dosen
-  Future<bool> approveRequest(String requestId, String? catatan) async {
-    try {
-      await service.patchApproveRequest(requestId, catatan);
-      await syncSchedules(); // Sinkron karena jadwal asli ikut berubah
-      return true;
-    } catch (e) {
+  // ─────────────────────────────────────────────────
+  // UPDATE
+  // ─────────────────────────────────────────────────
+
+  Future<bool> updateSchedule({
+    required String id,
+    required String idJurusan,
+    required String namaMk,
+    required String tipe,
+    required String hari,
+    required String jamMulai,
+    required String jamSelesai,
+    required String ruangan,
+    required String namaDosen,
+  }) async {
+    collisionDetail = null;
+
+    final conflict = await service.detectCollision(
+      hari: hari,
+      jamMulai: jamMulai,
+      jamSelesai: jamSelesai,
+      ruangan: ruangan,
+      namaDosen: namaDosen,
+      namaMk: namaMk,
+      excludeId: id,
+    );
+
+    if (conflict != null) {
+      collisionDetail = conflict;
+      notifyListeners();
       return false;
     }
+
+    final success = await service.updateSchedule(id, {
+      'tipe': tipe,
+      'hari': hari,
+      'jam_mulai': jamMulai,
+      'jam_selesai': jamSelesai,
+      'ruangan': ruangan,
+      'nama_dosen': namaDosen,
+    });
+
+    if (success) await loadSchedules(idJurusan);
+    return success;
   }
 
-  // Fungsi untuk Reject Request
-  Future<bool> rejectRequest(String requestId, String alasan) async {
-    try {
-      await service.patchRejectRequest(requestId, alasan);
-      return true;
-    } catch (e) {
-      return false;
-    }
+  // ─────────────────────────────────────────────────
+  // FINALIZE
+  // ─────────────────────────────────────────────────
+
+  Future<bool> finalizeSchedule(String id, String idJurusan) async {
+    final success = await service.finalizeSchedule(id);
+    if (success) await loadSchedules(idJurusan);
+    return success;
   }
 
-  bool checkCollision(ScheduleLocalModel newJadwal) {}
+  // ─────────────────────────────────────────────────
+  // HELPER
+  // ─────────────────────────────────────────────────
+
+  void _setLoading(bool val) {
+    isLoading = val;
+    notifyListeners();
+  }
+
+  void clearError() {
+    errorMsg = null;
+    notifyListeners();
+  }
+
+  void clearCollision() {
+    collisionDetail = null;
+    notifyListeners();
+  }
 }
