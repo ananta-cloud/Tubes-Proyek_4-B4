@@ -77,7 +77,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [AnnouncementController::class, 'index'])->name('dashboard');
 
         // CRUD Pengumuman
-        Route::resource('announcements', AnnouncementController::class)->except(['index']);
+        Route::resource('announcements', AnnouncementController::class);
 
         // Fitur Tambahan (Read Confirmation & Helper)
         Route::get('/announcements/{id}/details', [AnnouncementController::class, 'show'])->name('announcements.show');
