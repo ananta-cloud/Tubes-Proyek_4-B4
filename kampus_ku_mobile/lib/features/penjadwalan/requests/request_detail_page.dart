@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_ku_mobile/theme/app_colors.dart';
 
 class RequestDetailPage extends StatelessWidget {
   const RequestDetailPage({super.key});
@@ -28,7 +29,7 @@ class RequestDetailPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: AppColors.slate500,
               ),
             ),
             const SizedBox(height: 10),
@@ -36,7 +37,7 @@ class RequestDetailPage extends StatelessWidget {
               "Jadwal Saat Ini",
               "Senin, 08:00 - 10:00",
               "GK-301",
-              Colors.grey,
+              AppColors.slate500,
             ),
             const Center(
               child: Icon(Icons.arrow_downward, color: Colors.indigo, size: 20),
@@ -74,7 +75,7 @@ class RequestDetailPage extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.lightGreenAccent,
+                      backgroundColor: AppColors.emerald700,
                     ),
                     child: const Text(
                       "APPROVE",
@@ -117,7 +118,7 @@ class RequestDetailPage extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
-              color: Colors.grey,
+              color: AppColors.slate500,
             ),
           ),
           const SizedBox(height: 5),

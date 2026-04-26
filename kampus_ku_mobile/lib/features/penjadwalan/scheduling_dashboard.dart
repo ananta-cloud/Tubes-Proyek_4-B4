@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 
 // 1. Ganti menjadi StatefulWidget agar bisa ganti-ganti menu (currentIndex)
 class SchedulingDashboard extends StatefulWidget {
@@ -11,13 +12,12 @@ class SchedulingDashboard extends StatefulWidget {
 class _SchedulingDashboardState extends State<SchedulingDashboard> {
   // Pindahkan variabel state ke sini
   int currentIndex = 0;
-  final Color primaryBlue = const Color(0xFF4338CA); // Indigo-700
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // PENTING: Supaya navbar melayang tidak menabrak konten
-      backgroundColor: const Color(0xFFF8FAFC), // Slate-50
+      extendBody: true,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
           "Dashboard Tim Penjadwalan",
@@ -63,10 +63,10 @@ class _SchedulingDashboardState extends State<SchedulingDashboard> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.5,
             children: [
-              _buildStatCard("TOTAL JADWAL", "42", Colors.grey),
-              _buildStatCard("DRAFT", "12", Colors.grey),
+              _buildStatCard("TOTAL JADWAL", "42", AppColors.slate400),
+              _buildStatCard("DRAFT", "12", AppColors.slate400),
               _buildStatCard("FINAL", "15", Colors.amber),
-              _buildStatCard("PUBLISHED", "15", Colors.lightGreenAccent),
+              _buildStatCard("PUBLISHED", "15", AppColors.emerald700),
             ],
           ),
           const SizedBox(height: 20),
@@ -216,7 +216,7 @@ class _SchedulingDashboardState extends State<SchedulingDashboard> {
               minHeight: 8,
               backgroundColor: Colors.grey[100],
               valueColor: const AlwaysStoppedAnimation<Color>(
-                Colors.lightGreenAccent,
+                AppColors.emerald700,
               ),
             ),
           ),
@@ -292,13 +292,13 @@ class _SchedulingDashboardState extends State<SchedulingDashboard> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.lightGreenAccent[50],
+                    color: AppColors.emerald200,
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: const Text(
                     "PUBLISHED",
                     style: TextStyle(
-                      color: Colors.lightGreenAccent,
+                      color: AppColors.emerald700,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
@@ -364,7 +364,9 @@ class _SchedulingDashboardState extends State<SchedulingDashboard> {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? primaryBlue.withOpacity(0.1) : Colors.transparent,
+          color: isActive
+              ? AppColors.indigo700.withOpacity(0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Stack(
@@ -376,7 +378,9 @@ class _SchedulingDashboardState extends State<SchedulingDashboard> {
                 Icon(
                   icon,
                   size: 24,
-                  color: isActive ? primaryBlue : const Color(0xFFB0B7C3),
+                  color: isActive
+                      ? AppColors.indigo700
+                      : const Color(0xFFB0B7C3),
                 ),
                 if (isActive)
                   Text(
@@ -384,7 +388,7 @@ class _SchedulingDashboardState extends State<SchedulingDashboard> {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: primaryBlue,
+                      color: AppColors.indigo700,
                     ),
                   ),
               ],
