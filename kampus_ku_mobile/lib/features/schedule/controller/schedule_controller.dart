@@ -59,4 +59,92 @@ class ScheduleController extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  // ================= KHUSUS TIM PENJADWALAN =================
+
+  // Fungsi untuk Input Jadwal Baru
+  Future<bool> createSchedule(Map<String, dynamic> data) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      // Panggil service untuk POST ke Laravel
+      await service.postSchedule(data);
+
+      // Setelah berhasil simpan, sinkronisasi ulang agar data lokal terupdate
+      await syncSchedules();
+      return true;
+    } catch (e) {
+      print("Error Create Schedule: $e");
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Fungsi untuk Update Jadwal (Edit)
+  Future<bool> updateSchedule(String id, Map<String, dynamic> data) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await service.putSchedule(id, data);
+      await syncSchedules();
+      return true;
+    } catch (e) {
+      print("Error Update Schedule: $e");
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Fungsi untuk Finalisasi (DRAFT -> FINAL)
+  Future<bool> finalizeSchedule(String id) async {
+    try {
+      await service.patchFinalize(id);
+      await syncSchedules();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Fungsi untuk Approve Request Perubahan dari Dosen
+  Future<bool> approveRequest(String requestId, String? catatan) async {
+    try {
+      await service.patchApproveRequest(requestId, catatan);
+      await syncSchedules(); // Sinkron karena jadwal asli ikut berubah
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Fungsi untuk Reject Request
+  Future<bool> rejectRequest(String requestId, String alasan) async {
+    try {
+      await service.patchRejectRequest(requestId, alasan);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool checkCollision(ScheduleLocalModel newJadwal) {
+    // Query langsung ke data yang ada di memori HP (yang sudah sinkron dengan Atlas)
+    final results = realm.all<ScheduleLocalModel>().query(
+      r'hari == $0 AND ruangan == $1 AND jam_mulai < $2 AND jam_selesai > $3',
+      [
+        newJadwal.hari,
+        newJadwal.ruangan,
+        newJadwal.jam_selesai,
+        newJadwal.jam_mulai,
+      ],
+    );
+
+    return results.isNotEmpty; // Jika ada isinya, berarti BENTROK
+  }
 }
