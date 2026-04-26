@@ -1,29 +1,17 @@
 import 'package:hive/hive.dart';
+import 'package:mongo_dart/mongo_dart.dart';
 
 part 'announcement_model.g.dart';
 
 @HiveType(typeId: 0)
 class AnnouncementModel extends HiveObject {
-  @HiveField(0)
-  final String id; // Dari _id MongoDB
-
-  @HiveField(1)
-  final String judul;
-
-  @HiveField(2)
-  final String isi;
-
-  @HiveField(3)
-  final String targetAudience; // Contoh: 'SEMUA_MAHASISWA', 'PRODI_MAHASISWA'
-
-  @HiveField(4)
-  final String namaPublisher; 
-
-  @HiveField(5)
-  final List<String> kategori; // Karena di Mongo berupa Array, di sini pakai List<String>
-
-  @HiveField(6)
-  final DateTime createdAt;
+  @HiveField(0) final String id;
+  @HiveField(1) final String judul;
+  @HiveField(2) final String isi;
+  @HiveField(3) final String targetAudience;
+  @HiveField(4) final String namaPublisher;
+  @HiveField(5) final List<String> kategori;
+  @HiveField(6) final DateTime createdAt;
 
   AnnouncementModel({
     required this.id,
@@ -35,41 +23,20 @@ class AnnouncementModel extends HiveObject {
     required this.createdAt,
   });
 
-  // Fungsi tambahan yang sangat berguna untuk mengubah JSON dari API Laravel menjadi Model Dart
-  // factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
-  //   return AnnouncementModel(
-  //     id: json['_id'] ?? '',
-  //     judul: json['judul'] ?? 'Tanpa Judul',
-  //     isi: json['isi'] ?? '',
-  //     targetAudience: json['target_audience'] ?? 'SEMUA',
-  //     namaPublisher: json['nama_publisher'] ?? 'Admin',
-  //     // Menangani array kategori dari JSON dengan aman
-  //     kategori: json['kategori'] != null ? List<String>.from(json['kategori']) : [],
-  //     // MongoDB biasanya mengirim tanggal dalam format ISO 8601
-  //     createdAt: json['created_at'] != null 
-  //         ? DateTime.parse(json['created_at']) 
-  //         : DateTime.now(),
-  //   );
-  // }
-  factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
-    // MongoDB _id bisa berupa String atau Map {"$oid": "..."}
-    String parseId(dynamic raw) {
-      if (raw == null) return DateTime.now().millisecondsSinceEpoch.toString();
-      if (raw is String) return raw;
-      if (raw is Map) return raw['\$oid'] ?? raw['oid'] ?? raw.toString();
-      return raw.toString();
-    }
-
+  // Format dari mongo_dart: _id adalah ObjectId, date adalah DateTime langsung
+  factory AnnouncementModel.fromMongo(Map<String, dynamic> map) {
     return AnnouncementModel(
-      id: parseId(json['_id']),
-      judul: json['judul'] ?? 'Tanpa Judul',
-      isi: json['isi'] ?? '',
-      targetAudience: json['target_audience'] ?? 'SEMUA',
-      namaPublisher: json['nama_publisher'] ?? 'Admin',
-      kategori: json['kategori'] != null ? List<String>.from(json['kategori']) : [],
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
+      id:             (map['_id'] as ObjectId).toHexString(),
+      judul:          map['judul'] ?? 'Tanpa Judul',
+      isi:            map['isi'] ?? '',
+      targetAudience: map['target_audience'] ?? 'SEMUA',
+      namaPublisher:  map['nama_publisher'] ?? 'Admin',
+      kategori:       map['kategori'] != null
+                        ? List<String>.from(map['kategori'])
+                        : [],
+      createdAt:      map['created_at'] != null
+                        ? map['created_at'] as DateTime
+                        : DateTime.now(),
     );
   }
 }

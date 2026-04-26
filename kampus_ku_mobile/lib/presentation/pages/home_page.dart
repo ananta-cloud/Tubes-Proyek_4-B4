@@ -6,6 +6,9 @@ import 'package:kampus_ku_mobile/data/repositories/announcement_repository.dart'
 import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
 import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
 import 'package:kampus_ku_mobile/presentation/pages/announcement_detail_page.dart';
+import 'package:kampus_ku_mobile/controller/task_controller.dart';
+import 'package:kampus_ku_mobile/data/models/task_model.dart';
+import 'package:kampus_ku_mobile/presentation/pages/task_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
 
   late final AnnouncementController _announcementController;
+  late final TaskController _taskController;
 
   final primaryBlue = const Color(0xFF3F5DB3);
   final accentOrange = const Color(0xFFFF7A36);
@@ -30,11 +34,9 @@ class _HomePageState extends State<HomePage> {
 
     final repo = AnnouncementRepository();
     final service = AnnouncementService();
-    
-    // Hubungkan ke controller
+
     _announcementController = AnnouncementController(service);
-    // final repository = AnnouncementRepository();
-    // _controller = AnnouncementController(repository: repository);
+    _taskController = TaskController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScheduleController>().syncSchedules();
@@ -212,7 +214,10 @@ class _HomePageState extends State<HomePage> {
                 children: _announcementController.filters.map((filter) {
                   return GestureDetector(
                     onTap: () => _announcementController.setFilter(filter),
-                    child: _chip(filter, _announcementController.selectedFilter == filter),
+                    child: _chip(
+                      filter,
+                      _announcementController.selectedFilter == filter,
+                    ),
                   );
                 }).toList(),
               ),
@@ -221,10 +226,13 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 10),
 
             // Daftar Pengumuman Dinamis
-            if (_announcementController.isLoading && _announcementController.announcements.isEmpty)
+            if (_announcementController.isLoading &&
+                _announcementController.announcements.isEmpty)
               const Center(child: CircularProgressIndicator())
             else
-              ..._announcementController.announcements.map((data) => _announcement(data)).toList(),
+              ..._announcementController.announcements
+                  .map((data) => _announcement(data))
+                  .toList(),
 
             const SizedBox(height: 80),
           ],
@@ -304,7 +312,7 @@ class _HomePageState extends State<HomePage> {
   //   final primaryBlue = const Color(0xFF3F5DB3);
   //   final accentOrange = const Color(0xFFFF7A36);
   //   final darkText = const Color(0xFF1F1F3D);
-    
+
   //   return Container(
   //     margin: const EdgeInsets.only(bottom: 12),
   //     padding: const EdgeInsets.all(14),
@@ -337,8 +345,8 @@ class _HomePageState extends State<HomePage> {
 
     // 2. Logika Warna Pengganti isImportant
     // Cek apakah di dalam array kategori terdapat tag tertentu yang dianggap penting
-    final bool isHighlight = data.kategori.contains('BEASISWA') || 
-                            data.kategori.contains('LOMBA');
+    final bool isHighlight =
+        data.kategori.contains('BEASISWA') || data.kategori.contains('LOMBA');
 
     return GestureDetector(
       onTap: () {
@@ -374,7 +382,9 @@ class _HomePageState extends State<HomePage> {
                 // ==========================================
                 Container(
                   width: 6,
-                  color: isHighlight ? accentOrange : primaryBlue.withOpacity(0.5),
+                  color: isHighlight
+                      ? accentOrange
+                      : primaryBlue.withOpacity(0.5),
                 ),
                 Expanded(
                   child: Padding(
@@ -389,14 +399,17 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 // Mengambil target_audience (cth: 'PRODI_MAHASISWA')
-                                data.targetAudience.replaceAll('_', ' '), 
+                                data.targetAudience.replaceAll('_', ' '),
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -406,7 +419,10 @@ class _HomePageState extends State<HomePage> {
                             ),
                             Text(
                               "${data.createdAt.day}/${data.createdAt.month}/${data.createdAt.year}",
-                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
@@ -435,7 +451,7 @@ class _HomePageState extends State<HomePage> {
                             spacing: 6, // Jarak antar tag
                             children: data.kategori.map((kat) {
                               return Text(
-                                "#$kat", 
+                                "#$kat",
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: accentOrange,
@@ -444,7 +460,7 @@ class _HomePageState extends State<HomePage> {
                               );
                             }).toList(),
                           ),
-                        
+
                         const SizedBox(height: 10),
 
                         // ==========================================
@@ -452,11 +468,18 @@ class _HomePageState extends State<HomePage> {
                         // ==========================================
                         Row(
                           children: [
-                            Icon(Icons.person, size: 14, color: Colors.grey.shade500),
+                            Icon(
+                              Icons.person,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               data.namaPublisher,
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
                             ),
                           ],
                         ),
@@ -580,44 +603,197 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ================= TASK =================
+  // Widget _tasks() {
+  //   return ListView(
+  //     physics: const BouncingScrollPhysics(),
+  //     padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+  //     children: [
+  //       Text(
+  //         "Reminder Tugas",
+  //         style: TextStyle(
+  //           fontSize: 22,
+  //           fontWeight: FontWeight.bold,
+  //           color: darkText,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 20),
+  //       _task("Selesaikan Proposal Proyek 4", "Besok"),
+  //       _task("Tugas UI/UX Figma", "Lusa"),
+  //     ],
+  //   );
+  // }
   Widget _tasks() {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: [
-        Text(
-          "Reminder Tugas",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: darkText,
-          ),
-        ),
-        const SizedBox(height: 20),
-        _task("Selesaikan Proposal Proyek 4", "Besok"),
-        _task("Tugas UI/UX Figma", "Lusa"),
-      ],
+    return ListenableBuilder(
+      listenable: _taskController,
+      builder: (context, _) {
+        final allTasks = _taskController.tasks;
+
+        return ListView(
+          physics: const NeverScrollableScrollPhysics(), // Scroll mengikuti layar utama
+          shrinkWrap: true, // Agar tidak bentrok dengan scroll utama
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Daftar Tugas",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: darkText,
+                  ),
+                ),
+                // Tombol Tambah Tugas Baru
+                IconButton(
+                  icon: Icon(Icons.add_circle, color: accentOrange, size: 28),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TaskPage(controller: _taskController), // Kirim null = Mode Baru
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            if (allTasks.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.task_alt, size: 50, color: Colors.grey.shade300),
+                      const SizedBox(height: 10),
+                      Text("Tidak ada tugas. Selamat bersantai!", style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              // Looping SELURUH data tugas
+              ...allTasks.map((task) => _taskItem(task)).toList(),
+          ],
+        );
+      },
     );
   }
 
-  Widget _task(String title, String deadline) {
+  // Widget _task(String title, String deadline) {
+  //   return Container(
+  //     margin: const EdgeInsets.only(bottom: 12),
+  //     padding: const EdgeInsets.all(14),
+  //     decoration: BoxDecoration(
+  //       color: Colors.white,
+  //       borderRadius: BorderRadius.circular(18),
+  //     ),
+  //     child: Row(
+  //       children: [
+  //         const Icon(Icons.check_box_outline_blank),
+  //         const SizedBox(width: 10),
+  //         Expanded(child: Text(title)),
+  //         Text(
+  //           deadline,
+  //           style: TextStyle(color: accentOrange, fontWeight: FontWeight.bold),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  // Desain Kartu Tugas Dinamis
+  Widget _taskItem(TaskModel task) {
+    bool isTerlambat = task.status == 'TERLAMBAT' || 
+                      (task.deadline.isBefore(DateTime.now()) && task.status == 'BELUM');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_box_outline_blank),
-          const SizedBox(width: 10),
-          Expanded(child: Text(title)),
-          Text(
-            deadline,
-            style: TextStyle(color: accentOrange, fontWeight: FontWeight.bold),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 5,
+            offset: const Offset(0, 3),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          // Klik kartu untuk membuka halaman EDIT
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TaskPage(
+                  controller: _taskController, 
+                  taskToEdit: task, // Kirim data tugas = Mode Edit
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => _taskController.toggleStatus(task),
+                  child: Icon(
+                    task.status == 'SELESAI' ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: task.status == 'SELESAI' ? Colors.green : accentOrange,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.namaTugas,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: task.status == 'SELESAI' ? Colors.grey : darkText,
+                          decoration: task.status == 'SELESAI' ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      if (task.namaMkSnapshot != null)
+                        Text(
+                          task.namaMkSnapshot!,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      "${task.deadline.day}/${task.deadline.month}/${task.deadline.year}",
+                      style: TextStyle(
+                        color: isTerlambat && task.status != 'SELESAI' ? Colors.red : primaryBlue, 
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (!task.isSynced)
+                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey)
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
