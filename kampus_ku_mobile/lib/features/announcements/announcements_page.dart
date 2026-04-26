@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:kampus_ku_mobile/features/announcements/controller/announcement_controller.dart';
-import 'package:kampus_ku_mobile/features/announcements/data/models/announcement_local_model.dart';
-import 'detail_announcement_page.dart';
+import 'package:kampus_ku_mobile/controller/announcement_controller.dart';
+import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
+import 'announcement_detail_page.dart';
 
 class AnnouncementPage extends StatefulWidget {
   const AnnouncementPage({super.key});
@@ -23,7 +23,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   @override
   void initState() {
     super.initState();
-    // Panggil sync dari API MongoDB saat halaman dibuka pertama kali
+    // Panggil sync dari API saat halaman dibuka pertama kali
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AnnouncementController>().syncAnnouncements();
     });
@@ -31,7 +31,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Column( 
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
@@ -85,24 +85,26 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Logika Filter
+              // 🔥 LOGIKA FILTER YANG SUDAH DIPERBAIKI
               final filtered = controller.announcements.where((ann) {
+                // 1. Pencarian Teks
                 final matchesSearch = ann.judul.toLowerCase().contains(searchQuery.toLowerCase()) || 
-                                     ann.isi.toLowerCase().contains(searchQuery.toLowerCase());
+                                      ann.isi.toLowerCase().contains(searchQuery.toLowerCase());
                 
-                // Filter Kategori
+                // 2. Filter Kategori / Target Audience
                 bool matchTarget = true;
-                String target = ann.kategori.toLowerCase();
+                String targetAudience = ann.targetAudience.toLowerCase();
+                String kategori = ann.kategori.join(' ').toLowerCase();
 
-                if (activeFilter == "Semua") {
-                  if (target.contains("mahasiswa") && !target.contains("dosen") && !target.contains("umum")) {
-                    matchTarget = false;
-                  }
-                } else if (activeFilter == "Dosen") {
-                  matchTarget = target.contains("dosen");
+                if (activeFilter == "Dosen") {
+                  // Cek apakah target audience ATAU kategorinya mengandung kata "dosen"
+                  matchTarget = targetAudience.contains("dosen") || kategori.contains("dosen");
                 } else if (activeFilter == "Jurusan") {
-                  matchTarget = target.contains("jurusan") || target.contains("prodi");
+                  // Cek apakah target audience adalah prodi/jurusan
+                  matchTarget = targetAudience.contains("prodi") || targetAudience.contains("jurusan") || kategori.contains("jurusan");
                 }
+                // Jika "Semua", matchTarget biarkan tetap true
+
                 return matchesSearch && matchTarget;
               }).toList();
 
@@ -114,7 +116,9 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
 
               // Build List
               return RefreshIndicator(
-                onRefresh: () async => await controller.syncAnnouncements(),
+                onRefresh: () async {
+                  await controller.syncAnnouncements();
+                },
                 child: ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
@@ -150,30 +154,35 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
     );
   }
 
-  Widget _announcementItem(BuildContext context, AnnouncementLocalModel ann) {
+  Widget _announcementItem(BuildContext context, AnnouncementModel ann) {
+    // Mengecek apakah pengumuman penting
+    final bool isHighlight = ann.isImportant;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(blurRadius: 8, offset: const Offset(0, 2), color: Colors.black.withOpacity(0.04))],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           onTap: () {
             // Pindah ke Halaman Detail
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => DetailAnnouncementPage(announcement: ann)),
+              MaterialPageRoute(builder: (context) => AnnouncementDetailPage(announcement: ann)),
             );
           },
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: ann.isImportant ? accentOrange : Colors.grey.shade300, width: 4)),
+              // Indikator Oranye aktif jika isImportant = true
+              borderRadius: BorderRadius.circular(16),
+              border: Border(left: BorderSide(color: isHighlight ? accentOrange : Colors.grey.shade300, width: 4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +191,8 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(child: Text(ann.judul, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                    Icon(ann.isImportant ? Icons.error_outline : Icons.info_outline, color: ann.isImportant ? accentOrange : Colors.grey, size: 20),
+                    // Icon otomatis berubah menjadi Alert jika penting
+                    Icon(isHighlight ? Icons.error_outline : Icons.info_outline, color: isHighlight ? accentOrange : Colors.grey, size: 20),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -191,11 +201,18 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(ann.tanggal, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    Text(
+                      ann.createdAt.toString().substring(0, 10), 
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(color: primaryBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                      child: Text(ann.kategori, style: TextStyle(fontSize: 10, color: primaryBlue, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        // Jika array kategori kosong, tampilkan Target Audience
+                        ann.kategori.isNotEmpty ? ann.kategori.join(', ') : ann.targetAudience.replaceAll('_', ' '), 
+                        style: TextStyle(fontSize: 10, color: primaryBlue, fontWeight: FontWeight.bold)
+                      ),
                     ),
                   ],
                 )
