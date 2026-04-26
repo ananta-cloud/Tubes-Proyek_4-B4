@@ -30,7 +30,7 @@ class _HomePageState extends State<HomePage> {
     final controller = context.watch<ScheduleController>();
 
     return Scaffold(
-      extendBody: true, // 🔥 biar navbar floating
+      extendBody: true,
       backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
