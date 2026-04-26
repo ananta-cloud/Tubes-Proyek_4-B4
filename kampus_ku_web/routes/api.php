@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScheduleApiController;
+use App\Http\Controllers\AnnouncementAPIController;
 use App\Http\Controllers\MahasiswaApiController;
 
 // ============================================================
@@ -21,6 +22,8 @@ Route::prefix('auth')->group(function () {
 // PROTECTED: Semua route butuh JWT Bearer Token
 // ============================================================
 Route::middleware('jwt')->group(function () {
+
+    Route::get('/announcements', [AnnouncementAPIController::class, 'index']);
 
     // JADWAL — Mahasiswa & Dosen
     Route::prefix('schedules')->group(function () {

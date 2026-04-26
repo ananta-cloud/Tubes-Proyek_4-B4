@@ -36,18 +36,39 @@ class AnnouncementModel extends HiveObject {
   });
 
   // Fungsi tambahan yang sangat berguna untuk mengubah JSON dari API Laravel menjadi Model Dart
+  // factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
+  //   return AnnouncementModel(
+  //     id: json['_id'] ?? '',
+  //     judul: json['judul'] ?? 'Tanpa Judul',
+  //     isi: json['isi'] ?? '',
+  //     targetAudience: json['target_audience'] ?? 'SEMUA',
+  //     namaPublisher: json['nama_publisher'] ?? 'Admin',
+  //     // Menangani array kategori dari JSON dengan aman
+  //     kategori: json['kategori'] != null ? List<String>.from(json['kategori']) : [],
+  //     // MongoDB biasanya mengirim tanggal dalam format ISO 8601
+  //     createdAt: json['created_at'] != null 
+  //         ? DateTime.parse(json['created_at']) 
+  //         : DateTime.now(),
+  //   );
+  // }
   factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
+    // MongoDB _id bisa berupa String atau Map {"$oid": "..."}
+    String parseId(dynamic raw) {
+      if (raw == null) return DateTime.now().millisecondsSinceEpoch.toString();
+      if (raw is String) return raw;
+      if (raw is Map) return raw['\$oid'] ?? raw['oid'] ?? raw.toString();
+      return raw.toString();
+    }
+
     return AnnouncementModel(
-      id: json['_id'] ?? '',
+      id: parseId(json['_id']),
       judul: json['judul'] ?? 'Tanpa Judul',
       isi: json['isi'] ?? '',
       targetAudience: json['target_audience'] ?? 'SEMUA',
       namaPublisher: json['nama_publisher'] ?? 'Admin',
-      // Menangani array kategori dari JSON dengan aman
       kategori: json['kategori'] != null ? List<String>.from(json['kategori']) : [],
-      // MongoDB biasanya mengirim tanggal dalam format ISO 8601
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : DateTime.now(),
     );
   }

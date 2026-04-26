@@ -1,54 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:kampus_ku_mobile/data/repositories/announcement_repository.dart';
-import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
-import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive/hive.dart';
+import '../data/models/announcement_model.dart';
+import '../data/services/announcement_service.dart';
 
 class AnnouncementController extends ChangeNotifier {
-  final AnnouncementRepository repository;
-  final AnnouncementService service = AnnouncementService();
+  final AnnouncementService service;
+  
+  List<AnnouncementModel> announcements = [];
+  bool isLoading = false;
+  String selectedFilter = 'SEMUA';
+  final List<String> filters = [
+    'SEMUA',
+    'AKADEMIK',
+    'BEASISWA',
+    'LOMBA',
+    'UKM',
+    'KARIR',
+    'PKM',
+    'WIRAUSAHA',
+    'KONSELING',
+    'FASILITAS',
+    'LAINNYA',
+  ];
 
-  AnnouncementController({required this.repository}) {
-    // Saat controller dipanggil, langsung muat data
-    loadAnnouncements();
-    syncDataFromApi(); 
+  AnnouncementController(this.service) {
+    syncAnnouncements(); // Sinkronisasi otomatis saat pertama kali dibuka
   }
 
-  // STATE yang akan dibaca oleh UI
-  List<AnnouncementModel> announcements = [];
-  String selectedFilter = 'Semua';
-  final List<String> filters = ['Semua', 'Jurusan', 'Umum'];
-
-  // Fungsi mengubah filter
   void setFilter(String filter) {
     selectedFilter = filter;
-    loadAnnouncements();
+    _loadFromLocal(); // Muat ulang data dari Hive dengan filter baru
   }
 
-  // Logika memuat data berdasarkan filter aktif
-  void loadAnnouncements() {
-    if (selectedFilter == 'Jurusan') {
-      announcements = repository.getAnnouncementsByCategory('PRODI');
-    } else if (selectedFilter == 'Umum') {
-      announcements = repository.getAnnouncementsByCategory('UMUM');
-    } else {
-      announcements = repository.getAllAnnouncements();
+  Future<void> syncAnnouncements() async {
+    isLoading = true;
+    notifyListeners();
+
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final box = Hive.box<AnnouncementModel>('announcements');
+
+    // --- 1. JIKA OFFLINE ---
+    if (connectivityResult == ConnectivityResult.none) {
+      _loadFromLocal();
+      isLoading = false;
+      notifyListeners();
+      return;
     }
-    
-    // Beri tahu UI bahwa data berubah dan harus dirender ulang
-    notifyListeners(); 
-  }
 
-  // Simulasi sinkronisasi data dari Backend Laravel
-  Future<void> syncDataFromApi() async {
-    // 1. Ambil data terbaru dari kurir (API)
-    final List<AnnouncementModel> remoteData = await service.fetchAnnouncements();
-    
-    if (remoteData.isNotEmpty) {
-      // 2. Simpan ke laci lokal (Hive)
-      await repository.saveAnnouncements(remoteData);
+    // --- 2. JIKA ONLINE ---
+    try {
+      final remoteData = await service.getAnnouncements();
       
-      // 3. Muat ulang data dari Hive ke UI
-      loadAnnouncements();
+      await box.clear(); // Bersihkan cache lama agar sinkron dengan server
+      for (var item in remoteData) {
+        await box.put(item.id, item); // Simpan ke laci lokal (Hive)
+      }
+      
+      _loadFromLocal();
+    } catch (e) {
+      print("SYNC ERROR: $e");
+      _loadFromLocal(); // Fallback ke data lokal jika API gagal
     }
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  void _loadFromLocal() {
+    final box = Hive.box<AnnouncementModel>('announcements');
+    List<AnnouncementModel> all = box.values.toList();
+
+    all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    if (selectedFilter != 'SEMUA') {
+      announcements = all
+          .where((a) => a.kategori.contains(selectedFilter))
+          .toList();
+    } else {
+      announcements = all;
+    }
+
+    notifyListeners();
   }
 }
