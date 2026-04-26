@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
 
 import '../data/models/schedule_local_model.dart';
@@ -17,43 +16,42 @@ class ScheduleController extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    final connectivityResult = await Connectivity().checkConnectivity();
     final box = Hive.box<ScheduleLocalModel>('schedules');
 
-    // ================= OFFLINE MODE =================
-    if (connectivityResult == ConnectivityResult.none) {
-      schedules = box.values.toList();
-
-      isLoading = false;
-      notifyListeners();
-
-      print("OFFLINE MODE - Loaded ${schedules.length} data from Hive");
-      return;
-    }
-
-    // ================= ONLINE MODE =================
     try {
+      //  Ambil langsung dari Mongo
       final List<Map<String, dynamic>> list = await service.getSchedules();
 
-      print("DATA FROM API: ${list.length}");
+      print("MONGO DATA: ${list.length}");
 
-      // Clear hanya saat online
+      //  Clear cache lama
       await box.clear();
 
+      //  Mapping Mongo → Model
       for (var item in list) {
-        final schedule = ScheduleLocalModel.fromJson(item);
+        final schedule = ScheduleLocalModel(
+          id: item['_id'].toString(), // ObjectId → String
+          namaMk: item['nama_mk'] ?? '-',
+          hari: item['hari'] ?? '-',
+          jamMulai: item['jam_mulai'] ?? '-',
+          jamSelesai: item['jam_selesai'] ?? '-',
+          ruangan: item['ruangan'] ?? '-',
+          dosen: item['nama_dosen'] ?? '-',
+        );
+
         await box.put(schedule.id, schedule);
       }
 
+      //  Load ke state
       schedules = box.values.toList();
 
-      print("SYNC SUCCESS: ${schedules.length} data saved to Hive");
+      print("SYNC SUCCESS: ${schedules.length} schedules loaded");
     } catch (e) {
-      print("ERROR SYNC: $e");
+      print("ERROR MONGO SYNC: $e");
 
-      // fallback ke data lokal jika API gagal
+      //  fallback ke cache lokal
       schedules = box.values.toList();
-      print("FALLBACK TO HIVE: ${schedules.length} data");
+      print("FALLBACK HIVE: ${schedules.length}");
     }
 
     isLoading = false;
