@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Announcement;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ProgramStudi;
 
 
 class AnnouncementController extends Controller

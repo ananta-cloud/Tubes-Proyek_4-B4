@@ -12,6 +12,7 @@ use App\Models\MataKuliah;
 use App\Models\PeriodeAkademik;
 use App\Models\Schedule;
 use App\Models\Announcement;
+use MongoDB\BSON\ObjectId;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,7 +23,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        // 1. Bersihkan data sebelumnya (Opsional, agar tidak duplikat saat dijalankan ulang)
+        // 1. Bersihkan data sebelumnya
         User::truncate();
         Jurusan::truncate();
         ProgramStudi::truncate();
@@ -42,32 +43,32 @@ class DatabaseSeeder extends Seeder
             'nama_jurusan' => 'Administrasi Niaga'
         ]);
 
-        // 3. Seeder Program Studi
+        // 3. Seeder Program Studi (Bungkus id_jurusan dengan ObjectId)
         $prodiD3TKI = ProgramStudi::create([
             'kode_prodi' => 'D3-TKI',
             'nama_prodi' => 'D3 Teknik Informatika',
-            'id_jurusan' => $jurusanJTK->id
+            'id_jurusan' => new ObjectId($jurusanJTK->id)
         ]);
 
         $prodiD4TKI = ProgramStudi::create([
             'kode_prodi' => 'D4-TKI',
             'nama_prodi' => 'D4 Teknik Informatika',
-            'id_jurusan' => $jurusanJTK->id
+            'id_jurusan' => new ObjectId($jurusanJTK->id)
         ]);
 
-        // 4. Seeder Mata Kuliah (Master Data)
+        // 4. Seeder Mata Kuliah (Bungkus id_prodi dengan ObjectId)
         $mkWeb = MataKuliah::create([
             'kode_mk' => 'IF102',
             'nama_mk' => 'Pemrograman Web Bergerak',
             'sks' => 4,
-            'id_prodi' => $prodiD3TKI->id
+            'id_prodi' => new ObjectId($prodiD3TKI->id)
         ]);
 
         $mkAI = MataKuliah::create([
             'kode_mk' => 'IF301',
             'nama_mk' => 'Kecerdasan Buatan',
             'sks' => 3,
-            'id_prodi' => $prodiD3TKI->id
+            'id_prodi' => new ObjectId($prodiD3TKI->id)
         ]);
 
         // 5. Seeder Periode Akademik
@@ -79,11 +80,9 @@ class DatabaseSeeder extends Seeder
             'tanggal_selesai' => Carbon::create(2026, 7, 31)
         ]);
 
-        // 6. Seeder Users (Berdasarkan RBAC di Skema PDF)
-
-        // Akun Manajemen Kampus (Bisa broadcast ke semua)
+        // 6. Seeder Users (Bungkus semua foreign key relasi dengan ObjectId)
         $manajemen = User::create([
-            'name' => 'Bpk. Rektorat Manajemen',
+            'nama' => 'Bpk. Rektorat Manajemen',
             'email' => 'admin.pusat@polban.ac.id',
             'password' => Hash::make('password123'),
             'role' => 'MANAJEMEN',
@@ -91,74 +90,71 @@ class DatabaseSeeder extends Seeder
             'id_prodi' => null,
         ]);
 
-        // Akun Kajur (Full akses level jurusan, bisa publish)
         $kajur = User::create([
-            'name' => 'Bpk. Kajur TKI',
+            'nama' => 'Bpk. Kajur TKI',
             'email' => 'kajur.jtk@polban.ac.id',
             'password' => Hash::make('password123'),
             'role' => 'KAJUR',
-            'id_jurusan' => $jurusanJTK->id,
+            'id_jurusan' => new ObjectId($jurusanJTK->id),
             'id_prodi' => null,
         ]);
 
-        // Akun Admin TU (Akses level jurusan, hanya draft & final)
         $tu = User::create([
-            'name' => 'Ibu Admin TU',
+            'nama' => 'Ibu Admin TU',
             'email' => 'admin.tu@polban.ac.id',
-            'password' => Hash::make('password123'), // Password untuk test login
+            'password' => Hash::make('password123'),
             'role' => 'ADMIN_TU',
-            'id_jurusan' => $jurusanJTK->id,
+            'id_jurusan' => new ObjectId($jurusanJTK->id),
             'id_prodi' => null,
         ]);
 
-        // Akun Mahasiswa (Untuk tes login dari Mobile Flutter)
         $mahasiswa = User::create([
-            'name' => 'Fahraj Ananta Aulia Arkan',
+            'nama' => 'Fahraj Ananta Aulia Arkan',
             'email' => 'fahraj.mhs@polban.ac.id',
             'password' => Hash::make('password123'),
             'role' => 'MAHASISWA',
-            'id_jurusan' => $jurusanJTK->id,
-            'id_prodi' => $prodiD3TKI->id,
+            'id_jurusan' => new ObjectId($jurusanJTK->id),
+            'id_prodi' => new ObjectId($prodiD3TKI->id),
         ]);
 
-        // 7. Seeder Schedule (Jadwal)
+        // 7. Seeder Schedule (Bungkus semua foreign key relasi dengan ObjectId)
         Schedule::create([
-            'id_mk' => $mkWeb->id,
-            'nama_mk' => $mkWeb->nama_mk, // Partial Embed
-            'kode_mk' => $mkWeb->kode_mk, // Partial Embed
-            'id_prodi' => $prodiD3TKI->id,
-            'id_jurusan' => $jurusanJTK->id,
+            'id_mk' => new ObjectId($mkWeb->id),
+            'nama_mk' => $mkWeb->nama_mk,
+            'kode_mk' => $mkWeb->kode_mk,
+            'id_prodi' => new ObjectId($prodiD3TKI->id),
+            'id_jurusan' => new ObjectId($jurusanJTK->id),
             'tipe' => 'KULIAH',
-            'hari' => 'Kamis',
+            'hari' => 'KAMIS', // <-- UBAH KE UPPERCASE
             'tanggal' => null,
-            'jam_mulai' => Carbon::createFromFormat('H:i', '08:00'),
-            'jam_selesai' => Carbon::createFromFormat('H:i', '11:30'),
+            'jam_mulai' => '08:00', // <-- UBAH JADI STRING BIASA (BUKAN CARBON)
+            'jam_selesai' => '11:30', // <-- UBAH JADI STRING BIASA
             'ruangan' => 'Lab RPL 2',
             'nama_dosen' => 'Marlina, S.T., M.Kom.',
             'status' => 'PUBLISHED',
             'pesan_pengantar' => 'Jadwal Kuliah Semester Genap Resmi Dirilis.',
-            'id_periode' => $periodeGenap->id
+            'id_periode' => new ObjectId($periodeGenap->id)
         ]);
 
         Schedule::create([
-            'id_mk' => $mkAI->id,
+            'id_mk' => new ObjectId($mkAI->id),
             'nama_mk' => $mkAI->nama_mk,
             'kode_mk' => $mkAI->kode_mk,
-            'id_prodi' => $prodiD3TKI->id,
-            'id_jurusan' => $jurusanJTK->id,
+            'id_prodi' => new ObjectId($prodiD3TKI->id),
+            'id_jurusan' => new ObjectId($jurusanJTK->id),
             'tipe' => 'KULIAH',
-            'hari' => 'Rabu',
+            'hari' => 'RABU', // <-- UBAH KE UPPERCASE
             'tanggal' => null,
-            'jam_mulai' => Carbon::createFromFormat('H:i', '13:00'),
-            'jam_selesai' => Carbon::createFromFormat('H:i', '15:30'),
+            'jam_mulai' => '13:00', // <-- UBAH JADI STRING BIASA
+            'jam_selesai' => '15:30', // <-- UBAH JADI STRING BIASA
             'ruangan' => 'Ruang Kelas 301',
             'nama_dosen' => 'Santi Sundari, S.T., M.T.',
-            'status' => 'DRAFT', // Sengaja dibuat draft agar terlihat di dashboard TU
+            'status' => 'DRAFT',
             'pesan_pengantar' => null,
-            'id_periode' => $periodeGenap->id
+            'id_periode' => new ObjectId($periodeGenap->id)
         ]);
-
-        // 8. Seeder Announcement (Pengumuman)
+        
+        // 8. Seeder Announcement (Bungkus foreign key, termasuk di dalam array read_by_users)
         Announcement::create([
             'judul' => 'Pendaftaran Beasiswa JFL 2026',
             'isi' => 'Diberitahukan kepada seluruh mahasiswa bahwa pendaftaran Jabar Future Leaders Scholarship telah dibuka.',
@@ -167,11 +163,11 @@ class DatabaseSeeder extends Seeder
             'target_angkatan' => null,
             'id_prodi' => null,
             'id_jurusan' => null,
-            'id_publisher' => $manajemen->id,
-            'nama_publisher' => $manajemen->name, // Partial Embed
+            'id_publisher' => new ObjectId($manajemen->id),
+            'nama_publisher' => $manajemen->nama,
             'role_publisher' => $manajemen->role,
             'read_by_users' => [
-                $mahasiswa->id // Asumsikan mahasiswa ini sudah membaca
+                new ObjectId($mahasiswa->id)
             ]
         ]);
 
@@ -181,15 +177,15 @@ class DatabaseSeeder extends Seeder
             'kategori' => 'Akademik',
             'target_audience' => 'PRODI',
             'target_angkatan' => '2025',
-            'id_prodi' => $prodiD3TKI->id,
-            'id_jurusan' => $jurusanJTK->id,
-            'id_publisher' => $kajur->id,
-            'nama_publisher' => $kajur->name,
+            'id_prodi' => new ObjectId($prodiD3TKI->id),
+            'id_jurusan' => new ObjectId($jurusanJTK->id),
+            'id_publisher' => new ObjectId($kajur->id),
+            'nama_publisher' => $kajur->nama,
             'role_publisher' => $kajur->role,
             'read_by_users' => []
         ]);
 
-        // Feedback ke console terminal jika berhasil
+        // Feedback ke console terminal
         $this->command->info('Database SIGMA berhasil diisi dengan data dummy awal!');
     }
 }
