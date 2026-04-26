@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 
 class CreateRevisiSheet extends StatefulWidget {
-  const CreateRevisiSheet({super.key}); // Hapus juga underscore di sini
+  const CreateRevisiSheet({super.key});
 
   @override
   State<CreateRevisiSheet> createState() => _CreateRevisiSheetState();
@@ -133,7 +134,7 @@ class _CreateRevisiSheetState extends State<CreateRevisiSheet> {
       style: const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.bold,
-        color: Colors.grey,
+        color: AppColors.slate700,
       ),
     ),
   );

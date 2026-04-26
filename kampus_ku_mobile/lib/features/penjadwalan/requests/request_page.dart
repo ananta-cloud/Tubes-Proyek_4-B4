@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_ku_mobile/theme/app_colors.dart';
+import '../../../theme/app_colors.dart';
 
 class RequestPage extends StatefulWidget {
   const RequestPage({super.key});
@@ -31,7 +33,7 @@ class _RequestPageState extends State<RequestPage> {
               children: [
                 _buildStatMini("PENDING", "5", Colors.amber),
                 const SizedBox(width: 8),
-                _buildStatMini("SETUJU", "12", Colors.lightGreenAccent),
+                _buildStatMini("SETUJU", "12", AppColors.emerald700),
                 const SizedBox(width: 8),
                 _buildStatMini("TOLAK", "2", Colors.red),
               ],
@@ -55,7 +57,7 @@ class _RequestPageState extends State<RequestPage> {
                         fontSize: 12,
                         color: selectedFilter == status
                             ? Colors.white
-                            : Colors.grey,
+                            : AppColors.slate700,
                       ),
                     ),
                     selected: selectedFilter == status,
@@ -136,7 +138,7 @@ class _RequestPageState extends State<RequestPage> {
                   _buildTypeBadge("GANTI_WAKTU"),
                   const Text(
                     "25 Apr 2026",
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(fontSize: 11, color: AppColors.slate700),
                   ),
                 ],
               ),
@@ -150,12 +152,12 @@ class _RequestPageState extends State<RequestPage> {
                   const Icon(
                     Icons.person_outline,
                     size: 14,
-                    color: Colors.grey,
+                    color: AppColors.slate700,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     "Bapak Nazriel, M.T.",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    style: TextStyle(color: AppColors.slate600, fontSize: 12),
                   ),
                 ],
               ),
@@ -166,7 +168,7 @@ class _RequestPageState extends State<RequestPage> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[500],
+                  color: AppColors.slate500,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -213,7 +215,7 @@ class _RequestPageState extends State<RequestPage> {
   Widget _buildStatusText(String status) {
     Color color = status == "PENDING"
         ? Colors.amber
-        : (status == "APPROVED" ? Colors.lightGreenAccent : Colors.red);
+        : (status == "APPROVED" ? AppColors.emerald700 : Colors.red);
     return Row(
       children: [
         CircleAvatar(radius: 4, backgroundColor: color),

@@ -1,33 +1,32 @@
+// lib/widgets/status_badge.dart
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart'; // Import AppColors
 
 class StatusBadge extends StatelessWidget {
   final String status;
-
   const StatusBadge({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
-    // Definisi warna berdasarkan logic @if di blade
     Color bgColor;
     Color textColor;
     Color borderColor;
 
     switch (status.toUpperCase()) {
       case 'FINAL':
-        bgColor = const Color(0xFFFEF9C3); // yellow-100
-        textColor = const Color(0xFFA16207); // yellow-700
-        borderColor = const Color(0xFFFEF08A); // yellow-200
+        bgColor = AppColors.yellow100;
+        textColor = AppColors.yellow700;
+        borderColor = AppColors.yellow200;
         break;
       case 'PUBLISHED':
-        bgColor = const Color(0xFFD1FAE5); // emerald-100
-        textColor = const Color(0xFF047857); // emerald-700
-        borderColor = const Color(0xFFA7F3D0); // emerald-200
+        bgColor = AppColors.emerald100;
+        textColor = AppColors.emerald700;
+        borderColor = AppColors.emerald200;
         break;
-      case 'DRAFT':
-      default:
-        bgColor = const Color(0xFFF1F5F9); // slate-100
-        textColor = const Color(0xFF475569); // slate-600
-        borderColor = const Color(0xFFE2E8F0); // slate-200
+      default: // DRAFT
+        bgColor = AppColors.slate100;
+        textColor = AppColors.slate600;
+        borderColor = AppColors.slate200;
         break;
     }
 
@@ -44,7 +43,6 @@ class StatusBadge extends StatelessWidget {
           color: textColor,
           fontSize: 10,
           fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
         ),
       ),
     );

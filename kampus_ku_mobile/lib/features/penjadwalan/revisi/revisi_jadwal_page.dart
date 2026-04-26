@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'create_sheet.dart';
+import '../../../theme/app_colors.dart';
 
 class RevisiJadwalPage extends StatefulWidget {
   const RevisiJadwalPage({super.key});
@@ -34,7 +35,7 @@ class _RevisiJadwalPageState extends State<RevisiJadwalPage> {
             // 1. STATS CARDS
             Row(
               children: [
-                _buildStatMini("AKTIF", "2", Colors.lightGreenAccent),
+                _buildStatMini("AKTIF", "2", AppColors.emerald700),
                 const SizedBox(width: 10),
                 _buildStatMini("SEMESTER", "12", Colors.indigo),
                 const SizedBox(width: 10),
@@ -142,13 +143,13 @@ class _RevisiJadwalPageState extends State<RevisiJadwalPage> {
                       "PERIODE",
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.grey,
+                        color: AppColors.slate500,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       "12 Apr - 20 Apr 2026",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 12, color: AppColors.slate700),
                     ),
                   ],
                 ),
@@ -179,21 +180,18 @@ class _RevisiJadwalPageState extends State<RevisiJadwalPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.lightGreenAccent[50],
+        color: AppColors.emerald700,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircleAvatar(
-            radius: 3,
-            backgroundColor: Colors.lightGreenAccent,
-          ),
+          const CircleAvatar(radius: 3, backgroundColor: AppColors.emerald700),
           const SizedBox(width: 5),
           Text(
             status,
             style: const TextStyle(
-              color: Colors.lightGreenAccent,
+              color: AppColors.emerald700,
               fontSize: 10,
               fontWeight: FontWeight.bold,
             ),

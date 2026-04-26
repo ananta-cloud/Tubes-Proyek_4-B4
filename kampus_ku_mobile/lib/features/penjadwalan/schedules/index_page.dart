@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/status_badge.dart';
+import '../../../theme/app_colors.dart';
 
 class ScheduleIndexPage extends StatelessWidget {
   const ScheduleIndexPage({super.key});
@@ -86,6 +88,7 @@ class _ScheduleList extends StatelessWidget {
                   "Bapak Alfarizky, S.T., M.T.",
                   style: TextStyle(color: Colors.grey[500], fontSize: 13),
                 ),
+                // StatusBadge(status: jadwal['status']),
                 const Divider(height: 24),
                 Row(
                   children: [
@@ -99,7 +102,7 @@ class _ScheduleList extends StatelessWidget {
                       "Senin, 08:00 - 10:30",
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        color: AppColors.slate700,
                       ),
                     ),
                     const Spacer(),
@@ -109,7 +112,7 @@ class _ScheduleList extends StatelessWidget {
                       color: Colors.indigo,
                     ),
                     const SizedBox(width: 4),
-                    Text("GK-301", style: TextStyle(color: Colors.grey[700])),
+                    Text("GK-301", style: TextStyle(color: AppColors.slate700)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -131,7 +134,7 @@ class _ScheduleList extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: () {}, // Finalisasi
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.lightGreenAccent,
+                            backgroundColor: AppColors.emerald700,
                           ),
                           child: const Text("Finalisasi"),
                         ),
@@ -147,9 +150,7 @@ class _ScheduleList extends StatelessWidget {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color = status == "PUBLISHED"
-        ? Colors.lightGreenAccent
-        : Colors.orange;
+    Color color = status == "PUBLISHED" ? AppColors.emerald700 : Colors.orange;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

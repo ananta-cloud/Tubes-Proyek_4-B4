@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kampus_ku_mobile/theme/app_colors.dart';
 
 class ScheduleCreatePage extends StatefulWidget {
   const ScheduleCreatePage({super.key});
@@ -38,7 +39,7 @@ class _ScheduleCreatePageState extends State<ScheduleCreatePage> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: AppColors.slate700,
                 ),
               ),
               const SizedBox(height: 8),
@@ -60,7 +61,7 @@ class _ScheduleCreatePageState extends State<ScheduleCreatePage> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: AppColors.slate700,
                 ),
               ),
               const SizedBox(height: 8),
@@ -153,7 +154,7 @@ class _ScheduleCreatePageState extends State<ScheduleCreatePage> {
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.grey,
+            color: AppColors.slate700,
           ),
         ),
         const SizedBox(height: 8),
