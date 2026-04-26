@@ -29,6 +29,10 @@ class Announcement extends Model
 
     // Array penyimpan user_id yang sudah membaca (Read Confirmation)
     protected $casts = [
+        // 'read_by_users' => 'array',
+        // 'kategori' => 'array',
+        // 'target_angkatan' => 'array',
+
         'read_by_users' => 'array',
 
         'target_angkatan' => 'array',

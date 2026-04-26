@@ -3,9 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScheduleApiController;
+use App\Http\Controllers\AnnouncementAPIController;
 use App\Http\Controllers\MahasiswaApiController;
 use App\Http\Controllers\PeriodeRevisiApiController;
-use App\Http\Controllers\AnnouncementApiController; 
+use App\Http\Controllers\TaskAPIController;
 
 // ============================================================
 // PUBLIC: Auth (tidak butuh token)
@@ -23,6 +24,8 @@ Route::prefix('auth')->group(function () {
 // PROTECTED: Semua route butuh JWT Bearer Token
 // ============================================================
 Route::middleware('jwt')->group(function () {
+
+    Route::get('/announcements', [AnnouncementAPIController::class, 'index']);
 
     // JADWAL — Mahasiswa & Dosen
     Route::prefix('schedules')->group(function () {
@@ -67,5 +70,9 @@ Route::middleware('jwt')->group(function () {
         Route::get('/bookmarks',                  [MahasiswaApiController::class, 'bookmarks']);
         Route::post('/bookmarks/{id_schedule}',   [MahasiswaApiController::class, 'addBookmark']);
         Route::delete('/bookmarks/{id_schedule}', [MahasiswaApiController::class, 'removeBookmark']);
+        // TASKS — Khusus Mahasiswa
+        Route::get('/tasks', [TaskAPIController::class, 'index']);
+        Route::post('/tasks/sync', [TaskAPIController::class, 'sync']);
+        Route::delete('/tasks/{id}', [TaskAPIController::class, 'destroy']);
     });
 });

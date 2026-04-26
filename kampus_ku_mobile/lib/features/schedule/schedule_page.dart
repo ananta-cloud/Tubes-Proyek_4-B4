@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:kampus_ku_mobile/features/schedule/data/models/schedule_local_model.dart';
+import 'package:kampus_ku_mobile/data/models/schedule_local_model.dart';
 
 class SchedulePage extends StatelessWidget {
   const SchedulePage({super.key});
