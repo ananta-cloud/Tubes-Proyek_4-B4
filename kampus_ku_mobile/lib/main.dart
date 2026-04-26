@@ -1,26 +1,46 @@
 import 'package:flutter/material.dart';
-import 'features/auth/presentation/pages/login_page.dart';
-import 'features/schedule/data/services/schedule_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 import 'package:hive_flutter/hive_flutter.dart';
-import 'features/schedule/data/models/schedule_local_model.dart';
 import 'package:provider/provider.dart';
-import 'features/schedule/controller/schedule_controller.dart';
+
+// Import Auth & Pages
+import 'package:kampus_ku_mobile/presentation/pages/login_page.dart';
+
+// Import Schedule
+import 'package:kampus_ku_mobile/data/services/schedule_service.dart';
+import 'package:kampus_ku_mobile/data/models/schedule_local_model.dart';
+import 'package:kampus_ku_mobile/controller/schedule_controller.dart';
+
+// Import Announcement 
+import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
+import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
+import 'package:kampus_ku_mobile/controller/announcement_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  
+  // Pastikan file .env sudah didaftarkan di pubspec.yaml bagian assets
+  await dotenv.load(fileName: ".env"); 
 
   await Hive.initFlutter();
 
+  // 1. REGISTRASI ADAPTER HIVE
   Hive.registerAdapter(ScheduleLocalModelAdapter());
+  Hive.registerAdapter(AnnouncementModelAdapter()); 
 
+  // 2. BUKA BOX (LACI PENYIMPANAN OFFLINE)
   await Hive.openBox<ScheduleLocalModel>('schedules');
+  await Hive.openBox<AnnouncementModel>('announcements'); 
+  await Hive.openBox<AnnouncementModel>('bookmarks');    
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
           create: (_) => ScheduleController(ScheduleService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AnnouncementController(AnnouncementService()), 
         ),
       ],
       child: const MyApp(),
@@ -33,43 +53,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'KampusKu',
       debugShowCheckedModeBanner: false,
-      home: LoginPage(), // ⬅️ tetap mulai dari login
-    );
-  }
-}
-
-// =========================
-// ✅ HOME PAGE (TEST API)
-// =========================
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  final scheduleService = ScheduleService();
-
-  @override
-  void initState() {
-    super.initState();
-    fetchSchedules();
-  }
-
-  void fetchSchedules() async {
-    final data = await scheduleService.getSchedules();
-    print("SCHEDULE DATA: $data");
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Home")),
-      body: const Center(child: Text("Login berhasil 🎉")),
+      home: LoginPage(), 
     );
   }
 }
