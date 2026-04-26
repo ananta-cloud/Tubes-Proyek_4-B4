@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:kampus_ku_mobile/features/auth/data/models/schedule_local_model.dart';
-import 'package:kampus_ku_mobile/features/auth/data/services/schedule_service.dart';
+import 'package:provider/provider.dart';
+import 'package:kampus_ku_mobile/features/schedule/controller/schedule_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,51 +17,18 @@ class _HomePageState extends State<HomePage> {
   final bgColor = const Color(0xFFEAF3FA);
   final darkText = const Color(0xFF1F1F3D);
 
-  final scheduleService = ScheduleService();
-  List<ScheduleLocalModel> schedules = [];
-
-  void syncSchedules() async {
-    final apiData = await scheduleService.getSchedules();
-
-    final box = Hive.box<ScheduleLocalModel>('schedules');
-
-    for (var item in apiData) {
-      final schedule = ScheduleLocalModel(
-        id: item['id'],
-        namaMk: item['nama_mk'],
-        hari: item['hari'],
-        jamMulai: item['jam_mulai'],
-        jamSelesai: item['jam_selesai'],
-        ruangan: item['ruangan'],
-        dosen: item['nama_dosen'],
-      );
-
-      await box.put(schedule.id, schedule);
-    }
-
-    print("SYNC DONE: ${box.values.toList()}");
-
-    loadSchedulesFromHive();
-  }
-
-  void loadSchedulesFromHive() {
-    final box = Hive.box<ScheduleLocalModel>('schedules');
-
-    setState(() {
-      schedules = box.values.toList();
-    });
-
-    print("LOADED FROM HIVE: $schedules");
-  }
-
   @override
   void initState() {
     super.initState();
-    syncSchedules();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ScheduleController>().syncSchedules();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<ScheduleController>();
+
     return Scaffold(
       extendBody: true, // 🔥 biar navbar floating
       backgroundColor: bgColor,
@@ -76,7 +42,12 @@ class _HomePageState extends State<HomePage> {
                 child: IndexedStack(
                   key: ValueKey(currentIndex),
                   index: currentIndex,
-                  children: [_home(), _schedule(), _tasks(), _bookmark()],
+                  children: [
+                    _home(controller),
+                    _schedule(controller),
+                    _tasks(),
+                    _bookmark(),
+                  ],
                 ),
               ),
             ),
@@ -169,7 +140,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ================= HOME =================
-  Widget _home() {
+  Widget _home(ScheduleController controller) {
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -189,7 +160,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 20),
 
-        _schedulePreviewCard(),
+        _schedulePreviewCard(controller),
 
         const SizedBox(height: 25),
 
@@ -226,12 +197,16 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _schedulePreviewCard() {
-    if (schedules.isEmpty) {
+  Widget _schedulePreviewCard(ScheduleController controller) {
+    if (controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final s = schedules.first;
+    if (controller.schedules.isEmpty) {
+      return const Text("Tidak ada jadwal");
+    }
+
+    final s = controller.schedules.first;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -321,7 +296,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ================= SCHEDULE =================
-  Widget _schedule() {
+  Widget _schedule(ScheduleController controller) {
+    //  LOADING STATE
+    if (controller.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    //  EMPTY STATE
+    if (controller.schedules.isEmpty) {
+      return const Center(
+        child: Text("Tidak ada jadwal", style: TextStyle(fontSize: 16)),
+      );
+    }
+
+    //  DATA STATE
+    final schedules = controller.schedules;
+
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -334,7 +324,9 @@ class _HomePageState extends State<HomePage> {
             color: darkText,
           ),
         ),
+
         const SizedBox(height: 20),
+
         Row(
           children: [
             _day("Senin", "18", true),
@@ -343,7 +335,9 @@ class _HomePageState extends State<HomePage> {
             _day("Kamis", "21", false),
           ],
         ),
+
         const SizedBox(height: 20),
+
         ...schedules.map((s) {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
