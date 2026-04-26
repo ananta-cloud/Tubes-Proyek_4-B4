@@ -38,4 +38,20 @@ class ApiClient {
 
     return jsonDecode(response.body);
   }
+
+  static Future<Map<String, dynamic>> delete(String endpoint) async {
+    final token = await _storage.read(key: "token");
+
+    final url = Uri.parse("$baseUrl$endpoint");
+
+    final response = await http.delete(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    return jsonDecode(response.body);
+  }
 }

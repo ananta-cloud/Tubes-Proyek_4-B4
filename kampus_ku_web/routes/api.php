@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScheduleApiController;
 use App\Http\Controllers\AnnouncementAPIController;
 use App\Http\Controllers\MahasiswaApiController;
+use App\Http\Controllers\TaskAPIController;
 
 // ============================================================
 // PUBLIC: Auth (tidak butuh token)
@@ -45,4 +46,9 @@ Route::middleware('jwt')->group(function () {
         Route::post('/bookmarks/{id_schedule}',           [MahasiswaApiController::class, 'addBookmark']);
         Route::delete('/bookmarks/{id_schedule}',         [MahasiswaApiController::class, 'removeBookmark']);
     });
+
+    // TASKS — Khusus Mahasiswa
+    Route::get('/tasks', [TaskAPIController::class, 'index']);
+    Route::post('/tasks/sync', [TaskAPIController::class, 'sync']);
+    Route::delete('/tasks/{id}', [TaskAPIController::class, 'destroy']);
 });
