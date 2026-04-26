@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScheduleApiController;
 use App\Http\Controllers\MahasiswaApiController;
 use App\Http\Controllers\PeriodeRevisiApiController;
+use App\Http\Controllers\AnnouncementApiController; 
 
 // ============================================================
 // PUBLIC: Auth (tidak butuh token)
@@ -27,6 +28,13 @@ Route::middleware('jwt')->group(function () {
     Route::prefix('schedules')->group(function () {
         Route::get('/',   [ScheduleApiController::class, 'index']);
         Route::get('/my', [ScheduleApiController::class, 'mySchedules']);
+    });
+
+    // PENGUMUMAN — Mahasiswa & Dosen
+    Route::prefix('announcements')->group(function () {
+        Route::get('/',     [AnnouncementApiController::class, 'index']);
+        Route::get('/{id}', [AnnouncementApiController::class, 'show']);
+        // Route::post('/', [AnnouncementApiController::class, 'store']); // Buka komentar jika dosen/admin bisa buat pengumuman via mobile
     });
 
     // SCHEDULE REQUESTS — Khusus Dosen
@@ -55,10 +63,9 @@ Route::middleware('jwt')->group(function () {
 
     // MAHASISWA — Khusus Mahasiswa
     Route::middleware('jwt:MAHASISWA')->prefix('mahasiswa')->group(function () {
-        Route::get('/schedules',                          [MahasiswaApiController::class, 'schedules']);
-        Route::get('/bookmarks',                          [MahasiswaApiController::class, 'bookmarks']);
-        Route::post('/bookmarks/{id_schedule}',           [MahasiswaApiController::class, 'addBookmark']);
-        Route::delete('/bookmarks/{id_schedule}',         [MahasiswaApiController::class, 'removeBookmark']);
+        Route::get('/schedules',                  [MahasiswaApiController::class, 'schedules']);
+        Route::get('/bookmarks',                  [MahasiswaApiController::class, 'bookmarks']);
+        Route::post('/bookmarks/{id_schedule}',   [MahasiswaApiController::class, 'addBookmark']);
+        Route::delete('/bookmarks/{id_schedule}', [MahasiswaApiController::class, 'removeBookmark']);
     });
-
 });

@@ -7,7 +7,10 @@ use MongoDB\Laravel\Eloquent\Model;
 class Announcement extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'announcements';
+
+    public $timestamps = false;
 
     protected $fillable = [
         'judul', 
