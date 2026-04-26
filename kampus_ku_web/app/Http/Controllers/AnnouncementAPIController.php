@@ -5,53 +5,64 @@ namespace App\Http\Controllers;
 use App\Models\Announcement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
-/**
- * API Controller khusus untuk Pengumuman (Flutter Mobile)
- * Menggunakan Laravel Sanctum — return response()->json()
- */
-class AnnouncementApiController extends Controller
+class AnnouncementAPIController extends Controller
 {
     /**
      * GET /api/announcements
-     * Mengambil daftar pengumuman terbaru
-     * Bisa difilter berdasarkan target_audience/kategori
+     * Display a listing of the resource.
      */
     public function index(Request $request)
     {
         $user = Auth::user();
         $query = Announcement::query();
 
-        // 🔥 FILTER OTOMATIS BERDASARKAN ROLE USER YANG LOGIN
+        // FILTER OTOMATIS BERDASARKAN ROLE & JURUSAN USER YANG LOGIN
         if ($user) {
             $role = strtoupper($user->role);
 
-            if ($role === 'DOSEN') {
-                // Dosen HANYA melihat pengumuman untuk Dosen, Umum, atau Semua
-                $query->where(function ($q) {
-                    $q->where('target_audience', 'like', '%dosen%')
-                      ->orWhere('target_audience', 'like', '%umum%')
-                      ->orWhere('target_audience', 'like', '%semua%')
-                      ->orWhere('kategori', 'like', '%dosen%')
-                      ->orWhere('kategori', 'like', '%umum%');
-                });
-            } elseif ($role === 'MAHASISWA') {
-                // Mahasiswa HANYA melihat pengumuman untuk Mahasiswa, Umum, atau Semua
-                $query->where(function ($q) {
-                    $q->where('target_audience', 'like', '%mahasiswa%')
-                      ->orWhere('target_audience', 'like', '%umum%')
-                      ->orWhere('target_audience', 'like', '%semua%')
-                      ->orWhere('kategori', 'like', '%mahasiswa%')
-                      ->orWhere('kategori', 'like', '%umum%');
-                });
+            if ($role === 'MAHASISWA') {
+                $allowed = ['SEMUA', 'SEMUA_MAHASISWA'];
+
+                // Tambahkan filter PRODI jika user punya id_jurusan
+                if ($user->id_jurusan) {
+                    $query->where(function($q) use ($user, $allowed) {
+                        $q->whereIn('target_audience', $allowed)
+                          ->orWhere(function($sub) use ($user) {
+                              $sub->whereIn('target_audience', ['PRODI_MAHASISWA', 'PRODI_SEMUA'])
+                                  ->where('id_jurusan', $user->id_jurusan);
+                          });
+                    });
+                } else {
+                    // Jika tidak ada id_jurusan, hanya tampilkan yang scope global
+                    $query->whereIn('target_audience', $allowed);
+                }
+
+            } elseif ($role === 'DOSEN') {
+                $allowed = ['SEMUA', 'SEMUA_DOSEN'];
+
+                if ($user->id_jurusan) {
+                    $query->where(function($q) use ($user, $allowed) {
+                        $q->whereIn('target_audience', $allowed)
+                          ->orWhere(function($sub) use ($user) {
+                              $sub->whereIn('target_audience', ['PRODI_DOSEN', 'PRODI_SEMUA'])
+                                  ->where('id_jurusan', $user->id_jurusan);
+                          });
+                    });
+                } else {
+                    $query->whereIn('target_audience', $allowed);
+                }
             }
         }
+        // Jika $user null → tidak ada filter target_audience, semua data tampil
 
-        // Jika Flutter mengirimkan parameter filter tambahan (misal: pencarian)
+        // Jika Flutter mengirimkan parameter filter pencarian tambahan
         if ($request->filled('kategori')) {
             $query->where(function ($q) use ($request) {
                 $q->where('kategori', 'like', '%' . $request->kategori . '%')
-                  ->orWhere('target_audience', 'like', '%' . $request->kategori . '%');
+                  ->orWhere('judul', 'like', '%' . $request->kategori . '%')
+                  ->orWhere('isi', 'like', '%' . $request->kategori . '%');
             });
         }
 
@@ -60,7 +71,7 @@ class AnnouncementApiController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $announcements
+            'data'   => $announcements,
         ], 200);
     }
 
@@ -68,7 +79,7 @@ class AnnouncementApiController extends Controller
      * GET /api/announcements/{id}
      * Mengambil detail satu pengumuman berdasarkan ID
      */
-    public function show($id)
+    public function show(string $id)
     {
         $announcement = Announcement::find($id);
 
@@ -87,14 +98,14 @@ class AnnouncementApiController extends Controller
 
     /**
      * POST /api/announcements
-     * (Opsional) Jika Dosen/Kajur diizinkan membuat pengumuman via Mobile
+     * Jika Dosen/Kajur diizinkan membuat pengumuman via Mobile
      */
     public function store(Request $request)
     {
         $user = Auth::user();
 
         // Batasi siapa yang bisa membuat pengumuman
-        if (!in_array($user->role, ['KAJUR', 'DOSEN', 'ADMIN'])) {
+        if (!in_array(strtoupper($user->role), ['KAJUR', 'DOSEN', 'ADMIN', 'MANAJEMEN'])) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Akses ditolak. Anda tidak memiliki izin membuat pengumuman.'
@@ -104,14 +115,16 @@ class AnnouncementApiController extends Controller
         $validated = $request->validate([
             'judul'           => 'required|string|max:255',
             'isi'             => 'required|string',
-            'kategori'        => 'required|string', // atau target_audience
-            // Tambahkan validasi lain sesuai kolom di database Anda
+            'kategori'        => 'required|string',
+            'target_audience' => 'required|string',
         ]);
 
         $announcement = Announcement::create([
             'judul'           => $validated['judul'],
             'isi'             => $validated['isi'],
             'kategori'        => $validated['kategori'],
+            'target_audience' => $validated['target_audience'],
+            'id_jurusan'      => $user->id_jurusan ?? null,
             'id_pembuat'      => $user->_id ?? $user->id,
             'nama_pembuat'    => $user->nama,
             'created_at'      => now(),
@@ -123,5 +136,23 @@ class AnnouncementApiController extends Controller
             'message' => 'Pengumuman berhasil dibuat.',
             'data'    => $announcement
         ], 201);
+    }
+
+    /**
+     * PUT/PATCH /api/announcements/{id}
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        // Logika update jika diperlukan
+    }
+
+    /**
+     * DELETE /api/announcements/{id}
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        // Logika delete jika diperlukan
     }
 }

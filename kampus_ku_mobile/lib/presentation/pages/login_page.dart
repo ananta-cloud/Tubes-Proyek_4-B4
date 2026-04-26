@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../data/repositories/auth_repository.dart';
-import '../../../schedule/presentation/pages/home_page.dart';
-import '../../../dosen/dosen_main_page.dart';
+import 'package:kampus_ku_mobile/data/repositories/auth_repository.dart';
+import 'package:kampus_ku_mobile/presentation/pages/home_page.dart';
+import 'package:kampus_ku_mobile/features/dosen/dosen_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
