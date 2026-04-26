@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+
+  # Service Laravel (PHP-FPM)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: laravel-mongodb-app
+    container_name: laravel_app
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+    networks:
+      - app-network
+
+  # Service Nginx (Web Server)
+  webserver:
+    image: nginx:alpine
+    container_name: laravel_webserver
+    restart: unless-stopped
+    ports:
+      - "8000:80" # Kita akses lewat port 8000
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
