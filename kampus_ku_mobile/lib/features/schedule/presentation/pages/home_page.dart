@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:kampus_ku_mobile/features/schedule/controller/schedule_controller.dart';
+import 'package:kampus_ku_mobile/controller/schedule_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

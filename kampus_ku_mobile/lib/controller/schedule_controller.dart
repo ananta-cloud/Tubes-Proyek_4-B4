@@ -133,18 +133,5 @@ class ScheduleController extends ChangeNotifier {
     }
   }
 
-  bool checkCollision(ScheduleLocalModel newJadwal) {
-    // Query langsung ke data yang ada di memori HP (yang sudah sinkron dengan Atlas)
-    final results = realm.all<ScheduleLocalModel>().query(
-      r'hari == $0 AND ruangan == $1 AND jam_mulai < $2 AND jam_selesai > $3',
-      [
-        newJadwal.hari,
-        newJadwal.ruangan,
-        newJadwal.jam_selesai,
-        newJadwal.jam_mulai,
-      ],
-    );
-
-    return results.isNotEmpty; // Jika ada isinya, berarti BENTROK
-  }
+  bool checkCollision(ScheduleLocalModel newJadwal) {}
 }
