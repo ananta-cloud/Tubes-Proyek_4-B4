@@ -35,6 +35,18 @@ class ScheduleLocalModel extends HiveObject {
     required this.dosen,
   });
 
+  factory ScheduleLocalModel.fromJson(Map<String, dynamic> json) {
+    return ScheduleLocalModel(
+      id: json['id'] ?? json['_id'].toString(),
+      namaMk: json['nama_mk'] ?? '-',
+      hari: json['hari'] ?? '-',
+      jamMulai: json['jam_mulai'] ?? '-',
+      jamSelesai: json['jam_selesai'] ?? '-',
+      ruangan: json['ruangan'] ?? '-',
+      dosen: json['nama_dosen'] ?? '-',
+    );
+  }
+
   @override
   String toString() {
     return 'ScheduleLocalModel(namaMk: $namaMk, hari: $hari, jam: $jamMulai-$jamSelesai)';
