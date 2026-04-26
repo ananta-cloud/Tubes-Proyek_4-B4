@@ -16,6 +16,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
+  await MongoDatabase.connect();
 
   await Hive.initFlutter();
 
@@ -27,15 +29,16 @@ void main() async {
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
 
-  await MongoDatabase.connect();
-
-
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ScheduleController(ScheduleService()),),
+        ChangeNotifierProvider(
+          create: (_) => ScheduleController(ScheduleService()),
+        ),
         ChangeNotifierProvider(create: (_) => TaskController()),
-        ChangeNotifierProvider(create: (_) => AnnouncementController(AnnouncementService())),
+        ChangeNotifierProvider(
+          create: (_) => AnnouncementController(AnnouncementService()),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -56,7 +59,7 @@ class MyApp extends StatelessWidget {
 }
 
 // =========================
-// ✅ HOME PAGE (TEST API)
+//  HOME PAGE (TEST API)
 // =========================
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
