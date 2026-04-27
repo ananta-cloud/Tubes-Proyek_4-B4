@@ -1,17 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../../data/models/announcement_model.dart';
+import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
 
-class AnnouncementDetailPage extends StatelessWidget {
+class AnnouncementDetailPage extends StatefulWidget {
   final AnnouncementModel announcement;
 
   const AnnouncementDetailPage({super.key, required this.announcement});
 
-  // Konsistensi warna dengan tema SIGMA di home_page.dart
+  @override
+  State<AnnouncementDetailPage> createState() => _AnnouncementDetailPageState();
+}
+
+class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
+  // Konsistensi warna dengan tema SIGMA
   static const primaryBlue  = Color(0xFF3F5DB3);
   static const accentOrange = Color(0xFFFF7A36);
   static const bgColor       = Color(0xFFEAF3FA);
   static const darkText      = Color(0xFF1F1F3D);
+
+  late Box<AnnouncementModel> bookmarkBox;
+  bool isBookmarked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Buka box dan cek status saat halaman pertama kali dimuat
+    bookmarkBox = Hive.box<AnnouncementModel>('bookmarks');
+    isBookmarked = bookmarkBox.containsKey(widget.announcement.id);
+  }
+
+  void _toggleBookmark() {
+    setState(() {
+      isBookmarked = !isBookmarked;
+    });
+
+    if (isBookmarked) {
+      // Simpan ke Hive
+      bookmarkBox.put(widget.announcement.id, widget.announcement);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Disimpan ke Bookmark'),
+          backgroundColor: accentOrange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      // Hapus dari Hive
+      bookmarkBox.delete(widget.announcement.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dihapus dari Bookmark'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   // Fungsi helper untuk merapikan teks target audience
   String _formatAudience(String audience) {
@@ -29,6 +72,8 @@ class AnnouncementDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ann = widget.announcement;
+
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
@@ -37,7 +82,7 @@ class AnnouncementDetailPage extends StatelessWidget {
           // HEADER ANIMASI (SLIVER APP BAR) DENGAN BOOKMARK
           // ============================================================
           SliverAppBar(
-            expandedHeight: 80,
+            expandedHeight: 140,
             floating: false,
             pinned: true,
             elevation: 0,
@@ -47,51 +92,23 @@ class AnnouncementDetailPage extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
-              // FITUR BOOKMARK REAKTIF
-              ValueListenableBuilder(
-                valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
-                builder: (context, Box<AnnouncementModel> box, _) {
-                  final isBookmarked = box.containsKey(announcement.id);
-                  
-                  return IconButton(
-                    icon: Icon(
-                      isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: isBookmarked ? accentOrange : Colors.white,
-                      size: 26,
-                    ),
-                    onPressed: () {
-                      if (isBookmarked) {
-                        box.delete(announcement.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Dihapus dari Bookmark'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      } else {
-                        box.put(announcement.id, announcement);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Disimpan ke Bookmark'),
-                            backgroundColor: Color(0xFFFF7A36),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    },
-                  );
-                },
+              IconButton(
+                icon: Icon(
+                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: isBookmarked ? accentOrange : Colors.white,
+                  size: 26,
+                ),
+                onPressed: _toggleBookmark,
               ),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
-          
-              titlePadding: const EdgeInsets.only(left: 48, right: 16, bottom: 20),
+              titlePadding: const EdgeInsets.only(left: 48, right: 16, bottom: 16),
               title: const Text(
                 "Detail Pengumuman",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18, 
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
                 ),
@@ -109,13 +126,13 @@ class AnnouncementDetailPage extends StatelessWidget {
                 child: const Stack(
                   children: [
                     Positioned(
-                      right: 50, 
-                      top: -10,
+                      right: -15,
+                      bottom: -10,
                       child: Opacity(
                         opacity: 0.1,
                         child: Icon(
-                          Icons.campaign_rounded, 
-                          size: 90, 
+                          Icons.campaign_rounded,
+                          size: 110,
                           color: Colors.white,
                         ),
                       ),
@@ -163,7 +180,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                _formatAudience(announcement.targetAudience),
+                                _formatAudience(ann.targetAudience),
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -177,7 +194,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                                 Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _formatDate(announcement.createdAt),
+                                  _formatDate(ann.createdAt),
                                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                                 ),
                               ],
@@ -205,7 +222,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  announcement.namaPublisher,
+                                  ann.namaPublisher,
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
@@ -234,12 +251,12 @@ class AnnouncementDetailPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Tags/Kategori jika ada
-                        if (announcement.kategori.isNotEmpty)
+                        if (ann.kategori.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 15),
                             child: Wrap(
                               spacing: 8,
-                              children: announcement.kategori.map((kat) {
+                              children: ann.kategori.map((kat) {
                                 return Text(
                                   "#$kat",
                                   style: const TextStyle(
@@ -253,7 +270,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                           ),
                         // Judul Lengkap
                         Text(
-                          announcement.judul,
+                          ann.judul,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -263,7 +280,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                         const SizedBox(height: 15),
                         // Isi Utama
                         Text(
-                          announcement.isi,
+                          ann.isi,
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.grey.shade800,
