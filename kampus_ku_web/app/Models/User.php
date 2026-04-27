@@ -4,11 +4,10 @@ namespace App\Models;
 
 use MongoDB\Laravel\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 
 
-class User extends Model implements AuthenticatableContract
+class User extends Authenticatable implements AuthenticatableContract
 {
     use Notifiable;
 
