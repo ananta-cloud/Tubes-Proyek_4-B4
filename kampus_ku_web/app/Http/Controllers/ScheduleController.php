@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Schedule;
 use App\Models\ScheduleRequests;
 use App\Models\MataKuliah;
+use MongoDB\BSON\ObjectId;
+use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends Controller
 {
@@ -93,14 +95,12 @@ class ScheduleController extends Controller
     /**
      * Form input jadwal baru
      */
-    public function create()
-    {
-        $user = Auth::user();
-
-        $masterMatkul = MataKuliah::where('id_prodi', $user->id_prodi)->get();
-
-        return view('penjadwalan.schedules.create', compact('masterMatkul'));
-    }
+public function create()
+{
+    $user = Auth::user();
+    $masterMatkul = MataKuliah::where('id_jurusan', $user->id_jurusan)->get();
+    return view('penjadwalan.schedules.create', compact('masterMatkul'));
+}
 
     /**
      * Simpan jadwal baru + Collision Detection
@@ -123,13 +123,17 @@ class ScheduleController extends Controller
         $user = Auth::user();
 
         $collision = $this->detectCollision(
-            $request->hari, $request->jam_mulai, $request->jam_selesai,
-            $request->ruangan, $request->nama_dosen, $request->nama_mk, null
+            $request->hari,
+            $request->jam_mulai,
+            $request->jam_selesai,
+            $request->ruangan,
+            $request->nama_dosen,
+            null
         );
 
         if ($collision) {
             return redirect()->back()->withInput()
-                ->with('error', 'Terjadi bentrok jadwal! Silakan periksa detail di bawah.')
+                ->with('error', 'Terjadi bentrok jadwal!')
                 ->with('conflict_detail', $collision);
         }
 
@@ -150,7 +154,7 @@ class ScheduleController extends Controller
         ]);
 
         return redirect()->route('penjadwalan.schedules.index')
-            ->with('success', 'Jadwal berhasil ditambahkan dengan status DRAFT.');
+            ->with('success', 'Jadwal berhasil ditambahkan.');
     }
 
     /**
@@ -372,25 +376,25 @@ class ScheduleController extends Controller
         string $jamSelesai,
         string $ruangan,
         string $namaDosen,
-        string $namaMk,
         ?string $excludeId = null
-    ): ?Schedule {
+    ) {
         $query = Schedule::where('hari', $hari)
-            ->where('status', '!=', 'DRAFT')
             ->where(function ($q) use ($jamMulai, $jamSelesai) {
                 $q->where('jam_mulai', '<', $jamSelesai)
-                  ->where('jam_selesai', '>', $jamMulai);
+                ->where('jam_selesai', '>', $jamMulai);
             })
-            ->where(function ($q) use ($ruangan, $namaDosen, $namaMk) {
+            ->where(function ($q) use ($ruangan, $namaDosen) {
                 $q->where('ruangan', $ruangan)
-                  ->orWhere('nama_dosen', $namaDosen)
-                  ->orWhere('nama_mk', $namaMk);
-            });
+                ->orWhere('nama_dosen', $namaDosen);
+            })
+            ->where('id_jurusan', $user->id_jurusan);
 
         if ($excludeId) {
             $query->where('_id', '!=', $excludeId);
         }
 
-        return $query->first();
+        $conflicts = $query->get();
+
+        return $conflicts->isEmpty() ? null : $conflicts;
     }
 }

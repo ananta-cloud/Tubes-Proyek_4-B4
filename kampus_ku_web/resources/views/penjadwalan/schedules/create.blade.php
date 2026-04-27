@@ -51,10 +51,10 @@
                         class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none @error('id_mk') border-red-400 @enderror">
                         <option value="">-- Pilih Mata Kuliah --</option>
                         @foreach($masterMatkul as $mk)
-                            <option value="{{ $mk->id }}"
+                            <option value="{{ $mk->_id }}"
                                 data-nama="{{ $mk->nama_mk }}"
                                 data-kode="{{ $mk->kode_mk }}"
-                                {{ old('id_mk') == $mk->id ? 'selected' : '' }}>
+                                {{ old('id_mk') == $mk->_id ? 'selected' : '' }}>
                                 [{{ $mk->kode_mk }}] {{ $mk->nama_mk }}
                             </option>
                         @endforeach
