@@ -3,8 +3,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
 
 // Pastikan path import ini sesuai dengan proyek Anda
-import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
-import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
+import 'package:kampus_ku_mobile/../../data/models/announcement_model.dart';
+import 'package:kampus_ku_mobile/../../data/services/announcement_service.dart';
 
 class AnnouncementController extends ChangeNotifier {
   final AnnouncementService service;
