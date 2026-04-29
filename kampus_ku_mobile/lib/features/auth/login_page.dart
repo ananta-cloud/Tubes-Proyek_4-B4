@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kampus_ku_mobile/data/repositories/auth_repository.dart';
 import 'package:kampus_ku_mobile/features/schedule/home_page.dart';
 import 'package:kampus_ku_mobile/features/dosen/dosen_main_page.dart';
+import 'package:kampus_ku_mobile/features/penjadwalan/penjadwalan_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,13 +30,18 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = false);
 
     if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login sukses: ${user.nama}"))
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
       if (user.role?.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const DosenMainPage()),
+        );
+      } else if (user.role?.toUpperCase() == 'TIM_PENJADWALAN') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PenjadwalanMainPage(user: user)),
         );
       } else {
         Navigator.pushReplacement(
