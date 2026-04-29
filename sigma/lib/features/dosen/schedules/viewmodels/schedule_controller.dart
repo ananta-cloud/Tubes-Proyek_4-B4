@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
-import '../data/models/schedule_local_model.dart';
-import '../data/services/schedule_service.dart';
+import '../../../../data/models/schedule_local_model.dart';
+import '../../../../data/services/schedule_service.dart';
 
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;

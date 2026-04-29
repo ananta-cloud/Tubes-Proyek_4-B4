@@ -1,5 +1,5 @@
 import 'package:mongo_dart/mongo_dart.dart';
-import '../../../core/network/mongo_database.dart';
+import '../../../../core/network/mongo_database.dart';
 
 class AuthService {
   Future<Map<String, dynamic>?> login(String email, String password) async {

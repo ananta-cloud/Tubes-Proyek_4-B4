@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../data/models/announcement_model.dart';
+import '../../../data/models/announcement_model.dart';
 
 class AnnouncementDetailPage extends StatelessWidget {
   final AnnouncementModel announcement;

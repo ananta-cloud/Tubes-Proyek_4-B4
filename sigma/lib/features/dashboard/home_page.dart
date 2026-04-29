@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:kampus_ku_mobile/controller/schedule_controller.dart';
-import 'package:kampus_ku_mobile/controller/announcement_controller.dart';
-import 'package:kampus_ku_mobile/data/repositories/announcement_repository.dart';
-import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
-import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
-import 'package:kampus_ku_mobile/presentation/pages/announcement_detail_page.dart';
-import 'package:kampus_ku_mobile/controller/task_controller.dart';
-import 'package:kampus_ku_mobile/data/models/task_model.dart';
-import 'package:kampus_ku_mobile/presentation/pages/task_page.dart';
+import 'package:sigma/features/dosen/schedules/viewmodels/schedule_controller.dart';
+import 'package:sigma/features/announcements/view_models/announcement_controller.dart';
+import 'package:sigma/data/repositories/announcement_repository.dart';
+import 'package:sigma/data/models/announcement_model.dart';
+import 'package:sigma/data/services/announcement_service.dart';
+import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
+import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
+import 'package:sigma/data/models/task_model.dart';
+import 'package:sigma/features/mahasiswa/tasks/tasks/views/task_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -629,7 +629,8 @@ class _HomePageState extends State<HomePage> {
         final allTasks = _taskController.tasks;
 
         return ListView(
-          physics: const NeverScrollableScrollPhysics(), // Scroll mengikuti layar utama
+          physics:
+              const NeverScrollableScrollPhysics(), // Scroll mengikuti layar utama
           shrinkWrap: true, // Agar tidak bentrok dengan scroll utama
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           children: [
@@ -651,7 +652,9 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TaskPage(controller: _taskController), // Kirim null = Mode Baru
+                        builder: (context) => TaskPage(
+                          controller: _taskController,
+                        ), // Kirim null = Mode Baru
                       ),
                     );
                   },
@@ -670,9 +673,16 @@ class _HomePageState extends State<HomePage> {
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.task_alt, size: 50, color: Colors.grey.shade300),
+                      Icon(
+                        Icons.task_alt,
+                        size: 50,
+                        color: Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 10),
-                      Text("Tidak ada tugas. Selamat bersantai!", style: TextStyle(color: Colors.grey.shade600)),
+                      Text(
+                        "Tidak ada tugas. Selamat bersantai!",
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
                     ],
                   ),
                 ),
@@ -710,8 +720,9 @@ class _HomePageState extends State<HomePage> {
 
   // Desain Kartu Tugas Dinamis
   Widget _taskItem(TaskModel task) {
-    bool isTerlambat = task.status == 'TERLAMBAT' || 
-                      (task.deadline.isBefore(DateTime.now()) && task.status == 'BELUM');
+    bool isTerlambat =
+        task.status == 'TERLAMBAT' ||
+        (task.deadline.isBefore(DateTime.now()) && task.status == 'BELUM');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -736,7 +747,7 @@ class _HomePageState extends State<HomePage> {
               context,
               MaterialPageRoute(
                 builder: (context) => TaskPage(
-                  controller: _taskController, 
+                  controller: _taskController,
                   taskToEdit: task, // Kirim data tugas = Mode Edit
                 ),
               ),
@@ -749,8 +760,12 @@ class _HomePageState extends State<HomePage> {
                 GestureDetector(
                   onTap: () => _taskController.toggleStatus(task),
                   child: Icon(
-                    task.status == 'SELESAI' ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: task.status == 'SELESAI' ? Colors.green : accentOrange,
+                    task.status == 'SELESAI'
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: task.status == 'SELESAI'
+                        ? Colors.green
+                        : accentOrange,
                     size: 26,
                   ),
                 ),
@@ -763,14 +778,21 @@ class _HomePageState extends State<HomePage> {
                         task.namaTugas,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: task.status == 'SELESAI' ? Colors.grey : darkText,
-                          decoration: task.status == 'SELESAI' ? TextDecoration.lineThrough : null,
+                          color: task.status == 'SELESAI'
+                              ? Colors.grey
+                              : darkText,
+                          decoration: task.status == 'SELESAI'
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       if (task.namaMkSnapshot != null)
                         Text(
                           task.namaMkSnapshot!,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                     ],
                   ),
@@ -781,13 +803,15 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       "${task.deadline.day}/${task.deadline.month}/${task.deadline.year}",
                       style: TextStyle(
-                        color: isTerlambat && task.status != 'SELESAI' ? Colors.red : primaryBlue, 
+                        color: isTerlambat && task.status != 'SELESAI'
+                            ? Colors.red
+                            : primaryBlue,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
                     ),
                     if (!task.isSynced)
-                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey)
+                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey),
                   ],
                 ),
               ],
