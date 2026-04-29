@@ -24,6 +24,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: ".env");
+  print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
+  await MongoDatabase.connect();
   await Hive.initFlutter();
 
   Hive.registerAdapter(ScheduleLocalModelAdapter());
@@ -31,19 +33,23 @@ void main() async {
 
   await Hive.openBox<ScheduleLocalModel>('schedules');
   await Hive.openBox<AnnouncementModel>('announcements');
-  await Hive.openBox<AnnouncementModel>('bookmarks');
+  await Hive.openBox<TaskModel>('tasks');
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
+          
           create: (_) => ScheduleController(ScheduleService()),
+        
         ),
         ChangeNotifierProvider(
           create: (_) => AnnouncementController(AnnouncementService()),
         ),
         ChangeNotifierProvider(
+          
           create: (_) => ScheduleRequestController(ScheduleRequestService()),
+        ,
         ),
       ],
       child: const MyApp(),
@@ -59,7 +65,40 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       title: 'SIGMA',
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      home: LoginPage(), // ⬅️ tetap mulai dari login
+    );
+  }
+}
+
+// =========================
+//  HOME PAGE (TEST API)
+// =========================
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final scheduleService = ScheduleService();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchSchedules();
+  }
+
+  void fetchSchedules() async {
+    final data = await scheduleService.getSchedules();
+    print("SCHEDULE DATA: $data");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Home")),
+      body: const Center(child: Text("Login berhasil 🎉")),
     );
   }
 }
