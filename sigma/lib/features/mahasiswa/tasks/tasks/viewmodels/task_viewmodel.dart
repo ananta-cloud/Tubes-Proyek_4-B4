@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart' show ObjectId; // Import ini untuk buat ID
-import '../data/models/task_model.dart';
-import '../data/services/task_service.dart';
+import 'package:sigma/data/models/task_model.dart';
+import '../../../../../data/services/task_service.dart';
 
 class TaskController extends ChangeNotifier {
   List<TaskModel> tasks = [];

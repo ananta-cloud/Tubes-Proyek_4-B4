@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:kampus_ku_mobile/data/repositories/auth_repository.dart';
-import 'package:kampus_ku_mobile/presentation/pages/home_page.dart';
+import 'package:provider/provider.dart';
+import 'package:sigma/features/dashboard/home_page.dart';
+import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,25 +14,32 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final authRepo = AuthRepository();
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
-  bool isLoading = false;
-
-  void login() async {
-    setState(() => isLoading = true);
-
-    final user = await authRepo.login(
+  void _handleLogin() async {
+    // Ambil ViewModel menggunakan read (karena berada di dalam fungsi on-tap)
+    final viewModel = context.read<LoginViewModel>();
+    
+    final user = await viewModel.login(
       emailController.text,
       passwordController.text,
     );
 
-    setState(() => isLoading = false);
+    // Cek apakah widget masih aktif (mounted) sebelum menggunakan context
+    if (!mounted) return;
 
     if (user != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login sukses: ${user.nama}"))
+      );
 
+      // (Opsional) Anda bisa menambahkan logika pengecekan Role di sini 
+      // seperti user.role == 'DOSEN' -> ke DosenMainPage
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
@@ -49,6 +57,9 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Gunakan watch untuk memantau perubahan state (loading)
+    final isLoading = context.watch<LoginViewModel>().isLoading;
+
     return Scaffold(
       body: Container(
         // 🔥 GRADIENT BACKGROUND
@@ -137,7 +148,7 @@ class _LoginPageState extends State<LoginPage> {
 
                         // ================= BUTTON =================
                         GestureDetector(
-                          onTap: isLoading ? null : login,
+                          onTap: isLoading ? null : _handleLogin,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             height: 50,

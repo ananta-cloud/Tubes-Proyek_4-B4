@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
-import '../data/models/announcement_model.dart';
-import '../data/services/announcement_service.dart';
+import '../../../data/models/announcement_model.dart';
+import '../../../data/services/announcement_service.dart';
 
 class AnnouncementController extends ChangeNotifier {
   final AnnouncementService service;

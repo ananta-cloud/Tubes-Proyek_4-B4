@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../controller/task_controller.dart';
-import '../../data/models/task_model.dart';
+import '../viewmodels/task_viewmodel.dart';
+import '../../../../../data/models/task_model.dart';
 
 class TaskPage extends StatefulWidget {
   final TaskController controller;
