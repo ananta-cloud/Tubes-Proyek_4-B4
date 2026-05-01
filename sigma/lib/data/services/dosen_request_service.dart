@@ -1,6 +1,6 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import '../models/schedule_request_model.dart';
-import 'package:kampus_ku_mobile/core/network/mongo_database.dart';
+import 'package:sigma/core/network/mongo_database.dart';
 
 class DosenRequestService {
   DbCollection get _schCol => MongoDatabase.db.collection('schedules');
