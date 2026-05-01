@@ -1,4 +1,4 @@
-import 'package:kampus_ku_mobile/core/network/api_client.dart'; 
+import 'package:sigma/core/network/api_client.dart'; 
 
 class AnnouncementService {
   

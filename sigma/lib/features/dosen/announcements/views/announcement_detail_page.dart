@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-<<<<<<<< HEAD:kampus_ku_mobile/lib/features/announcements/announcement_detail_page.dart
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
-========
-import '../../../data/models/announcement_model.dart';
->>>>>>>> nazriel:sigma/lib/features/announcements/views/announcement_detail_page.dart
-
+import 'package:sigma/data/models/announcement_model.dart';
+  
 class AnnouncementDetailPage extends StatefulWidget {
   final AnnouncementModel announcement;
 

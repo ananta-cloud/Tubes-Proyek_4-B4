@@ -3,33 +3,35 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
-// Import Database
+// ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';
 
-// Import UI
+// ================= IMPORT UI =================
 import 'features/auth/views/login_page.dart';
 
-// Import Models
+// ================= IMPORT MODELS =================
 import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
 import 'data/models/task_model.dart';
 
-// Import Services
+// ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
 import 'data/services/announcement_service.dart';
+import 'data/repositories/auth_repository.dart';
 
-// Import Controllers / ViewModels
+// ================= IMPORT VIEWMODELS =================
+import 'features/auth/viewmodels/login_viewmodel.dart';
 import 'features/dosen/schedules/viewmodels/schedule_controller.dart';
 import 'features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
-import 'features/announcements/view_models/announcement_controller.dart';
+import 'features/announcements/viewmodels/announcement_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load Env
   await dotenv.load(fileName: ".env");
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
-  
+
   // Connect MongoDB
   await MongoDatabase.connect();
 
@@ -49,19 +51,25 @@ void main() async {
   await Hive.openBox<ScheduleLocalModel>('schedules');
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
-  await Hive.openBox<AnnouncementModel>('bookmarks'); 
+  await Hive.openBox<AnnouncementModel>('bookmarks');
 
   runApp(
     MultiProvider(
       providers: [
+        // 1. Auth ViewModel (Wajib ada untuk LoginPage)
+        ChangeNotifierProvider(create: (_) => LoginViewModel(AuthRepository())),
+
+        // 2. Schedule Controller
         ChangeNotifierProvider(
           create: (_) => ScheduleController(ScheduleService()),
         ),
+
+        // 3. Task Controller
+        ChangeNotifierProvider(create: (_) => TaskController()),
+
+        // 4. Announcement ViewModel (Satu ViewModel, dipakai 2 View Dosen/Mhs) ⬅️ UPDATE DI SINI
         ChangeNotifierProvider(
-          create: (_) => TaskController(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => AnnouncementController(AnnouncementService()),
+          create: (_) => AnnouncementViewModel(AnnouncementService()),
         ),
       ],
       child: const MyApp(),
@@ -77,7 +85,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       title: 'Sigma',
       debugShowCheckedModeBanner: false,
-      home: LoginPage(), 
+      home: LoginPage(),
     );
   }
 }
