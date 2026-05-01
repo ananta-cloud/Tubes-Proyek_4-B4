@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-<<<<<<<< HEAD:kampus_ku_mobile/lib/features/auth/login_page.dart
-import 'package:kampus_ku_mobile/data/repositories/auth_repository.dart';
-import 'package:kampus_ku_mobile/features/schedule/home_page.dart';
-import 'package:kampus_ku_mobile/features/dosen/dosen_main_page.dart';
-========
+import 'package:sigma/data/repositories/auth_repository.dart';
+import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
+import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
 import 'package:provider/provider.dart';
-import 'package:sigma/features/dashboard/home_page.dart';
+import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
->>>>>>>> nazriel:sigma/lib/features/auth/views/login_page.dart
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -42,26 +39,17 @@ class _LoginPageState extends State<LoginPage> {
     if (user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Login sukses: ${user.nama}"))
-<<<<<<<< HEAD:kampus_ku_mobile/lib/features/auth/login_page.dart
-========
       );
 
-      // (Opsional) Anda bisa menambahkan logika pengecekan Role di sini 
-      // seperti user.role == 'DOSEN' -> ke DosenMainPage
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
->>>>>>>> nazriel:sigma/lib/features/auth/views/login_page.dart
-      );
       if (user.role?.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DosenMainPage()),
+          MaterialPageRoute(builder: (_) => const HomePageDsn()),
         );
-      } else {
+      } if (user.role?.toUpperCase() == 'MAHASISWA'){
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
+          MaterialPageRoute(builder: (_) => const HomePageMhs()),
         );
       }
     } else {
