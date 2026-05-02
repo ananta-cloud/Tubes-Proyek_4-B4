@@ -37,13 +37,13 @@ void main() async {
 
   // Initialize Hive
   await Hive.initFlutter();
-  if (!Hive.isAdapterRegistered(0)) {
+  if (!Hive.isAdapterRegistered(1)) {
     Hive.registerAdapter(ScheduleLocalModelAdapter());
   }
-  if (!Hive.isAdapterRegistered(1)) {
+  if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(AnnouncementModelAdapter());
   }
-  if (!Hive.isAdapterRegistered(2)) {
+  if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(TaskModelAdapter());
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 // ==========================================
 // 1. IMPORT DATA & MODELS
@@ -10,6 +11,7 @@ import 'package:sigma/data/models/task_model.dart';
 // ==========================================
 // 2. IMPORT VIEWMODELS & VIEWS
 // ==========================================
+import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
@@ -39,6 +41,14 @@ class _HomePageMhsState extends State<HomePageMhs> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Panggil fungsi syncSchedules di sini saat module jadwal sudah siap
       // context.read<ScheduleController>().syncSchedules();
+
+      // 1. Tarik ID User yang sedang aktif
+      final userId = context.read<LoginViewModel>().user?.id;
+      
+      if (userId != null) {
+        // 2. Lakukan sinkronisasi Bookmark
+        context.read<AnnouncementViewModel>().syncBookmarks(userId);
+      }
     });
   }
 
@@ -543,9 +553,57 @@ class _HomePageMhsState extends State<HomePageMhs> {
   }
 
   // ================= BOOKMARK =================
-  Widget _bookmark() {
-    return const Center(child: Text("Pengumuman Tersimpan"));
-  }
+    Widget _bookmark() {
+      // ValueListenableBuilder akan membuat halaman ini otomatis ter-refresh (rebuild)
+      // setiap kali ada data baru yang masuk/keluar dari kotak 'bookmarks' di Hive.
+      return ValueListenableBuilder<Box<AnnouncementModel>>(
+        valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
+        builder: (context, box, _) {
+          // Ambil datanya dan urutkan dari yang paling baru
+          final bookmarkedItems = box.values.toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            children: [
+              Text(
+                "Pengumuman Tersimpan",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: darkText,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Jika kosong, tampilkan pesan ramah
+              if (bookmarkedItems.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(30),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.bookmark_border, size: 50, color: Colors.grey.shade300),
+                        const SizedBox(height: 10),
+                        Text("Belum ada pengumuman yang disimpan.", style: TextStyle(color: Colors.grey.shade600)),
+                      ],
+                    ),
+                  ),
+                )
+              // Jika ada isinya, panggil widget _announcement untuk menggambar kartunya
+              else
+                ...bookmarkedItems.map((data) => _announcement(data)).toList(),
+
+              const SizedBox(height: 100), // Spasi agar tidak tertutup bottom navbar
+            ],
+          );
+        },
+      );
+    }
 
   // ================= NAVBAR =================
   Widget _bottomNav() {
