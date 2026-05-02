@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sigma/data/repositories/auth_repository.dart';
 import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
 import 'package:provider/provider.dart';
-import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
@@ -16,6 +14,30 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _runAutoLogin();
+    });
+  }
+
+  void _runAutoLogin() async {
+    final viewModel = context.read<LoginViewModel>();
+    final user = await viewModel.checkLogin();
+
+    if (!mounted) return;
+
+    if (user != null) {
+      // Jika ternyata sudah login, langsung usir dari halaman login!
+      if (user.role.toUpperCase() == 'DOSEN') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePageDsn()));
+      } else if (user.role.toUpperCase() == 'MAHASISWA') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePageMhs()));
+      }
+    }
+  }
 
   @override
   void dispose() {

@@ -12,6 +12,7 @@ import 'package:sigma/data/models/task_model.dart';
 // 2. IMPORT VIEWMODELS & VIEWS
 // ==========================================
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
+import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
@@ -52,6 +53,36 @@ class _HomePageMhsState extends State<HomePageMhs> {
     });
   }
 
+  void _handleLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Konfirmasi Keluar"),
+        content: const Text("Apakah Anda yakin ingin keluar dari aplikasi?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+          TextButton(
+            onPressed: () async {
+              // Lakukan proses logout
+              await context.read<LoginViewModel>().logout();
+              
+              if (context.mounted) {
+                // Tendang kembali ke halaman Login dan hapus seluruh tumpukan halaman
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text("Keluar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 🔥 MENGAMBIL VIEWMODEL DARI PROVIDER (Sesuai dengan main.dart)
@@ -64,7 +95,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       body: SafeArea(
         child: Column(
           children: [
-            _header(),
+            _header(context),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -88,7 +119,18 @@ class _HomePageMhsState extends State<HomePageMhs> {
   }
 
   // ================= HEADER =================
-  Widget _header() {
+  Widget _header(BuildContext context) {
+
+    final user = context.watch<LoginViewModel>().user;
+    
+    final namaLengkap = user?.nama ?? "Mahasiswa";
+    
+    // final listKata = namaLengkap.split(' ');
+
+    // final namaPanggilan = (listKata.length > 1 && (listKata[0].toLowerCase() == 'muhammad' || listKata[0].toLowerCase() == 'm.')) 
+    //     ? listKata[1] 
+    //     : listKata[0];
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
       decoration: BoxDecoration(
@@ -107,21 +149,21 @@ class _HomePageMhsState extends State<HomePageMhs> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "SIGMA",
+                      "Selamat Datang,",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      "D3 Teknik Informatika",
-                      style: TextStyle(color: Colors.white70),
+                      "$namaLengkap",
+                      style: TextStyle(color: Colors.white, fontSize: 22),
                     ),
                   ],
                 ),
@@ -141,6 +183,11 @@ class _HomePageMhsState extends State<HomePageMhs> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(width: 15),
+              GestureDetector(
+                onTap: () => _handleLogout(context),
+                child: const Icon(Icons.logout_rounded, color: Colors.white),
               ),
             ],
           ),
@@ -174,20 +221,14 @@ class _HomePageMhsState extends State<HomePageMhs> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       children: [
         Text(
-          "Halo, Naufal! 👋",
+          "Jadwal pertamamu hari ini adalah",
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: darkText,
           ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          "Jadwal pertamamu hari ini jam 07:00.",
-          style: TextStyle(color: darkText.withOpacity(0.6)),
-        ),
         const SizedBox(height: 25),
-
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

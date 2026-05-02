@@ -10,21 +10,32 @@ import 'package:sigma/data/services/bookmark_service.dart';
 class AnnouncementViewModel extends ChangeNotifier {
   final AnnouncementService service;
   final BookmarkService _bookmarkService = BookmarkService();
-  
+
   // State untuk daftar pengumuman
   List<AnnouncementModel> announcements = [];
   bool isLoading = false;
   String selectedFilter = 'SEMUA';
   final List<String> filters = [
-    'SEMUA', 'AKADEMIK', 'BEASISWA', 'LOMBA', 'UKM', 'KARIR', 
-    'PKM', 'WIRAUSAHA', 'KONSELING', 'FASILITAS', 'LAINNYA',
+    'SEMUA',
+    'AKADEMIK',
+    'BEASISWA',
+    'LOMBA',
+    'UKM',
+    'KARIR',
+    'PKM',
+    'WIRAUSAHA',
+    'KONSELING',
+    'FASILITAS',
+    'LAINNYA',
   ];
 
   // Box untuk bookmark
   late final Box<AnnouncementModel> _bookmarkBox;
 
   AnnouncementViewModel(this.service) {
-    _bookmarkBox = Hive.box<AnnouncementModel>('bookmarks'); // Buka box bookmark
+    _bookmarkBox = Hive.box<AnnouncementModel>(
+      'bookmarks',
+    ); // Buka box bookmark
     syncAnnouncements();
   }
 
@@ -44,12 +55,9 @@ class AnnouncementViewModel extends ChangeNotifier {
     final connectivityResult = await Connectivity().checkConnectivity();
     final box = Hive.box<AnnouncementModel>('announcements');
 
-    bool isOffline;
-    if (connectivityResult is List) {
-      isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
-    } else {
-      isOffline = connectivityResult == ConnectivityResult.none;
-    }
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
     if (isOffline) {
       _loadFromLocal();
@@ -67,8 +75,8 @@ class AnnouncementViewModel extends ChangeNotifier {
       }
       _loadFromLocal();
     } catch (e) {
-      print("🔥 ERROR SINKRONISASI PENGUMUMAN: $e");
-      _loadFromLocal(); 
+      print("ERROR SINKRONISASI PENGUMUMAN: $e");
+      _loadFromLocal();
     }
 
     isLoading = false;
@@ -78,12 +86,15 @@ class AnnouncementViewModel extends ChangeNotifier {
   void _loadFromLocal() {
     final box = Hive.box<AnnouncementModel>('announcements');
     List<AnnouncementModel> all = box.values.toList();
-    
+
     all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+
     if (selectedFilter != 'SEMUA') {
       announcements = all
-          .where((a) => a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter))
+          .where(
+            (a) =>
+                a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter),
+          )
           .toList();
     } else {
       announcements = all;
@@ -101,42 +112,50 @@ class AnnouncementViewModel extends ChangeNotifier {
   }
 
   // Menambah / menghapus bookmark (Lokal + Cloud)
-  Future<void> toggleBookmark(AnnouncementModel announcement, BuildContext context) async {
-    // 🔥 1. AMBIL ID USER YANG SEDANG LOGIN SAAT INI
+  Future<void> toggleBookmark(
+    AnnouncementModel announcement,
+    BuildContext context,
+  ) async {
     final authVm = context.read<LoginViewModel>();
     final currentUserId = authVm.user?.id;
 
     if (currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sesi login tidak valid. Silakan login ulang.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Sesi login tidak valid. Silakan login ulang.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     final isSaved = _bookmarkBox.containsKey(announcement.id);
 
-    // 2. Cek Koneksi Internet Dulu
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = connectivityResult is List 
-        ? (connectivityResult as List).contains(ConnectivityResult.none) 
-        : connectivityResult == ConnectivityResult.none;
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
     if (isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal: Periksa koneksi internet Anda.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Gagal: Periksa koneksi internet Anda.'),
+          backgroundColor: Colors.red,
+        ),
       );
-      return; 
+      return;
     }
 
-    // 3. Lakukan Aksi Simpan / Hapus dengan ID Asli
     if (isSaved) {
       _bookmarkBox.delete(announcement.id);
-      
-      // Hapus dari MongoDB Cloud pakai ID Asli
+
       await _bookmarkService.removeBookmark(currentUserId, announcement.id);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dihapus dari Bookmark'), duration: Duration(seconds: 2)),
+        const SnackBar(
+          content: Text('Dihapus dari Bookmark'),
+          duration: Duration(seconds: 2),
+        ),
       );
     } else {
       final clonedData = AnnouncementModel(
@@ -155,22 +174,21 @@ class AnnouncementViewModel extends ChangeNotifier {
         createdAt: announcement.createdAt,
         updatedAt: announcement.updatedAt,
       );
-      
+
       _bookmarkBox.put(announcement.id, clonedData);
-      
-      // Simpan ke MongoDB Cloud pakai ID Asli
+
       await _bookmarkService.saveBookmark(currentUserId, announcement);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Disimpan ke Bookmark'), 
-          backgroundColor: Color(0xFFFF7A36), 
-          duration: Duration(seconds: 2)
+          content: Text('Disimpan ke Bookmark'),
+          backgroundColor: Color(0xFFFF7A36),
+          duration: Duration(seconds: 2),
         ),
       );
     }
-    
-    notifyListeners(); 
+
+    notifyListeners();
   }
 
   // Helper Format Teks
@@ -181,8 +199,19 @@ class AnnouncementViewModel extends ChangeNotifier {
   // Helper Format Tanggal
   String formatDate(DateTime dt) {
     const months = [
-      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      '',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
@@ -190,35 +219,33 @@ class AnnouncementViewModel extends ChangeNotifier {
   // Sinkronisasi Tarik Bookmark dari Cloud (saat baru buka app/login)
   Future<void> syncBookmarks(String currentUserId) async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = connectivityResult is List 
-        ? (connectivityResult as List).contains(ConnectivityResult.none) 
-        : connectivityResult == ConnectivityResult.none;
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
-    if (isOffline) return; // Kalau offline, abaikan. Biarkan pakai data lokal yang ada.
+    if (isOffline) return;
 
     try {
-      // 1. Tarik data dari MongoDB
-      final List<Map<String, dynamic>> mongoBookmarks = await _bookmarkService.getBookmarksByUser(currentUserId);
-      
-      // 2. Bersihkan Hive lama agar tidak ada data hantu/duplikat
-      await _bookmarkBox.clear(); 
+      final List<Map<String, dynamic>> mongoBookmarks = await _bookmarkService
+          .getBookmarksByUser(currentUserId);
 
-      // 3. Masukkan data segar dari MongoDB ke Hive
+      await _bookmarkBox.clear();
+
       for (var item in mongoBookmarks) {
         if (item['announcement_snapshot'] != null) {
-          final snapshot = item['announcement_snapshot'] as Map<String, dynamic>;
-          
-          // Sesuaikan ID agar cocok dengan ID pengumuman aslinya (bukan ID bookmark-nya)
-          snapshot['_id'] = item['id_announcement']; 
-          
+          final snapshot =
+              item['announcement_snapshot'] as Map<String, dynamic>;
+
+          snapshot['_id'] = item['id_announcement'];
+
           final announcement = AnnouncementModel.fromMongo(snapshot);
           await _bookmarkBox.put(announcement.id, announcement);
         }
       }
       notifyListeners();
-      print("✅ SUKSES MENARIK ${mongoBookmarks.length} BOOKMARK DARI CLOUD!");
+      print("SUKSES MENARIK ${mongoBookmarks.length} BOOKMARK DARI CLOUD!");
     } catch (e) {
-      print("🔥 ERROR SINKRONISASI BOOKMARK: $e");
+      print("ERROR SINKRONISASI BOOKMARK: $e");
     }
   }
 }
