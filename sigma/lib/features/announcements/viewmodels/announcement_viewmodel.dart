@@ -45,11 +45,12 @@ class AnnouncementViewModel extends ChangeNotifier {
       final List<Map<String, dynamic>> list = await service.getAnnouncements();
       await box.clear();
       for (var item in list) {
-        final announcement = AnnouncementModel.fromJson(item);
+        final announcement = AnnouncementModel.fromMongo(item);
         await box.put(announcement.id, announcement);
       }
       _loadFromLocal();
     } catch (e) {
+      print("🔥 ERROR SINKRONISASI PENGUMUMAN: $e");
       _loadFromLocal(); 
     }
 

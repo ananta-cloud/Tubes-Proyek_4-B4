@@ -32,20 +32,19 @@ class AnnouncementViewModel extends ChangeNotifier {
     final connectivityResult = await Connectivity().checkConnectivity();
     final box = Hive.box<AnnouncementModel>('announcements');
 
-    bool isOffline = connectivityResult.contains(ConnectivityResult.none);
+    bool isOffline;
 
-    if (isOffline) {
-      _loadFromLocal();
-      isLoading = false;
-      notifyListeners();
-      return;
+    if (connectivityResult is List) {
+      isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+    } else {
+      isOffline = connectivityResult == ConnectivityResult.none;
     }
 
     try {
       final List<Map<String, dynamic>> list = await service.getAnnouncements();
       await box.clear();
       for (var item in list) {
-        final announcement = AnnouncementModel.fromJson(item);
+        final announcement = AnnouncementModel.fromMongo(item);
         await box.put(announcement.id, announcement);
       }
       _loadFromLocal();

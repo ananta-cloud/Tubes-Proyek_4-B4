@@ -3,7 +3,7 @@ import '../viewmodels/task_viewmodel.dart';
 import '../../../../../data/models/task_model.dart';
 
 class TaskPage extends StatefulWidget {
-  final TaskController controller;
+  final TaskViewModel controller;
   final TaskModel? taskToEdit; // Jika null = Tambah Baru, Jika terisi = Edit
 
   const TaskPage({super.key, required this.controller, this.taskToEdit});

@@ -65,7 +65,7 @@ void main() async {
         ),
 
         // 3. Task Controller
-        ChangeNotifierProvider(create: (_) => TaskController()),
+        ChangeNotifierProvider(create: (_) => TaskViewModel()),
 
         // 4. Announcement ViewModel (Satu ViewModel, dipakai 2 View Dosen/Mhs) ⬅️ UPDATE DI SINI
         ChangeNotifierProvider(

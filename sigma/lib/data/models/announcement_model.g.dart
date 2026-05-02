@@ -21,17 +21,23 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       judul: fields[1] as String,
       isi: fields[2] as String,
       targetAudience: fields[3] as String,
-      namaPublisher: fields[4] as String,
-      kategori: (fields[5] as List).cast<String>(),
-      createdAt: fields[6] as DateTime,
-      isImportant: fields[7] as bool,
+      idPublisher: fields[4] as String,
+      namaPublisher: fields[5] as String,
+      rolePublisher: fields[6] as String,
+      idProdi: fields[7] as String?,
+      idJurusan: fields[8] as String?,
+      targetAngkatan: (fields[9] as List?)?.cast<String>(),
+      kategori: (fields[10] as List).cast<String>(),
+      createdAt: fields[11] as DateTime,
+      updatedAt: fields[12] as DateTime,
+      tingkatKepentingan: fields[13] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, AnnouncementModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,13 +47,25 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       ..writeByte(3)
       ..write(obj.targetAudience)
       ..writeByte(4)
-      ..write(obj.namaPublisher)
+      ..write(obj.idPublisher)
       ..writeByte(5)
-      ..write(obj.kategori)
+      ..write(obj.namaPublisher)
       ..writeByte(6)
-      ..write(obj.createdAt)
+      ..write(obj.rolePublisher)
       ..writeByte(7)
-      ..write(obj.isImportant);
+      ..write(obj.idProdi)
+      ..writeByte(8)
+      ..write(obj.idJurusan)
+      ..writeByte(9)
+      ..write(obj.targetAngkatan)
+      ..writeByte(10)
+      ..write(obj.kategori)
+      ..writeByte(11)
+      ..write(obj.createdAt)
+      ..writeByte(12)
+      ..write(obj.updatedAt)
+      ..writeByte(13)
+      ..write(obj.tingkatKepentingan);
   }
 
   @override
