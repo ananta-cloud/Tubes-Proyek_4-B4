@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
       if (user.role?.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DosenMainPage()),
+          MaterialPageRoute(builder: (_) => DosenMainPage(user: user)),
         );
       } else if (user.role?.toUpperCase() == 'TIM_PENJADWALAN') {
         Navigator.pushReplacement(

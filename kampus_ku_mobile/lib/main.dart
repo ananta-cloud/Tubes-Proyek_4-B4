@@ -23,6 +23,10 @@ import 'package:kampus_ku_mobile/data/services/announcement_service.dart';
 import 'package:kampus_ku_mobile/data/models/announcement_model.dart';
 import 'package:kampus_ku_mobile/controller/announcement_controller.dart';
 
+// Import Dosen
+import 'package:kampus_ku_mobile/data/services/dosen_request_service.dart';
+import 'package:kampus_ku_mobile/controller/dosen_request_controller.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -49,6 +53,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => ScheduleRequestController(ScheduleRequestService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => DosenRequestController(DosenRequestService()),
         ),
       ],
       child: const MyApp(),
