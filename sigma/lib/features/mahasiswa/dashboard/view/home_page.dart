@@ -49,6 +49,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       if (userId != null) {
         // 2. Lakukan sinkronisasi Bookmark
         context.read<AnnouncementViewModel>().syncBookmarks(userId);
+        context.read<TaskViewModel>().syncTasks(userId);
       }
     });
   }
