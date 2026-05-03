@@ -45,7 +45,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
 
       // 1. Tarik ID User yang sedang aktif
       final userId = context.read<LoginViewModel>().user?.id;
-      
+
       if (userId != null) {
         // 2. Lakukan sinkronisasi Bookmark
         context.read<AnnouncementViewModel>().syncBookmarks(userId);
@@ -61,12 +61,15 @@ class _HomePageMhsState extends State<HomePageMhs> {
         title: const Text("Konfirmasi Keluar"),
         content: const Text("Apakah Anda yakin ingin keluar dari aplikasi?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
           TextButton(
             onPressed: () async {
               // Lakukan proses logout
               await context.read<LoginViewModel>().logout();
-              
+
               if (context.mounted) {
                 // Tendang kembali ke halaman Login dan hapus seluruh tumpukan halaman
                 Navigator.pushAndRemoveUntil(
@@ -76,7 +79,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 );
               }
             },
-            child: const Text("Keluar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Keluar",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -104,7 +110,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
                   index: currentIndex,
                   children: [
                     _home(announcementViewModel), // Tab 0: Home
-                    const Center(child: Text("Halaman Jadwal (Segera Hadir)")), // Tab 1: Jadwal
+                    const Center(
+                      child: Text("Halaman Jadwal (Segera Hadir)"),
+                    ), // Tab 1: Jadwal
                     _tasks(taskViewModel), // Tab 2: Tugas
                     _bookmark(), // Tab 3: Bookmark
                   ],
@@ -120,15 +128,14 @@ class _HomePageMhsState extends State<HomePageMhs> {
 
   // ================= HEADER =================
   Widget _header(BuildContext context) {
-
     final user = context.watch<LoginViewModel>().user;
-    
+
     final namaLengkap = user?.nama ?? "Mahasiswa";
-    
+
     // final listKata = namaLengkap.split(' ');
 
-    // final namaPanggilan = (listKata.length > 1 && (listKata[0].toLowerCase() == 'muhammad' || listKata[0].toLowerCase() == 'm.')) 
-    //     ? listKata[1] 
+    // final namaPanggilan = (listKata.length > 1 && (listKata[0].toLowerCase() == 'muhammad' || listKata[0].toLowerCase() == 'm.'))
+    //     ? listKata[1]
     //     : listKata[0];
 
     return Container(
@@ -221,7 +228,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       children: [
         Text(
-          "Jadwal pertamamu hari ini adalah",
+          "Jadwalmu hari ini adalah",
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -285,7 +292,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           )
         else
-          ...viewModel.announcements.map((data) => _announcement(data)).toList(),
+          ...viewModel.announcements
+              .map((data) => _announcement(data))
+              .toList(),
 
         const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
       ],
@@ -299,9 +308,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       decoration: BoxDecoration(
         color: active ? primaryBlue : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: active ? primaryBlue : Colors.grey.shade300,
-        ),
+        border: Border.all(color: active ? primaryBlue : Colors.grey.shade300),
       ),
       child: Text(
         text,
@@ -359,10 +366,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 6,
-                  color: indikatorWarna,
-                ),
+                Container(width: 6, color: indikatorWarna),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -373,7 +377,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
@@ -426,7 +433,11 @@ class _HomePageMhsState extends State<HomePageMhs> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Icon(Icons.person, size: 14, color: Colors.grey.shade500),
+                            Icon(
+                              Icons.person,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               data.namaPublisher,
@@ -494,7 +505,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 children: [
                   Icon(Icons.task_alt, size: 50, color: Colors.grey.shade300),
                   const SizedBox(height: 10),
-                  Text("Tidak ada tugas. Selamat bersantai!", style: TextStyle(color: Colors.grey.shade600)),
+                  Text(
+                    "Tidak ada tugas. Selamat bersantai!",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ),
@@ -506,7 +520,8 @@ class _HomePageMhsState extends State<HomePageMhs> {
   }
 
   Widget _taskItem(TaskViewModel viewModel, TaskModel task) {
-    bool isTerlambat = task.status == 'TERLAMBAT' ||
+    bool isTerlambat =
+        task.status == 'TERLAMBAT' ||
         (task.deadline.isBefore(DateTime.now()) && task.status == 'BELUM');
 
     return Container(
@@ -530,10 +545,8 @@ class _HomePageMhsState extends State<HomePageMhs> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => TaskPage(
-                  controller: viewModel,
-                  taskToEdit: task,
-                ),
+                builder: (context) =>
+                    TaskPage(controller: viewModel, taskToEdit: task),
               ),
             );
           },
@@ -544,8 +557,12 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 GestureDetector(
                   onTap: () => viewModel.toggleStatus(task),
                   child: Icon(
-                    task.status == 'SELESAI' ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: task.status == 'SELESAI' ? Colors.green : accentOrange,
+                    task.status == 'SELESAI'
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: task.status == 'SELESAI'
+                        ? Colors.green
+                        : accentOrange,
                     size: 26,
                   ),
                 ),
@@ -558,14 +575,21 @@ class _HomePageMhsState extends State<HomePageMhs> {
                         task.namaTugas,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: task.status == 'SELESAI' ? Colors.grey : darkText,
-                          decoration: task.status == 'SELESAI' ? TextDecoration.lineThrough : null,
+                          color: task.status == 'SELESAI'
+                              ? Colors.grey
+                              : darkText,
+                          decoration: task.status == 'SELESAI'
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       if (task.namaMkSnapshot != null)
                         Text(
                           task.namaMkSnapshot!,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                     ],
                   ),
@@ -576,13 +600,15 @@ class _HomePageMhsState extends State<HomePageMhs> {
                     Text(
                       "${task.deadline.day}/${task.deadline.month}/${task.deadline.year}",
                       style: TextStyle(
-                        color: isTerlambat && task.status != 'SELESAI' ? Colors.red : primaryBlue,
+                        color: isTerlambat && task.status != 'SELESAI'
+                            ? Colors.red
+                            : primaryBlue,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
                     ),
                     if (!task.isSynced)
-                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey)
+                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey),
                   ],
                 ),
               ],
@@ -594,57 +620,66 @@ class _HomePageMhsState extends State<HomePageMhs> {
   }
 
   // ================= BOOKMARK =================
-    Widget _bookmark() {
-      // ValueListenableBuilder akan membuat halaman ini otomatis ter-refresh (rebuild)
-      // setiap kali ada data baru yang masuk/keluar dari kotak 'bookmarks' di Hive.
-      return ValueListenableBuilder<Box<AnnouncementModel>>(
-        valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
-        builder: (context, box, _) {
-          // Ambil datanya dan urutkan dari yang paling baru
-          final bookmarkedItems = box.values.toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  Widget _bookmark() {
+    // ValueListenableBuilder akan membuat halaman ini otomatis ter-refresh (rebuild)
+    // setiap kali ada data baru yang masuk/keluar dari kotak 'bookmarks' di Hive.
+    return ValueListenableBuilder<Box<AnnouncementModel>>(
+      valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
+      builder: (context, box, _) {
+        // Ambil datanya dan urutkan dari yang paling baru
+        final bookmarkedItems = box.values.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            children: [
-              Text(
-                "Pengumuman Tersimpan",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: darkText,
-                ),
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          children: [
+            Text(
+              "Pengumuman Tersimpan",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: darkText,
               ),
-              const SizedBox(height: 20),
-              
-              // Jika kosong, tampilkan pesan ramah
-              if (bookmarkedItems.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(30),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(Icons.bookmark_border, size: 50, color: Colors.grey.shade300),
-                        const SizedBox(height: 10),
-                        Text("Belum ada pengumuman yang disimpan.", style: TextStyle(color: Colors.grey.shade600)),
-                      ],
-                    ),
-                  ),
-                )
-              // Jika ada isinya, panggil widget _announcement untuk menggambar kartunya
-              else
-                ...bookmarkedItems.map((data) => _announcement(data)).toList(),
+            ),
+            const SizedBox(height: 20),
 
-              const SizedBox(height: 100), // Spasi agar tidak tertutup bottom navbar
-            ],
-          );
-        },
-      );
-    }
+            // Jika kosong, tampilkan pesan ramah
+            if (bookmarkedItems.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.bookmark_border,
+                        size: 50,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Belum ada pengumuman yang disimpan.",
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            // Jika ada isinya, panggil widget _announcement untuk menggambar kartunya
+            else
+              ...bookmarkedItems.map((data) => _announcement(data)).toList(),
+
+            const SizedBox(
+              height: 100,
+            ), // Spasi agar tidak tertutup bottom navbar
+          ],
+        );
+      },
+    );
+  }
 
   // ================= NAVBAR =================
   Widget _bottomNav() {

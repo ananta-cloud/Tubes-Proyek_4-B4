@@ -32,8 +32,6 @@ void main() async {
   await dotenv.load(fileName: ".env");
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
-  // Connect MongoDB
-  await MongoDatabase.connect();
 
   // Initialize Hive
   await Hive.initFlutter();
@@ -45,6 +43,13 @@ void main() async {
   }
   if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(TaskModelAdapter());
+  }
+
+  // Connect MongoDB
+  try {
+    await MongoDatabase.connect();
+  } catch (e) {
+    print("Mode Offline terdeteksi saat startup. Mengabaikan koneksi Mongo.");
   }
 
   // OPEN BOXES

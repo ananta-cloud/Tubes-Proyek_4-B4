@@ -1,6 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bcrypt/bcrypt.dart';
-import 'package:mongo_dart/mongo_dart.dart';
 import '../models/user_model.dart';
 import '../models/schedule_local_model.dart';
 import '../models/announcement_model.dart';
@@ -13,34 +12,23 @@ class AuthRepository {
 
   Future<UserModel?> login(String email, String password) async {
     try {
-
       if (!MongoDatabase.db.isConnected) {
-        print("🔄 Mencoba menyambung ulang ke MongoDB...");
+        print("Mencoba menyambung ulang ke MongoDB...");
         await MongoDatabase.db.open(); 
       }
 
-      //  1. CARI USER BERDASARKAN EMAIL SAJA
-      final user = await MongoDatabase.usersCollection.findOne({
-        "email": email,
-      });
-
-      print("USER FOUND: $user");
-
+      final user = await MongoDatabase.usersCollection.findOne({"email": email});
       if (user == null) return null;
 
-      //  2. AMBIL HASH PASSWORD
       final hashedPassword = user["password"];
-
-      //  3. COMPARE PASSWORD
       final isValid = BCrypt.checkpw(password, hashedPassword);
-
       if (!isValid) return null;
 
-      //  4. LOGIN SUCCESS
       await _storage.write(key: "user_id", value: user["_id"].toHexString());
-
+      await _storage.write(key: "user_nama", value: user["nama"]);
+      await _storage.write(key: "user_role", value: user["role"]);
+      await _storage.write(key: "user_email", value: user["email"]);
       
-
       return UserModel(
         id: user["_id"].toHexString(),
         nama: user["nama"],
@@ -53,29 +41,22 @@ class AuthRepository {
     }
   }
 
+  // FUNGSI AUTO-LOGIN YANG BARU: SUPER CEPAT & 100% OFFLINE
   Future<UserModel?> checkAutoLogin() async {
     try {
-
-      
       final userId = await _storage.read(key: "user_id");
-      if (userId == null) return null; // Jika belum pernah login
+      if (userId == null) return null; // Belum login
 
-      if (!MongoDatabase.db.isConnected) {
-        await MongoDatabase.db.open();
-      }
-
-      // Cari user berdasarkan ID yang tersimpan di storage
-      final user = await MongoDatabase.usersCollection.findOne(
-        where.id(ObjectId.fromHexString(userId))
-      );
-      
-      if (user == null) return null;
+      // Langsung baca dari brankas lokal tanpa butuh internet!
+      final nama = await _storage.read(key: "user_nama") ?? "Mahasiswa";
+      final role = await _storage.read(key: "user_role") ?? "MAHASISWA";
+      final email = await _storage.read(key: "user_email") ?? "";
 
       return UserModel(
-        id: user["_id"].toHexString(),
-        nama: user["nama"],
-        email: user["email"],
-        role: user["role"],
+        id: userId,
+        nama: nama,
+        email: email,
+        role: role,
       );
     } catch (e) {
       print("AUTO-LOGIN ERROR: $e");
@@ -84,10 +65,13 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    // 1. Hapus Kunci Sesi
+    // Bersihkan semua kunci sesi dari brankas
     await _storage.delete(key: "user_id"); 
+    await _storage.delete(key: "user_nama"); 
+    await _storage.delete(key: "user_role"); 
+    await _storage.delete(key: "user_email"); 
     
-    // 2. Bersihkan data lokal dengan menyebutkan tipe datanya (Generic Type)
+    // Bersihkan data Hive
     await Hive.box<ScheduleLocalModel>('schedules').clear();
     await Hive.box<AnnouncementModel>('announcements').clear();
     if (Hive.isBoxOpen('bookmarks')) {

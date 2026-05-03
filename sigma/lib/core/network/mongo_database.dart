@@ -29,7 +29,7 @@ class MongoDatabase {
       print(" Berhasil terkoneksi ke MongoDB!");
     } catch (e) {
       print(" Gagal koneksi ke MongoDB: $e");
-      rethrow;
+      // rethrow;
     }
   }
 }
