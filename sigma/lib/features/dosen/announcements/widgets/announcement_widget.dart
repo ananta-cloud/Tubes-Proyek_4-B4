@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sigma/data/models/announcement_model.dart';
+import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
 
 class AnnouncementCard extends StatelessWidget {
   final AnnouncementModel announcement;
@@ -7,8 +7,8 @@ class AnnouncementCard extends StatelessWidget {
   final bool isLecturer;
 
   const AnnouncementCard({
-    super.key, 
-    required this.announcement, 
+    super.key,
+    required this.announcement,
     this.onTap,
     this.isLecturer = false,
   });
@@ -30,13 +30,20 @@ class AnnouncementCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            Text(announcement.isi, maxLines: 2, overflow: TextOverflow.ellipsis),
+            Text(
+              announcement.isi,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Icon(Icons.person, size: 14, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
-                Text(announcement.namaPublisher, style: const TextStyle(fontSize: 12)),
+                Text(
+                  announcement.namaPublisher,
+                  style: const TextStyle(fontSize: 12),
+                ),
                 const Spacer(),
                 if (isLecturer)
                   const Icon(Icons.edit, size: 16, color: Colors.blue),

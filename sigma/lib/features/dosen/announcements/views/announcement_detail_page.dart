@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:sigma/data/models/announcement_model.dart';
-  
+import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+
 class AnnouncementDetailPage extends StatefulWidget {
   final AnnouncementModel announcement;
 
@@ -13,10 +13,10 @@ class AnnouncementDetailPage extends StatefulWidget {
 
 class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
   // Konsistensi warna dengan tema SIGMA
-  static const primaryBlue  = Color(0xFF3F5DB3);
+  static const primaryBlue = Color(0xFF3F5DB3);
   static const accentOrange = Color(0xFFFF7A36);
-  static const bgColor       = Color(0xFFEAF3FA);
-  static const darkText      = Color(0xFF1F1F3D);
+  static const bgColor = Color(0xFFEAF3FA);
+  static const darkText = Color(0xFF1F1F3D);
 
   late Box<AnnouncementModel> bookmarkBox;
   bool isBookmarked = false;
@@ -64,8 +64,19 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
   // Format tanggal: 26 April 2026
   String _formatDate(DateTime dt) {
     const months = [
-      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      '',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
@@ -88,7 +99,11 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
             elevation: 0,
             backgroundColor: primaryBlue,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 20,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
@@ -103,7 +118,11 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 48, right: 16, bottom: 16),
+              titlePadding: const EdgeInsets.only(
+                left: 48,
+                right: 16,
+                bottom: 16,
+              ),
               title: const Text(
                 "Detail Pengumuman",
                 style: TextStyle(
@@ -174,7 +193,10 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                           children: [
                             // Badge Target
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -191,11 +213,18 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                             // Tanggal
                             Row(
                               children: [
-                                Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey.shade400,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _formatDate(ann.createdAt),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
                                 ),
                               ],
                             ),
@@ -208,7 +237,11 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                             CircleAvatar(
                               radius: 18,
                               backgroundColor: accentOrange.withOpacity(0.1),
-                              child: const Icon(Icons.person, size: 20, color: accentOrange),
+                              child: const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: accentOrange,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Column(
@@ -290,7 +323,9 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 100), // Spasi bawah agar tidak tertutup navbar
+                  const SizedBox(
+                    height: 100,
+                  ), // Spasi bawah agar tidak tertutup navbar
                 ],
               ),
             ),

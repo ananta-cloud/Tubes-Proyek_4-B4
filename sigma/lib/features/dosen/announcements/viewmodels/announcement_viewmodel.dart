@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
-import 'package:sigma/data/models/announcement_model.dart';
+import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
 import 'package:sigma/data/services/announcement_service.dart';
 
 class AnnouncementViewModel extends ChangeNotifier {
@@ -12,8 +12,17 @@ class AnnouncementViewModel extends ChangeNotifier {
   String selectedFilter = 'SEMUA';
 
   final List<String> filters = [
-    'SEMUA', 'AKADEMIK', 'BEASISWA', 'LOMBA', 'UKM', 'KARIR', 
-    'PKM', 'WIRAUSAHA', 'KONSELING', 'FASILITAS', 'LAINNYA',
+    'SEMUA',
+    'AKADEMIK',
+    'BEASISWA',
+    'LOMBA',
+    'UKM',
+    'KARIR',
+    'PKM',
+    'WIRAUSAHA',
+    'KONSELING',
+    'FASILITAS',
+    'LAINNYA',
   ];
 
   AnnouncementViewModel(this.service) {
@@ -50,7 +59,7 @@ class AnnouncementViewModel extends ChangeNotifier {
       }
       _loadFromLocal();
     } catch (e) {
-      _loadFromLocal(); 
+      _loadFromLocal();
     }
 
     isLoading = false;
@@ -64,7 +73,10 @@ class AnnouncementViewModel extends ChangeNotifier {
 
     if (selectedFilter != 'SEMUA') {
       announcements = all
-          .where((a) => a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter))
+          .where(
+            (a) =>
+                a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter),
+          )
           .toList();
     } else {
       announcements = all;
