@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 // ==========================================
 // 1. IMPORT DATA & MODELS
 // ==========================================
-import 'package:sigma/data/models/announcement_model.dart';
+import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
 import 'package:sigma/data/models/task_model.dart';
 
 // ==========================================
@@ -14,7 +14,7 @@ import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.d
 import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/views/task_page.dart';
-
+import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 // Catatan: Jika ScheduleViewModel sudah siap, uncomment ini:
 // import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 
@@ -37,8 +37,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Panggil fungsi syncSchedules di sini saat module jadwal sudah siap
-      // context.read<ScheduleController>().syncSchedules();
+      context.read<ScheduleViewModel>().fetchSchedules();
     });
   }
 
@@ -47,6 +46,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
     // 🔥 MENGAMBIL VIEWMODEL DARI PROVIDER (Sesuai dengan main.dart)
     final announcementViewModel = context.watch<AnnouncementViewModel>();
     final taskViewModel = context.watch<TaskViewModel>();
+    final scheduleViewModel = context.watch<ScheduleViewModel>();
 
     return Scaffold(
       extendBody: true,
@@ -63,7 +63,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                   index: currentIndex,
                   children: [
                     _home(announcementViewModel), // Tab 0: Home
-                    const Center(child: Text("Halaman Jadwal (Segera Hadir)")), // Tab 1: Jadwal
+                    _schedule(scheduleViewModel), // Tab 1: Jadwal
                     _tasks(taskViewModel), // Tab 2: Tugas
                     _bookmark(), // Tab 3: Bookmark
                   ],
@@ -234,7 +234,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           )
         else
-          ...viewModel.announcements.map((data) => _announcement(data)).toList(),
+          ...viewModel.announcements
+              .map((data) => _announcement(data))
+              .toList(),
 
         const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
       ],
@@ -248,9 +250,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       decoration: BoxDecoration(
         color: active ? primaryBlue : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: active ? primaryBlue : Colors.grey.shade300,
-        ),
+        border: Border.all(color: active ? primaryBlue : Colors.grey.shade300),
       ),
       child: Text(
         text,
@@ -308,10 +308,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 6,
-                  color: indikatorWarna,
-                ),
+                Container(width: 6, color: indikatorWarna),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -322,7 +319,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
@@ -375,7 +375,11 @@ class _HomePageMhsState extends State<HomePageMhs> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Icon(Icons.person, size: 14, color: Colors.grey.shade500),
+                            Icon(
+                              Icons.person,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               data.namaPublisher,
@@ -443,7 +447,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 children: [
                   Icon(Icons.task_alt, size: 50, color: Colors.grey.shade300),
                   const SizedBox(height: 10),
-                  Text("Tidak ada tugas. Selamat bersantai!", style: TextStyle(color: Colors.grey.shade600)),
+                  Text(
+                    "Tidak ada tugas. Selamat bersantai!",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ),
@@ -455,7 +462,8 @@ class _HomePageMhsState extends State<HomePageMhs> {
   }
 
   Widget _taskItem(TaskViewModel viewModel, TaskModel task) {
-    bool isTerlambat = task.status == 'TERLAMBAT' ||
+    bool isTerlambat =
+        task.status == 'TERLAMBAT' ||
         (task.deadline.isBefore(DateTime.now()) && task.status == 'BELUM');
 
     return Container(
@@ -479,10 +487,8 @@ class _HomePageMhsState extends State<HomePageMhs> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => TaskPage(
-                  controller: viewModel,
-                  taskToEdit: task,
-                ),
+                builder: (context) =>
+                    TaskPage(controller: viewModel, taskToEdit: task),
               ),
             );
           },
@@ -493,8 +499,12 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 GestureDetector(
                   onTap: () => viewModel.toggleStatus(task),
                   child: Icon(
-                    task.status == 'SELESAI' ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: task.status == 'SELESAI' ? Colors.green : accentOrange,
+                    task.status == 'SELESAI'
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: task.status == 'SELESAI'
+                        ? Colors.green
+                        : accentOrange,
                     size: 26,
                   ),
                 ),
@@ -507,14 +517,21 @@ class _HomePageMhsState extends State<HomePageMhs> {
                         task.namaTugas,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: task.status == 'SELESAI' ? Colors.grey : darkText,
-                          decoration: task.status == 'SELESAI' ? TextDecoration.lineThrough : null,
+                          color: task.status == 'SELESAI'
+                              ? Colors.grey
+                              : darkText,
+                          decoration: task.status == 'SELESAI'
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       if (task.namaMkSnapshot != null)
                         Text(
                           task.namaMkSnapshot!,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                     ],
                   ),
@@ -525,13 +542,15 @@ class _HomePageMhsState extends State<HomePageMhs> {
                     Text(
                       "${task.deadline.day}/${task.deadline.month}/${task.deadline.year}",
                       style: TextStyle(
-                        color: isTerlambat && task.status != 'SELESAI' ? Colors.red : primaryBlue,
+                        color: isTerlambat && task.status != 'SELESAI'
+                            ? Colors.red
+                            : primaryBlue,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
                     ),
                     if (!task.isSynced)
-                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey)
+                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey),
                   ],
                 ),
               ],
@@ -539,6 +558,44 @@ class _HomePageMhsState extends State<HomePageMhs> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _schedule(ScheduleViewModel vm) {
+    if (vm.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (vm.schedules.isEmpty) {
+      return const Center(child: Text("Tidak ada jadwal"));
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: vm.schedules.map((s) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border(left: BorderSide(color: primaryBlue, width: 4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("${s['jam_mulai']} - ${s['jam_selesai']}"),
+              const SizedBox(height: 5),
+              Text(
+                s['nama_mk'],
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 5),
+              Text("${s['ruangan']} - ${s['nama_dosen']}"),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 

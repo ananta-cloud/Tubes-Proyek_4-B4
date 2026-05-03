@@ -5,6 +5,7 @@ import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
 import 'package:provider/provider.dart';
 import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
+import 'package:sigma/features/admin_tu/main/views/admin_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,7 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   void _handleLogin() async {
     // Ambil ViewModel menggunakan read (karena berada di dalam fungsi on-tap)
     final viewModel = context.read<LoginViewModel>();
-    
+
     final user = await viewModel.login(
       emailController.text,
       passwordController.text,
@@ -37,19 +38,24 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
 
     if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login sukses: ${user.nama}"))
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
 
       if (user.role?.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageDsn()),
         );
-      } if (user.role?.toUpperCase() == 'MAHASISWA'){
+      } else if (user.role?.toUpperCase() == 'MAHASISWA') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageMhs()),
+        );
+      } else if (user.role?.toUpperCase() == 'ADMIN_TU') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminMainPage()),
         );
       }
     } else {
