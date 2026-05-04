@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-<<<<<<< HEAD
-import 'package:sigma/data/models/announcement_model.dart';
-  
-=======
+// Hati-hati di sini, pastikan import modelnya benar (sesuai diskusi sebelumnya jika ada ambigu)
 import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
 
->>>>>>> nazriel
 class AnnouncementDetailPage extends StatefulWidget {
   final AnnouncementModel announcement;
 
@@ -17,13 +13,6 @@ class AnnouncementDetailPage extends StatefulWidget {
 }
 
 class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
-  // Konsistensi warna dengan tema SIGMA
-<<<<<<< HEAD
-  static const primaryBlue  = Color(0xFF3F5DB3);
-  static const accentOrange = Color(0xFFFF7A36);
-  static const bgColor       = Color(0xFFEAF3FA);
-  static const darkText      = Color(0xFF1F1F3D);
-=======
   static const primaryBlue = Color(0xFF3F5DB3);
   static const accentOrange = Color(0xFFFF7A36);
   static const bgColor = Color(0xFFEAF3FA);
@@ -35,7 +24,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
   @override
   void initState() {
     super.initState();
-    // Buka box dan cek status saat halaman pertama kali dimuat
+    // Inisialisasi Box Hive
     bookmarkBox = Hive.box<AnnouncementModel>('bookmarks');
     isBookmarked = bookmarkBox.containsKey(widget.announcement.id);
   }
@@ -46,7 +35,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
     });
 
     if (isBookmarked) {
-      // Simpan ke Hive
       bookmarkBox.put(widget.announcement.id, widget.announcement);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -56,46 +44,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
         ),
       );
     } else {
-      // Hapus dari Hive
-      bookmarkBox.delete(widget.announcement.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dihapus dari Bookmark'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
->>>>>>> nazriel
-
-  late Box<AnnouncementModel> bookmarkBox;
-  bool isBookmarked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Buka box dan cek status saat halaman pertama kali dimuat
-    bookmarkBox = Hive.box<AnnouncementModel>('bookmarks');
-    isBookmarked = bookmarkBox.containsKey(widget.announcement.id);
-  }
-
-  void _toggleBookmark() {
-    setState(() {
-      isBookmarked = !isBookmarked;
-    });
-
-    if (isBookmarked) {
-      // Simpan ke Hive
-      bookmarkBox.put(widget.announcement.id, widget.announcement);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Disimpan ke Bookmark'),
-          backgroundColor: accentOrange,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      // Hapus dari Hive
       bookmarkBox.delete(widget.announcement.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -106,12 +54,10 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
     }
   }
 
-  // Fungsi helper untuk merapikan teks target audience
   String _formatAudience(String audience) {
     return audience.replaceAll('_', ' ');
   }
 
-  // Format tanggal: 26 April 2026
   String _formatDate(DateTime dt) {
     const months = [
       '',
@@ -139,12 +85,8 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // ============================================================
-          // HEADER ANIMASI (SLIVER APP BAR) DENGAN BOOKMARK
-          // ============================================================
           SliverAppBar(
             expandedHeight: 140,
-            floating: false,
             pinned: true,
             elevation: 0,
             backgroundColor: primaryBlue,
@@ -168,25 +110,18 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
-<<<<<<< HEAD
-              titlePadding: const EdgeInsets.only(left: 48, right: 16, bottom: 16),
-=======
               titlePadding: const EdgeInsets.only(
                 left: 48,
                 right: 16,
                 bottom: 16,
               ),
->>>>>>> nazriel
               title: const Text(
                 "Detail Pengumuman",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
               background: Container(
                 decoration: const BoxDecoration(
@@ -215,17 +150,13 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
               ),
             ),
           ),
-
-          // ============================================================
-          // AREA KONTEN
-          // ============================================================
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── KARTU INFORMASI UTAMA ──────────────────────────
+                  // Kartu Informasi Utama
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -245,7 +176,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Badge Target
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -264,7 +194,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                                 ),
                               ),
                             ),
-                            // Tanggal
                             Row(
                               children: [
                                 Icon(
@@ -275,21 +204,16 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                                 const SizedBox(width: 4),
                                 Text(
                                   _formatDate(ann.createdAt),
-<<<<<<< HEAD
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-=======
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
                                   ),
->>>>>>> nazriel
                                 ),
                               ],
                             ),
                           ],
                         ),
                         const Divider(height: 30),
-                        // Publisher Info
                         Row(
                           children: [
                             CircleAvatar(
@@ -327,10 +251,8 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // ── KARTU ISI PENGUMUMAN ───────────────────────────
+                  // Kartu Isi Pengumuman
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -341,7 +263,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Tags/Kategori jika ada
                         if (ann.kategori.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 15),
@@ -359,7 +280,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                               }).toList(),
                             ),
                           ),
-                        // Judul Lengkap
                         Text(
                           ann.judul,
                           style: const TextStyle(
@@ -369,7 +289,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                           ),
                         ),
                         const SizedBox(height: 15),
-                        // Isi Utama
                         Text(
                           ann.isi,
                           style: TextStyle(
@@ -381,9 +300,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(
-                    height: 100,
-                  ), // Spasi bawah agar tidak tertutup navbar
+                  const SizedBox(height: 100),
                 ],
               ),
             ),

@@ -8,14 +8,6 @@ class MongoDatabase {
   static late DbCollection usersCollection;
   static late DbCollection schedulesCollection;
 
-<<<<<<< HEAD
-  static Future<void> connect() async {
-    try {
-      final mongoUrl = dotenv.env['MONGO_URL'] ?? '';
-      if (mongoUrl.isEmpty)
-        throw Exception("MONGO_URL tidak ditemukan di .env");
-
-=======
   // Mutex sederhana untuk mencegah concurrent requests ke Atlas
   static bool _isOperationRunning = false;
 
@@ -31,7 +23,6 @@ class MongoDatabase {
         mongoUrl = '$mongoUrl${separator}tls=true';
       }
 
->>>>>>> nazriel
       db = await Db.create(mongoUrl);
       await db.open().timeout(
         const Duration(seconds: 15),
@@ -44,14 +35,6 @@ class MongoDatabase {
       usersCollection = db.collection('users');
       schedulesCollection = db.collection('schedules');
 
-<<<<<<< HEAD
-      print(" Berhasil terkoneksi ke MongoDB!");
-    } catch (e) {
-      print(" Gagal koneksi ke MongoDB: $e");
-      rethrow;
-    }
-  }
-=======
       print("✅ Berhasil terkoneksi ke MongoDB!");
     } catch (e) {
       print("❌ Gagal koneksi ke MongoDB: $e");
@@ -81,5 +64,4 @@ class MongoDatabase {
       _isOperationRunning = false;
     }
   }
->>>>>>> nazriel
 }

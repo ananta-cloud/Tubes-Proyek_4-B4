@@ -585,7 +585,7 @@ packages:
     source: hosted
     version: "2.0.0"
   mongo_dart:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: mongo_dart
       sha256: b74caa4d135a89642fafbe5247213d8b261ff9ee4ae3c613a993b41bf6a8fdbc

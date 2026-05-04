@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
-<<<<<<< HEAD
-import 'package:sigma/data/models/announcement_model.dart';
-=======
+// import 'package:sigma/data/models/announcement_model.dart';
 import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
->>>>>>> nazriel
 import 'package:sigma/data/services/announcement_service.dart';
 
 class AnnouncementViewModel extends ChangeNotifier {
@@ -16,8 +13,17 @@ class AnnouncementViewModel extends ChangeNotifier {
   String selectedFilter = 'SEMUA';
 
   final List<String> filters = [
-    'SEMUA', 'AKADEMIK', 'BEASISWA', 'LOMBA', 'UKM', 'KARIR', 
-    'PKM', 'WIRAUSAHA', 'KONSELING', 'FASILITAS', 'LAINNYA',
+    'SEMUA',
+    'AKADEMIK',
+    'BEASISWA',
+    'LOMBA',
+    'UKM',
+    'KARIR',
+    'PKM',
+    'WIRAUSAHA',
+    'KONSELING',
+    'FASILITAS',
+    'LAINNYA',
   ];
 
   AnnouncementViewModel(this.service) {
@@ -49,21 +55,13 @@ class AnnouncementViewModel extends ChangeNotifier {
       final List<Map<String, dynamic>> list = await service.getAnnouncements();
       await box.clear();
       for (var item in list) {
-<<<<<<< HEAD
-        final announcement = AnnouncementModel.fromJson(item);
-=======
         final announcement = AnnouncementModel.fromMongo(item);
->>>>>>> nazriel
         await box.put(announcement.id, announcement);
       }
       _loadFromLocal();
     } catch (e) {
-<<<<<<< HEAD
-      _loadFromLocal(); 
-=======
       print("🔥 ERROR SINKRONISASI PENGUMUMAN: $e");
       _loadFromLocal();
->>>>>>> nazriel
     }
 
     isLoading = false;
@@ -77,14 +75,10 @@ class AnnouncementViewModel extends ChangeNotifier {
 
     if (selectedFilter != 'SEMUA') {
       announcements = all
-<<<<<<< HEAD
-          .where((a) => a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter))
-=======
           .where(
             (a) =>
                 a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter),
           )
->>>>>>> nazriel
           .toList();
     } else {
       announcements = all;
