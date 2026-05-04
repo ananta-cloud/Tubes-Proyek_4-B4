@@ -5,13 +5,14 @@ import 'package:sigma/data/services/schedule_service.dart';
 
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;
-
   ScheduleController(this.service);
 
   List<ScheduleLocalModel> schedules = [];
+  List<ScheduleLocalModel> dosenSchedules = [];
   bool isLoading = false;
   String? errorMsg;
 
+  // Untuk mahasiswa — sync by idJurusan
   Future<void> syncSchedules({String idJurusan = '12345'}) async {
     isLoading = true;
     notifyListeners();
@@ -19,29 +20,40 @@ class ScheduleController extends ChangeNotifier {
     final box = Hive.box<ScheduleLocalModel>('schedules');
 
     try {
-      // Ambil data dari Service dengan parameter idJurusan
-      final List<Map<String, dynamic>> list = await service.getSchedules(
-        idJurusan: idJurusan,
-      );
-
-      // Clear cache lama di Hive
+      final list = await service.getSchedules(idJurusan: idJurusan);
       await box.clear();
-
-      // Mapping Mongo Map -> Model menggunakan factory yang sudah kita perbaiki
       for (var item in list) {
-        final schedule = ScheduleLocalModel.fromJson(item);
-        await box.put(schedule.id, schedule);
+        final s = ScheduleLocalModel.fromJson(item);
+        await box.put(s.id, s);
       }
-
       schedules = box.values.toList();
     } catch (e) {
-      print("ERROR SYNC: $e");
       errorMsg = e.toString();
-      // Fallback ke data offline
       schedules = box.values.toList();
     }
 
     isLoading = false;
+    notifyListeners();
+  }
+
+  // Untuk dosen — filter by kode_dosen
+  Future<void> syncDosenSchedules(String kodeDosen) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final list = await service.getSchedulesByKodeDosen(kodeDosen);
+      dosenSchedules = list.map((e) => ScheduleLocalModel.fromJson(e)).toList();
+    } catch (e) {
+      errorMsg = e.toString();
+    }
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  void clearError() {
+    errorMsg = null;
     notifyListeners();
   }
 }

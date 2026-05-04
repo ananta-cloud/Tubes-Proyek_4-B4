@@ -47,6 +47,11 @@ class ScheduleLocalModel extends HiveObject {
   String idPeriode;
 
   @HiveField(14)
+  @HiveField(15)
+  String kelas;
+
+  @HiveField(16)
+  List<String> kodeDosen;
   String? updatedAt;
 
   ScheduleLocalModel({
@@ -64,12 +69,13 @@ class ScheduleLocalModel extends HiveObject {
     this.idProdi = '',
     this.idJurusan = '',
     this.idPeriode = '',
+    this.kelas = '',
+    this.kodeDosen = const [],
     this.updatedAt,
   });
 
   factory ScheduleLocalModel.fromJson(Map<String, dynamic> json) {
     return ScheduleLocalModel(
-      // PERBAIKAN 1: Hapus duplikasi parameter 'id'
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       namaMk: json['nama_mk'] ?? '-',
       hari: json['hari'] ?? '-',
@@ -84,6 +90,8 @@ class ScheduleLocalModel extends HiveObject {
       idProdi: json['id_prodi']?.toString() ?? '',
       idJurusan: json['id_jurusan']?.toString() ?? '',
       idPeriode: json['id_periode']?.toString() ?? '',
+      kelas: json['kelas'] ?? '',
+      kodeDosen: List<String>.from(json['kode_dosen'] ?? []),
       updatedAt: json['updated_at']?.toString(),
     );
   }
@@ -103,10 +111,11 @@ class ScheduleLocalModel extends HiveObject {
     'id_prodi': idProdi,
     'id_jurusan': idJurusan,
     'id_periode': idPeriode,
+    'kelas': kelas,
+    'kode_dosen': kodeDosen,
     'updated_at': updatedAt,
   };
 
-  // PERBAIKAN 2: Hapus toString() yang rusak dan duplikat
   @override
   String toString() {
     return 'ScheduleLocalModel(namaMk: $namaMk, hari: $hari, jam: $jamMulai-$jamSelesai, status: $status)';
