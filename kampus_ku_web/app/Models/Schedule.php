@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
-use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model; // <-- Wajib gunakan Model MongoDB
 
 class Schedule extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'schedules';
 
+    // Matikan pengiriman created_at, biarkan updated_at tetap jalan
+    const CREATED_AT = null;
+
+=======
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
     protected $fillable = [
         'id_mk',
         'nama_mk', 'kode_mk',
@@ -21,6 +26,7 @@ class Schedule extends Model
         'pesan_pengantar'
     ];
 
+    // Opsional: Untuk memastikan ID cast kembali ke string saat diambil via API
     protected $casts = [
         'tanggal' => 'datetime',
         'updated_at' => 'datetime'

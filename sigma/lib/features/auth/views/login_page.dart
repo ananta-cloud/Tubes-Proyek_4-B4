@@ -5,6 +5,7 @@ import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
 import 'package:provider/provider.dart';
 import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
+import 'package:sigma/features/admin_tu/main/views/admin_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,13 +45,17 @@ class _LoginPageState extends State<LoginPage> {
       if (user.role?.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => HomePageDsn(user: user)),
+          MaterialPageRoute(builder: (_) => const HomePageDsn()),
         );
-      }
-      if (user.role?.toUpperCase() == 'MAHASISWA') {
+      } else if (user.role?.toUpperCase() == 'MAHASISWA') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageMhs()),
+        );
+      } else if (user.role?.toUpperCase() == 'ADMIN_TU') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminMainPage()),
         );
       }
     } else {

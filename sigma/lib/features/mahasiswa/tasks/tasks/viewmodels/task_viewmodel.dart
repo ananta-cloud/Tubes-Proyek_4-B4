@@ -4,12 +4,12 @@ import 'package:mongo_dart/mongo_dart.dart' show ObjectId; // Import ini untuk b
 import 'package:sigma/data/models/task_model.dart';
 import '../../../../../data/services/task_service.dart';
 
-class TaskController extends ChangeNotifier {
+class TaskViewModel extends ChangeNotifier {
   List<TaskModel> tasks = [];
   final String currentUserId = "69e8635da4502d54d13682e5"; 
   final TaskService _taskService = TaskService();
 
-  TaskController() {
+  TaskViewModel() {
     loadTasks();
     syncToServer();
   }

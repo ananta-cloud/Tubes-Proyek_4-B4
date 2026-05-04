@@ -58,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
         });
 
         Route::get('/master-matkul', [MasterMatkulController::class, 'index'])->name('master-matkul.index');
+<<<<<<< HEAD
 
         // --- Periode Revisi ---
         Route::prefix('revisi')->name('revisi.')->group(function () {
@@ -66,6 +67,8 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/{id}/toggle',  [PeriodeRevisiController::class, 'toggle'])->name('toggle');
             Route::delete('/{id}', [PeriodeRevisiController::class, 'destroy'])->name('destroy');
         });
+=======
+>>>>>>> nazriel
     });
 
     // ==================================================

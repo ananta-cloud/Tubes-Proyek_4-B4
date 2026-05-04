@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+<<<<<<< HEAD
 import 'package:sigma/data/models/announcement_model.dart';
+=======
+import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+>>>>>>> nazriel
 
 class AnnouncementDetailViewModel extends ChangeNotifier {
   late final Box<AnnouncementModel> _bookmarkBox;
@@ -41,9 +45,29 @@ class AnnouncementDetailViewModel extends ChangeNotifier {
 
   String formatDate(DateTime dt) {
     const months = [
+<<<<<<< HEAD
       '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
 }
+=======
+      '',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return '${dt.day} ${months[dt.month]} ${dt.year}';
+  }
+}
+>>>>>>> nazriel

@@ -16,8 +16,18 @@ return [
     */
 
     'defaults' => [
+<<<<<<< HEAD
         'guard' => env('AUTH_GUARD', 'web'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
+=======
+<<<<<<< HEAD
+        'guard' => 'web', 
+        'passwords' => 'users',
+=======
+        'guard' => env('AUTH_GUARD', 'web'),
+        'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+>>>>>>> nazriel
     ],
 
     /*

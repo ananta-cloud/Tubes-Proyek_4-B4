@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:sigma/core/network/mongo_database.dart';
 import '../../../data/models/schedule_local_model.dart';
@@ -146,4 +147,18 @@ class ScheduleService {
   //     return false;
   //   }
   // }
+=======
+import '../../core/network/mongo_database.dart';
+
+class ScheduleService {
+  Future<List<Map<String, dynamic>>> getSchedules() async {
+    final data = await MongoDatabase.schedulesCollection.find({
+      "status": "PUBLISHED", //  FILTER PENTING
+    }).toList();
+
+    print("MONGO SCHEDULE: ${data.length}");
+
+    return data;
+  }
+>>>>>>> nazriel
 }

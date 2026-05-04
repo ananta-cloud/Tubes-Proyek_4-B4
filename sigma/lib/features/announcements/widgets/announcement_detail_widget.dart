@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:sigma/data/models/announcement_model.dart';
+=======
+import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+>>>>>>> nazriel
 
 const primaryBlue = Color(0xFF3F5DB3);
 const accentOrange = Color(0xFFFF7A36);
@@ -24,7 +28,15 @@ class DetailHeaderWidget extends StatelessWidget {
       elevation: 0,
       backgroundColor: primaryBlue,
       leading: IconButton(
+<<<<<<< HEAD
         icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+=======
+        icon: const Icon(
+          Icons.arrow_back_ios_new,
+          color: Colors.white,
+          size: 20,
+        ),
+>>>>>>> nazriel
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
@@ -116,7 +128,14 @@ class DetailInfoCardWidget extends StatelessWidget {
             children: [
               // Badge Target
               Container(
+<<<<<<< HEAD
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+=======
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+>>>>>>> nazriel
                 decoration: BoxDecoration(
                   color: primaryBlue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -133,7 +152,15 @@ class DetailInfoCardWidget extends StatelessWidget {
               // Tanggal
               Row(
                 children: [
+<<<<<<< HEAD
                   Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
+=======
+                  Icon(
+                    Icons.access_time,
+                    size: 14,
+                    color: Colors.grey.shade400,
+                  ),
+>>>>>>> nazriel
                   const SizedBox(width: 4),
                   Text(
                     date,
@@ -158,10 +185,14 @@ class DetailInfoCardWidget extends StatelessWidget {
                 children: [
                   const Text(
                     'Diterbitkan oleh:',
+<<<<<<< HEAD
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey,
                     ),
+=======
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+>>>>>>> nazriel
                   ),
                   Text(
                     publisherName,
@@ -246,4 +277,8 @@ class DetailContentCardWidget extends StatelessWidget {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> nazriel
