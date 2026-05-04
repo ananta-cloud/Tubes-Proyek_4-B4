@@ -1,0 +1,1 @@
+ D:\\Semester\ 4\\Proyek\ 4\\Tubes-Proyek_4-B4\\kampus_ku_mobile\\.dart_tool\\flutter_build\\24ac0497a116de1800235cf984850fe9\\native_assets.json: 
