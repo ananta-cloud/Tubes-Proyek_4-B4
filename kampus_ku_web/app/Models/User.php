@@ -2,16 +2,6 @@
 
 namespace App\Models;
 
-<<<<<<< HEAD
-use MongoDB\Laravel\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
-
-
-class User extends Authenticatable implements AuthenticatableContract
-{
-    use Notifiable;
-=======
 use MongoDB\Laravel\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable;
@@ -22,7 +12,6 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 class User extends Model implements AuthenticatableContract, JWTSubject
 {
     use Authenticatable, Notifiable;
->>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
 
     protected $connection = 'mongodb';
     protected $collection = 'users';
@@ -47,18 +36,10 @@ class User extends Model implements AuthenticatableContract, JWTSubject
         'created_at'
     ];
 
-<<<<<<< HEAD
-    protected $hidden = [
-        'password'
-    ];
-
-    protected $casts = [
-=======
     protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
 
->>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
         'id_mk_ampu' => 'array',
         'created_at' => 'datetime'
     ];
@@ -78,7 +59,5 @@ class User extends Model implements AuthenticatableContract, JWTSubject
             'id_prodi'   => $this->id_prodi,
         ];
     }
-<<<<<<< HEAD
-}
-=======
+
 }

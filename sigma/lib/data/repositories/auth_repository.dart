@@ -34,6 +34,7 @@ class AuthRepository {
         nama: user["nama"],
         email: user["email"],
         role: user["role"],
+        kodeDosen: user["kode_dosen"],
       );
     } catch (e) {
       print("LOGIN ERROR: $e");
@@ -44,7 +45,7 @@ class AuthRepository {
   Future<void> logout() async {
     // 1. Hapus token dari secure storage
     await _storage.delete(key: "token");
-    
+
     // 2. Bersihkan data lokal Hive (opsional tapi sangat disarankan)
     await Hive.box('schedules').clear();
     await Hive.box('announcements').clear();

@@ -12,8 +12,7 @@ class Schedule extends Model
     // Matikan pengiriman created_at, biarkan updated_at tetap jalan
     const CREATED_AT = null;
 
-=======
->>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+
     protected $fillable = [
         'id_mk',
         'nama_mk', 'kode_mk',

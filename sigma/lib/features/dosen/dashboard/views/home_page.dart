@@ -7,20 +7,28 @@ import 'package:sigma/features/dosen/dashboard/widgets/home_page_widget.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 
+import 'package:sigma/features/dosen/requests/views/my_requests_page.dart';
+import 'package:sigma/features/dosen/requests/views/request_form_page.dart';
+import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
+
+import 'package:sigma/data/models/user_model.dart';
+
 class HomePageDsn extends StatelessWidget {
-  const HomePageDsn({super.key});
+  final UserModel user;
+  const HomePageDsn({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => DosenHomeViewModel(),
-      child: const _DosenHomeView(),
+      child: _DosenHomeView(user: user),
     );
   }
 }
 
 class _DosenHomeView extends StatelessWidget {
-  const _DosenHomeView();
+  final UserModel user;
+  const _DosenHomeView({required this.user});
 
   void _handleLogout(BuildContext context) {
     showDialog(
@@ -30,7 +38,10 @@ class _DosenHomeView extends StatelessWidget {
         title: const Text("Konfirmasi Keluar"),
         content: const Text("Apakah Bapak/Ibu ingin keluar dari aplikasi?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
           TextButton(
             onPressed: () async {
               await context.read<LoginViewModel>().logout();
@@ -42,7 +53,10 @@ class _DosenHomeView extends StatelessWidget {
                 );
               }
             },
-            child: const Text("Keluar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Keluar",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -59,7 +73,7 @@ class _DosenHomeView extends StatelessWidget {
         children: [
           DosenHomeHeader(
             greeting: vm.greeting,
-            lecturerName: "Dr. Sigma, M.T.", // Integrasikan dengan data User asli
+            lecturerName: user.nama, // Integrasikan dengan data User asli
             onLogout: () => _handleLogout(context),
           ),
           Expanded(
@@ -68,7 +82,7 @@ class _DosenHomeView extends StatelessWidget {
               children: [
                 _buildMainDashboard(context),
                 const Center(child: Text("Halaman Jadwal Mengajar")),
-                const Center(child: Text("Halaman Input Nilai")),
+                MyRequestsPage(user: user),
                 const Center(child: Text("Halaman Profil Dosen")),
               ],
             ),
@@ -80,13 +94,28 @@ class _DosenHomeView extends StatelessWidget {
         onTap: vm.setIndex,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF3F5DB3),
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
         unselectedItemColor: Colors.grey.shade400,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: "Beranda"),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book_rounded), label: "Mengajar"),
-          BottomNavigationBarItem(icon: Icon(Icons.grade_rounded), label: "Penilaian"),
-          BottomNavigationBarItem(icon: Icon(Icons.person_pin_rounded), label: "Akun"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded),
+            label: "Beranda",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_book_rounded),
+            label: "Mengajar",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grade_rounded),
+            label: "Request Jadwal",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_pin_rounded),
+            label: "Akun",
+          ),
         ],
       ),
     );
@@ -100,7 +129,11 @@ class _DosenHomeView extends StatelessWidget {
         children: [
           const Text(
             "Panel Manajemen",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F1F3D)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F1F3D),
+            ),
           ),
           const SizedBox(height: 20),
           GridView.count(

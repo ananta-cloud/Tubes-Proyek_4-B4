@@ -13,14 +13,9 @@ class DosenRequestService {
   /// Ambil semua jadwal yang diampu dosen ini (by kode_dosen).
   Future<List<Map<String, dynamic>>> getMySchedules(String kodeDosen) async {
     final results = await _schCol
-        .find(
-          where.eq('status', 'PUBLISHED').raw({
-            'kode_dosen': {
-              r'$elemMatch': {r'$eq': kodeDosen},
-            },
-          }),
-        )
+        .find(where.raw({'kode_dosen': kodeDosen}))
         .toList();
+    print('SCHEDULES FOUND: ${results.length}');
     return results;
   }
 
@@ -40,34 +35,37 @@ class DosenRequestService {
     required String hari,
     required String jamMulai,
     required String jamSelesai,
-    String?
-    excludeScheduleId, // jadwal yang sedang direquest (exclude dari cek)
+    String? excludeScheduleId,
   }) async {
     final allRuangan = await getAllRuangan();
+    print('ALL RUANGAN: $allRuangan');
+    print('CEK: hari=$hari mulai=$jamMulai selesai=$jamSelesai');
 
-    // Query jadwal yang bentrok di hari + jam tersebut
-    final selector = where.eq('hari', hari).ne('status', 'DRAFT').raw({
+    final filter = <String, dynamic>{
+      'hari': hari,
+      'status': {r'$ne': 'DRAFT'},
       'jam_mulai': {r'$lt': jamSelesai},
       'jam_selesai': {r'$gt': jamMulai},
-    });
+    };
 
     if (excludeScheduleId != null) {
-      selector.ne('_id', ObjectId.parse(excludeScheduleId));
+      filter['_id'] = {r'$ne': ObjectId.parse(excludeScheduleId)};
     }
 
-    final bentrok = await _schCol.find(selector).toList();
+    final bentrok = await _schCol.find(where.raw(filter)).toList();
+    print('BENTROK: ${bentrok.length} - ${bentrok.map((s) => s['ruangan'])}');
+
     final ruanganTerpakai = bentrok
         .map((s) => s['ruangan']?.toString() ?? '')
         .where((r) => r.isNotEmpty)
         .toSet();
 
-    // 3. Filter ruangan yang KOSONG
     final tersedia =
         allRuangan.where((r) => !ruanganTerpakai.contains(r)).toList()..sort();
 
+    print('TERSEDIA: $tersedia');
     return tersedia;
   }
-
   // ─────────────────────────────────────────────
   // SUBMIT REQUEST
   // ─────────────────────────────────────────────

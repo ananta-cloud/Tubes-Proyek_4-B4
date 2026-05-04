@@ -3,6 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:sigma/data/services/dosen_request_service.dart';
+import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 
 // ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';
@@ -33,7 +35,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load Env
-  await dotenv.load(fileName: "assets/env/.env");
+  await dotenv.load(fileName: ".env");
   await initializeDateFormatting('id_ID', null);
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
@@ -82,6 +84,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AdminScheduleViewModel()),
 
         ChangeNotifierProvider(create: (_) => AdminMatkulViewModel()),
+
+        ChangeNotifierProvider(
+          create: (_) => DosenRequestController(DosenRequestService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ScheduleController(ScheduleService()),
+        ),
       ],
       child: const MyApp(),
     ),

@@ -6,6 +6,7 @@ import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:sigma/features/penjadwalan/viewmodels/schedule_request_controller.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
+import '../views/request_form_page.dart';
 
 class MyRequestsPage extends StatefulWidget {
   final UserModel user;
@@ -33,10 +34,13 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
       appBar: AppBar(
         title: const Text(
           'Riwayat Permohonan',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1F1F3D),
+          ),
         ),
-        backgroundColor: const Color(0xFF3F5DB3),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
       ),
       body: ctrl.isLoadingRequests
           ? const Center(child: CircularProgressIndicator())
@@ -56,6 +60,15 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                 ),
               ),
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _goToForm(context),
+        backgroundColor: const Color(0xFF3F5DB3),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'Buat Permohonan',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
     );
   }
 
@@ -104,6 +117,16 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _goToForm(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RequestFormPage(user: widget.user)),
+    ).then(
+      (_) =>
+          context.read<DosenRequestController>().loadMyRequests(widget.user.id),
     );
   }
 }

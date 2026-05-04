@@ -33,6 +33,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
   @override
   void initState() {
     super.initState();
+    _alasanCtrl.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctrl = context.read<DosenRequestController>();
       ctrl.resetForm();

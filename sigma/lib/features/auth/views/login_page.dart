@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/views/admin_main_page.dart';
+import 'package:sigma/features/penjadwalan/penjadwalan_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -45,7 +46,7 @@ class _LoginPageState extends State<LoginPage> {
       if (user.role?.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomePageDsn()),
+          MaterialPageRoute(builder: (_) => HomePageDsn(user: user)),
         );
       } else if (user.role?.toUpperCase() == 'MAHASISWA') {
         Navigator.pushReplacement(
@@ -56,6 +57,11 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),
+        );
+      } else if (user.role?.toUpperCase() == 'TIM_PENJADWALAN') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PenjadwalanMainPage(user: user)),
         );
       }
     } else {
