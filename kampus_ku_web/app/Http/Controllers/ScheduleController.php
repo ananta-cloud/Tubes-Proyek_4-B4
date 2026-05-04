@@ -12,6 +12,42 @@ use Carbon\Carbon;
 class ScheduleController extends Controller
 {
 
+<<<<<<< HEAD
+=======
+    // public function index()
+    // {
+    //     $user = Auth::user();
+
+    //     // 1. Ambil semua jadwal yang HANYA milik jurusan user yang sedang login
+    //     // Diurutkan berdasarkan hari dan jam mulai agar rapi
+    //     $schedules = Schedule::where('id_jurusan', $user->id_jurusan)
+    //         ->orderBy('hari', 'asc')
+    //         ->orderBy('jam_mulai', 'asc')
+    //         ->get();
+
+    //     // 2. Hitung statistik untuk Dashboard Tracking (Berdasarkan Jurusan)
+    //     $count_draft = Schedule::where('id_jurusan', $user->id_jurusan)
+    //         ->where('status', 'DRAFT')
+    //         ->count();
+
+    //     $count_final = Schedule::where('id_jurusan', $user->id_jurusan)
+    //         ->where('status', 'FINAL')
+    //         ->count();
+
+    //     $count_published = Schedule::where('id_jurusan', $user->id_jurusan)
+    //         ->where('status', 'PUBLISHED')
+    //         ->count();
+
+    //     // 3. Kirim data ke view admin/jadwal/index.blade.php
+    //     return view('admin.jadwal.index', compact(
+    //         'schedules',
+    //         'count_draft',
+    //         'count_final',
+    //         'count_published'
+    //     ));
+    // }
+
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
     /**
      * Dashboard utama Tim Penjadwalan
      */
@@ -379,4 +415,8 @@ class ScheduleController extends Controller
 
         return $query->first();
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42

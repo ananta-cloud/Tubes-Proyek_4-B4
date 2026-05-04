@@ -38,7 +38,11 @@ class AuthController extends Controller
             } elseif ($user->role === 'TIM_PENJADWALAN') {
                 return redirect('/penjadwalan/dashboard');
             } elseif ($user->role === 'ADMIN_TU') {
+<<<<<<< HEAD
                 return redirect('/jurusan/admin/dashboard');
+=======
+                return redirect('/jurusan/announcements');
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
             }
 
             // Cegah role lain login via web admin
@@ -171,4 +175,8 @@ class AuthController extends Controller
             ], 401);
         }
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
