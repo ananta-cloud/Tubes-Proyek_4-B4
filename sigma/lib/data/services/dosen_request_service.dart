@@ -94,9 +94,16 @@ class DosenRequestService {
     String? idPeriodeRevisi,
   }) async {
     try {
+      // Fungsi internal untuk konversi string ke ObjectId yang valid
+      ObjectId _toObjectId(String id) {
+        // Membersihkan string jika tidak sengaja terbawa format 'ObjectId("...")'
+        final cleanId = id.replaceAll('ObjectId("', '').replaceAll('")', '');
+        return ObjectId.fromHexString(cleanId);
+      }
+
       await _reqCol.insertOne({
-        'id_schedule': ObjectId.parse(idSchedule),
-        'id_dosen': ObjectId.parse(idDosen),
+        'id_schedule': _toObjectId(idSchedule),
+        'id_dosen': _toObjectId(idDosen),
         'nama_dosen': namaDosen,
         'tipe_request': tipeRequest,
         'detail_perubahan': detailPerubahan,
@@ -104,13 +111,14 @@ class DosenRequestService {
         'status': 'PENDING',
         'is_late': isLate,
         'id_periode_revisi': idPeriodeRevisi != null
-            ? ObjectId.parse(idPeriodeRevisi)
+            ? _toObjectId(idPeriodeRevisi)
             : null,
         'catatan_admin': null,
         'id_processor': null,
         'created_at': DateTime.now(),
         'updated_at': DateTime.now(),
       });
+
       return true;
     } catch (e) {
       print('Error submitRequest: $e');
@@ -118,35 +126,79 @@ class DosenRequestService {
     }
   }
 
+  // Future<bool> submitRequest({
+  //   required String idSchedule,
+  //   required String idDosen,
+  //   required String namaDosen,
+  //   required String tipeRequest,
+  //   required Map<String, dynamic> detailPerubahan,
+  //   required String alasan,
+  //   bool isLate = false,
+  //   String? idPeriodeRevisi,
+  // }) async {
+  //   try {
+  //     await _reqCol.insertOne({
+  //       'id_schedule': ObjectId.parse(idSchedule),
+  //       'id_dosen': ObjectId.parse(idDosen),
+  //       'nama_dosen': namaDosen,
+  //       'tipe_request': tipeRequest,
+  //       'detail_perubahan': detailPerubahan,
+  //       'alasan': alasan,
+  //       'status': 'PENDING',
+  //       'is_late': isLate,
+  //       'id_periode_revisi': idPeriodeRevisi != null
+  //           ? ObjectId.parse(idPeriodeRevisi)
+  //           : null,
+  //       'catatan_admin': null,
+  //       'id_processor': null,
+  //       'created_at': DateTime.now(),
+  //       'updated_at': DateTime.now(),
+  //     });
+  //     return true;
+  //   } catch (e) {
+  //     print('Error submitRequest: $e');
+  //     return false;
+  //   }
+  // }
+
   // ─────────────────────────────────────────────
   // RIWAYAT REQUEST DOSEN
   // ─────────────────────────────────────────────
 
   Future<List<ScheduleRequestModel>> getMyRequests(String idDosen) async {
-    final requests = await _reqCol
-        .find(
-          where
-              .eq('id_dosen', ObjectId.parse(idDosen))
-              .sortBy('created_at', descending: true),
-        )
-        .toList();
+    try {
+      final cleanId = idDosen.replaceAll('ObjectId("', '').replaceAll('")', '');
 
-    // Embed data jadwal
-    final List<ScheduleRequestModel> result = [];
-    for (final req in requests) {
-      Map<String, dynamic>? jadwal;
-      if (req['id_schedule'] != null) {
-        jadwal = await _schCol.findOne(
-          where.id(
-            req['id_schedule'] is ObjectId
-                ? req['id_schedule']
-                : ObjectId.parse(req['id_schedule'].toString()),
-          ),
-        );
+      final requests = await _reqCol
+          .find(
+            where
+                .eq('id_dosen', ObjectId.fromHexString(cleanId))
+                .sortBy('created_at', descending: true),
+          )
+          .toList();
+
+      final List<ScheduleRequestModel> result = [];
+      for (final req in requests) {
+        Map<String, dynamic>? jadwal;
+        if (req['id_schedule'] != null) {
+          final schId = req['id_schedule'] is ObjectId
+              ? req['id_schedule']
+              : ObjectId.fromHexString(
+                  req['id_schedule']
+                      .toString()
+                      .replaceAll('ObjectId("', '')
+                      .replaceAll('")', ''),
+                );
+
+          jadwal = await _schCol.findOne(where.id(schId));
+        }
+        result.add(ScheduleRequestModel.fromJson(req, jadwal: jadwal));
       }
-      result.add(ScheduleRequestModel.fromJson(req, jadwal: jadwal));
+      return result;
+    } catch (e) {
+      print('Error getMyRequests: $e');
+      return [];
     }
-    return result;
   }
 
   // ─────────────────────────────────────────────
@@ -155,8 +207,12 @@ class DosenRequestService {
 
   Future<bool> cancelRequest(String requestId) async {
     try {
+      final cleanId = requestId
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+
       await _reqCol.deleteOne(
-        where.id(ObjectId.parse(requestId)).eq('status', 'PENDING'),
+        where.id(ObjectId.fromHexString(cleanId)).eq('status', 'PENDING'),
       );
       return true;
     } catch (e) {
