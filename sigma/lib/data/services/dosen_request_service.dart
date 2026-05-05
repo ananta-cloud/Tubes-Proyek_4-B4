@@ -43,7 +43,11 @@ class DosenRequestService {
       var selector = where.eq('hari', hari).ne('status', 'DRAFT');
 
       if (excludeScheduleId != null) {
-        selector = selector.ne('_id', ObjectId.parse(excludeScheduleId));
+        final cleanId = excludeScheduleId
+            .replaceAll('ObjectId("', '')
+            .replaceAll('")', '');
+
+        selector = selector.ne('_id', ObjectId.fromHexString(cleanId));
       }
 
       final semuaHariIni = await _schCol.find(selector).toList();

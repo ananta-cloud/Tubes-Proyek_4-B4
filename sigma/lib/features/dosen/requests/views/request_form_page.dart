@@ -250,6 +250,12 @@ class _RequestFormPageState extends State<RequestFormPage> {
                   }).toList(),
                 ),
                 const SizedBox(height: 14),
+              ] else if (ctrl.selectedTipeRequest == 'PINDAH_RUANGAN') ...[
+                _InfoCard(
+                  icon: Icons.lock_clock,
+                  color: Colors.orange,
+                  text: "Waktu tetap sesuai jadwal asli",
+                ),
               ],
 
               // Alasan
@@ -317,7 +323,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
               _SelectedJadwalBanner(jadwal: ctrl.selectedJadwal!),
               const SizedBox(height: 16),
 
-              // Info jadwal baru
+              // Info jadwal baru yang sedang dicek
               if (ctrl.selectedHariBaru != null)
                 _InfoCard(
                   icon: Icons.access_time,
@@ -331,8 +337,40 @@ class _RequestFormPageState extends State<RequestFormPage> {
               _SectionLabel('Ruangan Tersedia'),
               const SizedBox(height: 10),
 
-              // Tombol cek manual (jika belum auto atau mau refresh)
+              // LOGIKA TAMPILAN INPUT BERDASARKAN TIPE
               if (ctrl.selectedTipeRequest == 'PINDAH_RUANGAN')
+                // Tampilan Terkunci (Info Only) untuk Pindah Ruangan
+                Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.blue.shade100),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: Color(0xFF3F5DB3),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Mencari ruangan kosong untuk waktu asli:\n${ctrl.selectedHariBaru}, ${ctrl.selectedJamMulaiBaru}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E3A8A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                // Tampilan Input untuk tipe KEDUANYA
                 Column(
                   children: [
                     _SectionLabel('Hari & Jam untuk cek ruangan'),
@@ -394,13 +432,19 @@ class _RequestFormPageState extends State<RequestFormPage> {
                         onPressed:
                             ctrl.selectedHariBaru != null &&
                                 ctrl.selectedJamMulaiBaru != null
-                            ? () => ctrl.checkRuangan(
-                                hari: ctrl.selectedHariBaru!,
-                                jamMulai: ctrl.selectedJamMulaiBaru!,
-                                jamSelesai: ctrl.selectedJamSelesaiBaru!,
-                                excludeScheduleId: ctrl.selectedJadwal!['_id']
-                                    .toString(),
-                              )
+                            ? () {
+                                final cleanId = ctrl.selectedJadwal!['_id']
+                                    .toString()
+                                    .replaceAll('ObjectId("', '')
+                                    .replaceAll('")', '');
+
+                                ctrl.checkRuangan(
+                                  hari: ctrl.selectedHariBaru!,
+                                  jamMulai: ctrl.selectedJamMulaiBaru!,
+                                  jamSelesai: ctrl.selectedJamSelesaiBaru!,
+                                  excludeScheduleId: cleanId,
+                                );
+                              }
                             : null,
                         icon: const Icon(Icons.search),
                         label: const Text('Cek Ruangan Kosong'),
@@ -417,6 +461,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
                   ],
                 ),
 
+              // LIST RUANGAN TERSEDIA
               ctrl.isCheckingRuangan
                   ? const Center(child: CircularProgressIndicator())
                   : ctrl.ruanganTersedia.isEmpty
@@ -473,9 +518,9 @@ class _RequestFormPageState extends State<RequestFormPage> {
                                   ),
                                 ),
                                 if (selected)
-                                  Icon(
+                                  const Icon(
                                     Icons.check_circle,
-                                    color: const Color(0xFF3F5DB3),
+                                    color: Color(0xFF3F5DB3),
                                     size: 18,
                                   ),
                               ],

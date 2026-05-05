@@ -152,7 +152,13 @@ class DosenRequestController extends ChangeNotifier {
 
   void selectTipeRequest(String tipe) {
     selectedTipeRequest = tipe;
-    print('TIPE_SELECTED: $tipe');
+
+    // Jika hanya pindah ruangan, kunci waktu ke jadwal lama
+    if (tipe == 'PINDAH_RUANGAN' && selectedJadwal != null) {
+      selectedHariBaru = selectedJadwal!['hari'];
+      selectedJamMulaiBaru = selectedJadwal!['jam_mulai'];
+      selectedJamSelesaiBaru = selectedJadwal!['jam_selesai'];
+    }
     notifyListeners();
   }
 
