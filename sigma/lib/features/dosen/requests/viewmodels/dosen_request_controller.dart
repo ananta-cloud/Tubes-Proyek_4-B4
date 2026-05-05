@@ -152,6 +152,7 @@ class DosenRequestController extends ChangeNotifier {
 
   void selectTipeRequest(String tipe) {
     selectedTipeRequest = tipe;
+    print('TIPE_SELECTED: $tipe');
     notifyListeners();
   }
 

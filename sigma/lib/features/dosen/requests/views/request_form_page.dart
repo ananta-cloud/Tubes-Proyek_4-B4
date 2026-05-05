@@ -97,6 +97,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
                       }).toList(),
                     ),
               const SizedBox(height: 20),
+
               _NavBtn(
                 label: 'Lanjut →',
                 enabled: ctrl.selectedJadwal != null,
@@ -301,7 +302,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
                             jamMulai: ctrl.selectedJamMulaiBaru!,
                             jamSelesai: ctrl.selectedJamSelesaiBaru!,
                             excludeScheduleId: ctrl.selectedJadwal!['_id']
-                                .toString(),
+                                .toHexString(),
                           );
                         }
                       },

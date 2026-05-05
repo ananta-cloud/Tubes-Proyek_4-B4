@@ -38,33 +38,46 @@ class DosenRequestService {
     String? excludeScheduleId,
   }) async {
     final allRuangan = await getAllRuangan();
-    print('ALL RUANGAN: $allRuangan');
-    print('CEK: hari=$hari mulai=$jamMulai selesai=$jamSelesai');
 
-    final filter = <String, dynamic>{
-      'hari': hari,
-      'status': {r'$ne': 'DRAFT'},
-      'jam_mulai': {r'$lt': jamSelesai},
-      'jam_selesai': {r'$gt': jamMulai},
-    };
+    try {
+      var selector = where.eq('hari', hari).ne('status', 'DRAFT');
 
-    if (excludeScheduleId != null) {
-      filter['_id'] = {r'$ne': ObjectId.parse(excludeScheduleId)};
+      if (excludeScheduleId != null) {
+        selector = selector.ne('_id', ObjectId.parse(excludeScheduleId));
+      }
+
+      final semuaHariIni = await _schCol.find(selector).toList();
+
+      final bentrok = semuaHariIni.where((doc) {
+        final mulaiDoc = doc['jam_mulai']?.toString() ?? '';
+        final selesaiDoc = doc['jam_selesai']?.toString() ?? '';
+        // Overlap: mulaiDoc < jamSelesai AND selesaiDoc > jamMulai
+        return mulaiDoc.compareTo(jamSelesai) < 0 &&
+            selesaiDoc.compareTo(jamMulai) > 0;
+      }).toList();
+
+      print('BENTROK count: ${bentrok.length}');
+      for (final b in bentrok) {
+        print(
+          'BENTROK ITEM: ${b['hari']} ${b['jam_mulai']}-${b['jam_selesai']} ${b['ruangan']}',
+        );
+      }
+
+      final ruanganTerpakai = bentrok
+          .map((s) => s['ruangan']?.toString() ?? '')
+          .where((r) => r.isNotEmpty)
+          .toSet();
+
+      final tersedia =
+          allRuangan.where((r) => !ruanganTerpakai.contains(r)).toList()
+            ..sort();
+
+      print('TERSEDIA: $tersedia');
+      return tersedia;
+    } catch (e) {
+      print('ERROR QUERY: $e');
+      return [];
     }
-
-    final bentrok = await _schCol.find(where.raw(filter)).toList();
-    print('BENTROK: ${bentrok.length} - ${bentrok.map((s) => s['ruangan'])}');
-
-    final ruanganTerpakai = bentrok
-        .map((s) => s['ruangan']?.toString() ?? '')
-        .where((r) => r.isNotEmpty)
-        .toSet();
-
-    final tersedia =
-        allRuangan.where((r) => !ruanganTerpakai.contains(r)).toList()..sort();
-
-    print('TERSEDIA: $tersedia');
-    return tersedia;
   }
   // ─────────────────────────────────────────────
   // SUBMIT REQUEST
