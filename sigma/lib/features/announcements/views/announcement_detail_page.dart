@@ -1,97 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:provider/provider.dart';
+import 'package:sigma/data/models/announcement_model.dart';
+import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 
-class AnnouncementDetailPage extends StatefulWidget {
+class AnnouncementDetailPage extends StatelessWidget {
   final AnnouncementModel announcement;
-
   const AnnouncementDetailPage({super.key, required this.announcement});
 
-  @override
-  State<AnnouncementDetailPage> createState() => _AnnouncementDetailPageState();
-}
-
-class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
-  // Konsistensi warna dengan tema SIGMA
-  static const primaryBlue = Color(0xFF3F5DB3);
+  static const primaryBlue  = Color(0xFF3F5DB3);
   static const accentOrange = Color(0xFFFF7A36);
-  static const bgColor = Color(0xFFEAF3FA);
-  static const darkText = Color(0xFF1F1F3D);
-
-  late Box<AnnouncementModel> bookmarkBox;
-  bool isBookmarked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Buka box dan cek status saat halaman pertama kali dimuat
-    bookmarkBox = Hive.box<AnnouncementModel>('bookmarks');
-    isBookmarked = bookmarkBox.containsKey(widget.announcement.id);
-  }
-
-  void _toggleBookmark() {
-    setState(() {
-      isBookmarked = !isBookmarked;
-    });
-
-    if (isBookmarked) {
-      // Simpan ke Hive
-      bookmarkBox.put(widget.announcement.id, widget.announcement);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Disimpan ke Bookmark'),
-          backgroundColor: accentOrange,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      // Hapus dari Hive
-      bookmarkBox.delete(widget.announcement.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dihapus dari Bookmark'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  // Fungsi helper untuk merapikan teks target audience
-  String _formatAudience(String audience) {
-    return audience.replaceAll('_', ' ');
-  }
-
-  // Format tanggal: 26 April 2026
-  String _formatDate(DateTime dt) {
-    const months = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    return '${dt.day} ${months[dt.month]} ${dt.year}';
-  }
+  static const bgColor      = Color(0xFFEAF3FA);
+  static const darkText     = Color(0xFF1F1F3D);
 
   @override
   Widget build(BuildContext context) {
-    final ann = widget.announcement;
+    // Memanggil ViewModel gabungan kita
+    final vm = context.watch<AnnouncementViewModel>();
+    final isBookmarked = vm.isBookmarked(announcement.id);
 
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // ============================================================
-          // HEADER ANIMASI (SLIVER APP BAR) DENGAN BOOKMARK
-          // ============================================================
+          // ================= HEADER DENGAN BOOKMARK =================
           SliverAppBar(
             expandedHeight: 140,
             floating: false,
@@ -99,11 +30,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
             elevation: 0,
             backgroundColor: primaryBlue,
             leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: 20,
-              ),
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
@@ -113,16 +40,12 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                   color: isBookmarked ? accentOrange : Colors.white,
                   size: 26,
                 ),
-                onPressed: _toggleBookmark,
+                onPressed: () => vm.toggleBookmark(announcement, context),
               ),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(
-                left: 48,
-                right: 16,
-                bottom: 16,
-              ),
+              titlePadding: const EdgeInsets.only(left: 48, right: 16, bottom: 16),
               title: const Text(
                 "Detail Pengumuman",
                 style: TextStyle(
@@ -149,11 +72,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                       bottom: -10,
                       child: Opacity(
                         opacity: 0.1,
-                        child: Icon(
-                          Icons.campaign_rounded,
-                          size: 110,
-                          color: Colors.white,
-                        ),
+                        child: Icon(Icons.campaign_rounded, size: 110, color: Colors.white),
                       ),
                     ),
                   ],
@@ -162,27 +81,21 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
             ),
           ),
 
-          // ============================================================
-          // AREA KONTEN
-          // ============================================================
+          // ================= AREA KONTEN =================
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── KARTU INFORMASI UTAMA ──────────────────────────
+                  // --- KARTU INFORMASI UTAMA ---
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
+                        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
                       ],
                     ),
                     child: Column(
@@ -191,76 +104,47 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Badge Target
+                            // Menggunakan Helper Format Teks dari ViewModel
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                _formatAudience(ann.targetAudience),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryBlue,
-                                ),
+                                vm.formatAudience(announcement.targetAudience),
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryBlue),
                               ),
                             ),
-                            // Tanggal
+                            // Menggunakan Helper Format Tanggal dari ViewModel
                             Row(
                               children: [
-                                Icon(
-                                  Icons.access_time,
-                                  size: 14,
-                                  color: Colors.grey.shade400,
-                                ),
+                                Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _formatDate(ann.createdAt),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
+                                  vm.formatDate(announcement.createdAt),
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                                 ),
                               ],
                             ),
                           ],
                         ),
                         const Divider(height: 30),
-                        // Publisher Info
                         Row(
                           children: [
                             CircleAvatar(
                               radius: 18,
                               backgroundColor: accentOrange.withOpacity(0.1),
-                              child: const Icon(
-                                Icons.person,
-                                size: 20,
-                                color: accentOrange,
-                              ),
+                              child: const Icon(Icons.person, size: 20, color: accentOrange),
                             ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Diterbitkan oleh:',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey,
-                                  ),
-                                ),
+                                const Text('Diterbitkan oleh:', style: TextStyle(fontSize: 10, color: Colors.grey)),
                                 Text(
-                                  ann.namaPublisher,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: darkText,
-                                  ),
+                                  announcement.namaPublisher,
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkText),
                                 ),
                               ],
                             ),
@@ -269,10 +153,9 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
 
-                  // ── KARTU ISI PENGUMUMAN ───────────────────────────
+                  // --- KARTU ISI PENGUMUMAN ---
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -283,49 +166,29 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Tags/Kategori jika ada
-                        if (ann.kategori.isNotEmpty)
+                        if (announcement.kategori.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 15),
                             child: Wrap(
                               spacing: 8,
-                              children: ann.kategori.map((kat) {
-                                return Text(
-                                  "#$kat",
-                                  style: const TextStyle(
-                                    color: accentOrange,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                );
+                              children: announcement.kategori.map((kat) {
+                                return Text("#$kat", style: const TextStyle(color: accentOrange, fontWeight: FontWeight.bold, fontSize: 13));
                               }).toList(),
                             ),
                           ),
-                        // Judul Lengkap
                         Text(
-                          ann.judul,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: darkText,
-                          ),
+                          announcement.judul,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkText),
                         ),
                         const SizedBox(height: 15),
-                        // Isi Utama
                         Text(
-                          ann.isi,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.grey.shade800,
-                            height: 1.7,
-                          ),
+                          announcement.isi,
+                          style: TextStyle(fontSize: 15, color: Colors.grey.shade800, height: 1.7),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(
-                    height: 100,
-                  ), // Spasi bawah agar tidak tertutup navbar
+                  const SizedBox(height: 100), // Spasi bawah
                 ],
               ),
             ),

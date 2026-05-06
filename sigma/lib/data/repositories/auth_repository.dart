@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bcrypt/bcrypt.dart';
 import '../models/user_model.dart';
@@ -8,13 +9,19 @@ class AuthRepository {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<UserModel?> login(String email, String password) async {
+    // Cek apakah aplikasi dalam mode offline
+    if (MongoDatabase.isOffline) {
+      debugPrint("LOGIN ERROR: Aplikasi dalam mode offline");
+      return null;
+    }
+
     try {
       //  1. CARI USER BERDASARKAN EMAIL SAJA
       final user = await MongoDatabase.usersCollection.findOne({
         "email": email,
       });
 
-      print("USER FOUND: $user");
+      debugPrint("USER FOUND: $user");
 
       if (user == null) return null;
 
@@ -36,18 +43,28 @@ class AuthRepository {
         role: user["role"],
       );
     } catch (e) {
-      print("LOGIN ERROR: $e");
+      debugPrint("LOGIN ERROR: $e");
       return null;
     }
   }
 
   Future<void> logout() async {
-    // 1. Hapus token dari secure storage
-    await _storage.delete(key: "token");
-    
-    // 2. Bersihkan data lokal Hive (opsional tapi sangat disarankan)
-    await Hive.box('schedules').clear();
-    await Hive.box('announcements').clear();
-    // await Hive.box('bookmarks').clear(); // Hapus komentar ini jika bookmark juga ingin di-reset
+    try {
+      await _storage.delete(key: "token");
+      await _storage.delete(key: "user_id");
+    } catch (e) {
+      debugPrint("LOGOUT STORAGE ERROR: $e");
+    }
+
+    final boxesToClear = ['schedules', 'announcements', 'bookmarks'];
+    for (final boxName in boxesToClear) {
+      if (Hive.isBoxOpen(boxName)) {
+        try {
+          await Hive.box(boxName).clear();
+        } catch (e) {
+          debugPrint("LOGOUT HIVE CLEAR ERROR ($boxName): $e");
+        }
+      }
+    }
   }
 }

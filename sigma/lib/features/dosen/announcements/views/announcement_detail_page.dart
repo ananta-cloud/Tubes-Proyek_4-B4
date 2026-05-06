@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 class AnnouncementDetailPage extends StatefulWidget {
   final AnnouncementModel announcement;

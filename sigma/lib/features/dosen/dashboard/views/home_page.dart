@@ -23,8 +23,6 @@ class _DosenHomeView extends StatelessWidget {
   const _DosenHomeView();
 
   void _handleLogout(BuildContext context) {
-    final loginVm = context.read<LoginViewModel>();
-
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -33,18 +31,13 @@ class _DosenHomeView extends StatelessWidget {
         content: const Text("Apakah Bapak/Ibu ingin keluar dari aplikasi?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx), 
+            onPressed: () => Navigator.pop(ctx),
             child: const Text("Batal"),
           ),
           TextButton(
             onPressed: () async {
-              // 2. Tutup dialog konfirmasi (gunakan ctx dari builder dialog)
-              Navigator.pop(ctx);
+              await context.read<LoginViewModel>().logout();
 
-              // 3. Eksekusi logout menggunakan variabel loginVm yang sudah diamankan di atas
-              await loginVm.logout();
-
-              // 4. Pindah ke halaman Login dengan aman
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -54,7 +47,7 @@ class _DosenHomeView extends StatelessWidget {
               }
             },
             child: const Text(
-              "Keluar", 
+              "Keluar",
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
@@ -73,7 +66,8 @@ class _DosenHomeView extends StatelessWidget {
         children: [
           DosenHomeHeader(
             greeting: vm.greeting,
-            lecturerName: "Dr. Sigma, M.T.", // Integrasikan dengan data User asli
+            lecturerName:
+                "Dr. Sigma, M.T.", // Integrasikan dengan data User asli
             onLogout: () => _handleLogout(context),
           ),
           Expanded(
@@ -94,13 +88,28 @@ class _DosenHomeView extends StatelessWidget {
         onTap: vm.setIndex,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF3F5DB3),
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
         unselectedItemColor: Colors.grey.shade400,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: "Beranda"),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book_rounded), label: "Mengajar"),
-          BottomNavigationBarItem(icon: Icon(Icons.grade_rounded), label: "Penilaian"),
-          BottomNavigationBarItem(icon: Icon(Icons.person_pin_rounded), label: "Akun"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded),
+            label: "Beranda",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_book_rounded),
+            label: "Mengajar",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grade_rounded),
+            label: "Penilaian",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_pin_rounded),
+            label: "Akun",
+          ),
         ],
       ),
     );
@@ -114,7 +123,11 @@ class _DosenHomeView extends StatelessWidget {
         children: [
           const Text(
             "Panel Manajemen",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F1F3D)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F1F3D),
+            ),
           ),
           const SizedBox(height: 20),
           GridView.count(

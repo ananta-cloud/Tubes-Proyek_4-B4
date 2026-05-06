@@ -5,17 +5,39 @@ part 'task_model.g.dart';
 
 @HiveType(typeId: 3)
 class TaskModel extends HiveObject {
-  @HiveField(0) final String id;
-  @HiveField(1) final String idUser;
-  @HiveField(2) String namaTugas;
-  @HiveField(3) String? deskripsi;
-  @HiveField(4) String? idMk;
-  @HiveField(5) String? namaMkSnapshot;
-  @HiveField(6) DateTime deadline;
-  @HiveField(7) String status;
-  @HiveField(8) bool isSynced;
-  @HiveField(9) DateTime createdAt;
-  @HiveField(10) DateTime updatedAt;
+  
+  @HiveField(0)
+  final String id;
+  
+  @HiveField(1)
+  final String idUser;
+  
+  @HiveField(2)
+  String namaTugas;
+  
+  @HiveField(3)
+  String? deskripsi;
+  
+  @HiveField(4)
+  String? idMk;
+  
+  @HiveField(5)
+  String? namaMkSnapshot;
+  
+  @HiveField(6)
+  DateTime deadline;
+  
+  @HiveField(7)
+  String status;
+  
+  @HiveField(8)
+  bool isSynced;
+  
+  @HiveField(9)
+  DateTime createdAt;
+  
+  @HiveField(10)
+  DateTime updatedAt;
 
   TaskModel({
     required this.id,
@@ -31,6 +53,9 @@ class TaskModel extends HiveObject {
     required this.updatedAt,
   });
 
+  // Jika idMk kosong/null, otomatis dianggap sebagai Tugas Personal.
+  bool get isPersonal => idMk == null || idMk!.isEmpty;
+
   // Format dari mongo_dart: _id adalah ObjectId, date adalah DateTime langsung
   factory TaskModel.fromMongo(Map<String, dynamic> map) {
     return TaskModel(
@@ -42,7 +67,7 @@ class TaskModel extends HiveObject {
       namaMkSnapshot: map['nama_mk_snapshot'],
       deadline:       map['deadline'] as DateTime,
       status:         map['status'] ?? 'BELUM',
-      isSynced:       true,
+      isSynced:       map['is_synced'] ?? true, // Default ke true karena ditarik dari Cloud
       createdAt:      map['created_at'] as DateTime,
       updatedAt:      map['updated_at'] as DateTime,
     );

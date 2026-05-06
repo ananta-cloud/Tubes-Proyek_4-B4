@@ -3,56 +3,107 @@ import '../../core/network/mongo_database.dart';
 import '../models/task_model.dart';
 
 class TaskService {
+  // 🔥 HELPER SAKTI: Membersihkan ID dari teks aneh agar tidak crash
+  ObjectId _safeObjectId(String id) {
+    String cleanId = id
+        .replaceAll('ObjectId("', '')
+        .replaceAll('")', '')
+        .replaceAll("'", "")
+        .trim();
+    return ObjectId.fromHexString(cleanId);
+  }
 
-  Future<bool> upsertTask(TaskModel task) async {
+  // 1. Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
+  Future<List<Map<String, dynamic>>> getTasksByUser(String userId) async {
     try {
-      var objectId = ObjectId.fromHexString(task.id);
-
-      var document = {
-        '_id':              objectId,
-        'id_user':          ObjectId.fromHexString(task.idUser),
-        'nama_tugas':       task.namaTugas,
-        'deskripsi':        task.deskripsi,
-        'id_mk':            task.idMk,
-        'nama_mk_snapshot': task.namaMkSnapshot,
-        'deadline':         task.deadline,
-        'status':           task.status,
-        'is_synced':        true,
-        'created_at':       task.createdAt,
-        'updated_at':       task.updatedAt,
-      };
-
-      await MongoDatabase.tasksCollection.update(
-        where.id(objectId),
-        document,
-        upsert: true,
+      final data = await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection
+            .find(where.eq('id_user', _safeObjectId(userId)))
+            .toList(),
       );
+      return data;
+    } catch (e) {
+      print("🔥 Error Get Tasks (Mongo): $e");
+      return [];
+    }
+  }
+
+  // 2. Simpan Tugas Personal Baru ke MongoDB
+  Future<bool> createTask(TaskModel task) async {
+    try {
+      await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection.insert({
+          '_id': _safeObjectId(task.id),
+          'id_user': _safeObjectId(task.idUser),
+          'nama_tugas': task.namaTugas,
+          'deskripsi': task.deskripsi,
+          'id_mk': task.idMk, // Ini akan berisi null untuk tugas personal
+          'nama_mk_snapshot': task.namaMkSnapshot,
+          'deadline': task.deadline,
+          'status': task.status,
+          'is_synced': true, // Wajib true agar lolos validasi MongoDB
+          'created_at': task.createdAt,
+          'updated_at': task.updatedAt,
+        }),
+      );
+      print("✅ SUKSES MENGIRIM TUGAS BARU KE MONGODB!");
       return true;
     } catch (e) {
-      print("Error Upsert Task: $e");
+      print("🔥 Error Create Task (Mongo): $e");
       return false;
     }
   }
 
-  Future<void> deleteTask(String id) async {
+  // 3. Update Status Tugas (Bisa untuk semua jenis tugas)
+  Future<bool> updateTaskStatus(String taskId, String status) async {
     try {
-      await MongoDatabase.tasksCollection
-          .remove(where.id(ObjectId.fromHexString(id)));
+      await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection.update(
+          where.eq('_id', _safeObjectId(taskId)),
+          modify.set('status', status).set('updated_at', DateTime.now()),
+        ),
+      );
+      print("✅ SUKSES UPDATE STATUS TUGAS DI MONGODB!");
+      return true;
     } catch (e) {
-      print("Error Delete Task: $e");
+      print("🔥 Error Update Task Status (Mongo): $e");
+      return false;
     }
   }
 
-  Future<List<TaskModel>> fetchTasksByUser(String userId) async {
+  // 4. Hapus Tugas (Khusus Tugas Personal)
+  Future<bool> deleteTask(String taskId) async {
     try {
-      var objectId = ObjectId.fromHexString(userId);
-      final results = await MongoDatabase.tasksCollection
-          .find(where.eq('id_user', objectId))
-          .toList();
-      return results.map((map) => TaskModel.fromMongo(map)).toList();
+      await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection.remove(
+          where.eq('_id', _safeObjectId(taskId)),
+        ),
+      );
+      print("🗑️ SUKSES MENGHAPUS TUGAS DARI MONGODB!");
+      return true;
     } catch (e) {
-      print("Error Fetch Tasks: $e");
-      return [];
+      print("🔥 Error Delete Task (Mongo): $e");
+      return false;
+    }
+  }
+
+  Future<bool> updateTask(TaskModel task) async {
+    try {
+      await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection.update(
+          where.eq('_id', _safeObjectId(task.id)),
+          modify
+              .set('nama_tugas', task.namaTugas)
+              .set('nama_mk_snapshot', task.namaMkSnapshot)
+              .set('deadline', task.deadline)
+              .set('updated_at', DateTime.now()),
+        ),
+      );
+      print("✅ SUKSES MENGEDIT TUGAS DI MONGODB!");
+      return true;
+    } catch (e) {
+      print("🔥 Error Update Task (Mongo): $e");
+      return false;
     }
   }
 }
