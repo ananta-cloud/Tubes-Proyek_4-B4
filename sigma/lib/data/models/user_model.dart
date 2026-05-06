@@ -24,13 +24,20 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    String? cleanId(dynamic val) {
+      if (val == null) return null;
+      String str = val.toString();
+      // Menghilangkan 'ObjectId("' dan '")' jika ada
+      return str.replaceAll('ObjectId("', '').replaceAll('")', '');
+    }
+
     return UserModel(
-      id: json['id'] ?? json['_id']?.toString() ?? '',
+      id: cleanId(json['id']) ?? cleanId(json['_id']) ?? '',
       nama: json['nama'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? '',
-      idJurusan: json['id_jurusan']?.toString(),
-      idProdi: json['id_prodi']?.toString(),
+      idJurusan: cleanId(json['id_jurusan']),
+      idProdi: cleanId(json['id_prodi']),
       kodeDosen: json['kode_dosen']?.toString(),
       kelas: json['kelas']?.toString(),
       angkatan: json['angkatan']?.toString(),

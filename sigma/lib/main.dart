@@ -20,6 +20,7 @@ import 'data/models/task_model.dart';
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/services/schedule_request_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
@@ -30,6 +31,7 @@ import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart
 import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_viewmodel.dart';
 import 'features/admin_tu/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_viewmodel.dart';
+import 'features/penjadwalan/viewmodels/schedule_request_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,6 +92,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => ScheduleController(ScheduleService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ScheduleRequestController(ScheduleRequestService()),
         ),
       ],
       child: const MyApp(),

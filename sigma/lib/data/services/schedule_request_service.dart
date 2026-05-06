@@ -16,31 +16,50 @@ class ScheduleRequestService {
     required String idJurusan,
     String? status,
   }) async {
-    // Ambil semua id schedule milik jurusan ini
-    final schedules = await _schCol
-        .find(where.eq('id_jurusan', ObjectId.parse(idJurusan)))
-        .toList();
+    try {
+      // 1. Pastikan idJurusan bersih dari teks 'ObjectId()'
+      final cleanJurusanId = idJurusan
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
 
-    final scheduleIds = schedules.map((s) => s['_id']).toList();
+      // 2. Ambil jadwal. Gunakan fromHexString agar lebih akurat
+      final schedules = await _schCol
+          .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanJurusanId)))
+          .toList();
 
-    if (scheduleIds.isEmpty) return [];
+      print(
+        "DEBUG: Jumlah jadwal ditemukan untuk jurusan $cleanJurusanId: ${schedules.length}",
+      );
 
-    // Build query requests
-    final selector = where.oneFrom('id_schedule', scheduleIds);
-    if (status != null && status != 'SEMUA') {
-      selector.eq('status', status);
+      final scheduleIds = schedules.map((s) => s['_id']).toList();
+
+      if (scheduleIds.isEmpty) {
+        print(
+          "DEBUG: scheduleIds kosong, tidak ada request yang bisa ditarik.",
+        );
+        return [];
+      }
+
+      // 3. Cari request berdasarkan list ID jadwal
+      final selector = where.oneFrom('id_schedule', scheduleIds);
+      if (status != null && status != 'SEMUA') {
+        selector.eq('status', status);
+      }
+      selector.sortBy('created_at', descending: true);
+
+      final requests = await _reqCol.find(selector).toList();
+      print("DEBUG: Jumlah request ditemukan: ${requests.length}");
+
+      final scheduleMap = {for (var s in schedules) s['_id'].toString(): s};
+
+      return requests.map((r) {
+        final jadwal = scheduleMap[r['id_schedule']?.toString()];
+        return ScheduleRequestModel.fromJson(r, jadwal: jadwal);
+      }).toList();
+    } catch (e) {
+      print("DEBUG ERROR: $e");
+      return [];
     }
-    selector.sortBy('created_at', descending: true);
-
-    final requests = await _reqCol.find(selector).toList();
-
-    // Map jadwal ke map untuk lookup O(1)
-    final scheduleMap = {for (var s in schedules) s['_id'].toString(): s};
-
-    return requests.map((r) {
-      final jadwal = scheduleMap[r['id_schedule']?.toString()];
-      return ScheduleRequestModel.fromJson(r, jadwal: jadwal);
-    }).toList();
   }
 
   /// Ambil satu request by id, sekalian embed data jadwalnya.
@@ -91,22 +110,31 @@ class ScheduleRequestService {
     required ScheduleRequestModel request,
   }) async {
     try {
-      // Update status request
+      final cleanRequestId = requestId
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+      final cleanProcessorId = processorId
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+      final cleanScheduleId = request.idSchedule
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+
       await _reqCol.updateOne(
-        where.id(ObjectId.parse(requestId)),
+        where.id(ObjectId.fromHexString(cleanRequestId)),
         modify
             .set('status', 'APPROVED')
             .set('catatan_admin', catatanAdmin ?? 'Disetujui.')
-            .set('id_processor', ObjectId.parse(processorId))
+            .set('id_processor', ObjectId.fromHexString(cleanProcessorId))
             .set('updated_at', DateTime.now()),
       );
 
-      // Terapkan perubahan ke jadwal
       final detail = request.detailPerubahan;
       final updateFields = <String, dynamic>{
         'updated_at': DateTime.now(),
-        'status': 'DRAFT', // reset ke DRAFT setelah perubahan
+        'status': 'PUBLISHED',
       };
+
       if (detail.hariBaru != null) updateFields['hari'] = detail.hariBaru;
       if (detail.jamMulaiBaru != null)
         updateFields['jam_mulai'] = detail.jamMulaiBaru;
@@ -118,8 +146,9 @@ class ScheduleRequestService {
       final modifier = modify;
       updateFields.forEach((k, v) => modifier.set(k, v));
 
+      // Update jadwal asli
       await _schCol.updateOne(
-        where.id(ObjectId.parse(request.idSchedule)),
+        where.id(ObjectId.fromHexString(cleanScheduleId)),
         modifier,
       );
 

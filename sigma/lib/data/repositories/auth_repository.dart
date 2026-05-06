@@ -29,13 +29,7 @@ class AuthRepository {
       //  4. LOGIN SUCCESS
       await _storage.write(key: "user_id", value: user["_id"].toString());
 
-      return UserModel(
-        id: user["_id"].toString(),
-        nama: user["nama"],
-        email: user["email"],
-        role: user["role"],
-        kodeDosen: user["kode_dosen"],
-      );
+      return UserModel.fromJson(user);
     } catch (e) {
       print("LOGIN ERROR: $e");
       return null;
