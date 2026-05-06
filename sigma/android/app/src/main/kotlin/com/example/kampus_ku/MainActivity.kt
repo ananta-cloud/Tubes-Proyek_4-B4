@@ -1,4 +1,4 @@
-package com.example.kampus_ku
+package com.example.flutter pub get
 
 import io.flutter.embedding.android.FlutterActivity
 

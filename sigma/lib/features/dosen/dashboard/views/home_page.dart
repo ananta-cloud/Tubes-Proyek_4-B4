@@ -23,6 +23,8 @@ class _DosenHomeView extends StatelessWidget {
   const _DosenHomeView();
 
   void _handleLogout(BuildContext context) {
+    final loginVm = context.read<LoginViewModel>();
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -30,10 +32,19 @@ class _DosenHomeView extends StatelessWidget {
         title: const Text("Konfirmasi Keluar"),
         content: const Text("Apakah Bapak/Ibu ingin keluar dari aplikasi?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx), 
+            child: const Text("Batal"),
+          ),
           TextButton(
             onPressed: () async {
-              await context.read<LoginViewModel>().logout();
+              // 2. Tutup dialog konfirmasi (gunakan ctx dari builder dialog)
+              Navigator.pop(ctx);
+
+              // 3. Eksekusi logout menggunakan variabel loginVm yang sudah diamankan di atas
+              await loginVm.logout();
+
+              // 4. Pindah ke halaman Login dengan aman
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -42,7 +53,10 @@ class _DosenHomeView extends StatelessWidget {
                 );
               }
             },
-            child: const Text("Keluar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Keluar", 
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
