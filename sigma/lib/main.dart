@@ -37,19 +37,24 @@ void main() async {
   await initializeDateFormatting('id_ID', null);
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
-  // Connect MongoDB
-  await MongoDatabase.connect();
 
   // Initialize Hive
   await Hive.initFlutter();
-  if (!Hive.isAdapterRegistered(0)) {
+  if (!Hive.isAdapterRegistered(1)) {
     Hive.registerAdapter(ScheduleLocalModelAdapter());
   }
-  if (!Hive.isAdapterRegistered(1)) {
+  if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(AnnouncementModelAdapter());
   }
-  if (!Hive.isAdapterRegistered(2)) {
+  if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(TaskModelAdapter());
+  }
+
+  // Connect MongoDB
+  try {
+    await MongoDatabase.connect();
+  } catch (e) {
+    print("Mode Offline terdeteksi saat startup. Mengabaikan koneksi Mongo.");
   }
 
   // OPEN BOXES

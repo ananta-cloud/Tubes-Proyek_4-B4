@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
+import 'package:sigma/data/models/user_model.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepo;
@@ -32,6 +33,20 @@ class LoginViewModel extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  Future<UserModel?> checkLogin() async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await _authRepo.checkAutoLogin();
+    if (result != null) {
+      _user = result;
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
   }
   
   Future<void> logout() async {
