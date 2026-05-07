@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../main/views/admin_main_page.dart';
-import '../viewmodels/announcement_viewmodel.dart';
+import '../viewmodels/admin_announcement_viewmodel.dart';
 import 'create_announcement_page.dart';
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 class AdminAnnouncementPage extends StatefulWidget {
   const AdminAnnouncementPage({super.key});
@@ -19,13 +19,13 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AnnouncementViewModel>().fetchAnnouncements();
+      context.read<AdminAnnouncementViewModel>().init();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AnnouncementViewModel>();
+    final vm = context.watch<AdminAnnouncementViewModel>();
 
     return Scaffold(
       backgroundColor: SigmaColors.bgPage,
@@ -37,7 +37,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
           Expanded(
             child: RefreshIndicator(
               color: SigmaColors.navy,
-              onRefresh: () => vm.fetchAnnouncements(),
+              onRefresh: () => vm.init(),
               child: CustomScrollView(
                 slivers: [
                   // ── Stat Cards ──

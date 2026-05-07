@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 // Sesuaikan path import ini jika berbeda di komputer Anda
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 class AnnouncementRepository {
   // Membuka koneksi ke Box Hive menggunakan model yang baru

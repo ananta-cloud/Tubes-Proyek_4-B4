@@ -1,11 +1,26 @@
+import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 
-class MatkulModel {
+part 'matkul_model.g.dart';
+
+@HiveType(typeId: 4)
+class MatkulModel extends HiveObject {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String kodeMk;
+
+  @HiveField(2)
   final String namaMatkul;
-  final String programStudi; // nama hasil lookup
-  final String idProdi; // ObjectId string, untuk keperluan update
+
+  @HiveField(3)
+  final String programStudi; // nama hasil lookup dari program_studi
+
+  @HiveField(4)
+  final String idProdi; // ObjectId hex, untuk update ke MongoDB
+
+  @HiveField(5)
   final int sks;
 
   MatkulModel({
@@ -19,7 +34,7 @@ class MatkulModel {
 
   factory MatkulModel.fromMongo(
     Map<String, dynamic> map, {
-    String namaProdi = '-', // di-inject dari luar setelah lookup
+    String namaProdi = '-',
   }) {
     String parseId(dynamic v) {
       if (v == null) return ObjectId().toHexString();
@@ -30,12 +45,21 @@ class MatkulModel {
     return MatkulModel(
       id: parseId(map['_id']),
       kodeMk: map['kode_mk']?.toString() ?? '-',
-      namaMatkul: map['nama_mk']?.toString() ?? '-', // ← fix: nama_mk
-      programStudi: namaProdi, // ← dari lookup
+      namaMatkul: map['nama_mk']?.toString() ?? '-',
+      programStudi: namaProdi,
       idProdi: parseId(map['id_prodi']),
       sks: (map['sks'] is int)
           ? map['sks']
           : int.tryParse(map['sks']?.toString() ?? '0') ?? 0,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'kodeMk': kodeMk,
+    'namaMatkul': namaMatkul,
+    'programStudi': programStudi,
+    'idProdi': idProdi,
+    'sks': sks,
+  };
 }

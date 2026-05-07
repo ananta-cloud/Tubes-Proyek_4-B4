@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 const primaryBlue = Color(0xFF3F5DB3);
 const accentOrange = Color(0xFFFF7A36);

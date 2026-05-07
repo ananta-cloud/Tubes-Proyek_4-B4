@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../main/views/admin_main_page.dart';
-import '../viewmodels/announcement_viewmodel.dart';
+import '../viewmodels/admin_announcement_viewmodel.dart';
 
 class CreateAnnouncementPage extends StatefulWidget {
   const CreateAnnouncementPage({super.key});
@@ -47,7 +47,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       return;
     }
 
-    final vm = context.read<AnnouncementViewModel>();
+    final vm = context.read<AdminAnnouncementViewModel>();
     await vm.createAnnouncement(
       judul: _judulCtrl.text.trim(),
       isi: _isiCtrl.text.trim(),
@@ -68,7 +68,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AnnouncementViewModel>();
+    final vm = context.watch<AdminAnnouncementViewModel>();
 
     return Scaffold(
       backgroundColor: SigmaColors.bgPage,

@@ -1,14 +1,35 @@
+import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 
-class ScheduleModel {
+part 'schedule_model.g.dart';
+
+@HiveType(typeId: 5)
+class ScheduleModel extends HiveObject {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String namaMatkul;
+
+  @HiveField(2)
   final String namaDosen;
+
+  @HiveField(3)
   final String hari;
+
+  @HiveField(4)
   final String jamMulai;
+
+  @HiveField(5)
   final String jamSelesai;
+
+  @HiveField(6)
   final String ruangan;
-  final String status; // 'DRAFT' | 'PUBLISHED'
+
+  @HiveField(7)
+  final String status;
+
+  @HiveField(8)
   final DateTime createdAt;
 
   ScheduleModel({
@@ -52,4 +73,15 @@ class ScheduleModel {
       createdAt: parseDate(map['created_at']),
     );
   }
+
+  Map<String, dynamic> toMongoMap() => {
+    'nama_matkul': namaMatkul,
+    'nama_dosen': namaDosen,
+    'hari': hari,
+    'jam_mulai': jamMulai,
+    'jam_selesai': jamSelesai,
+    'ruangan': ruangan,
+    'status': status,
+    'created_at': createdAt,
+  };
 }
