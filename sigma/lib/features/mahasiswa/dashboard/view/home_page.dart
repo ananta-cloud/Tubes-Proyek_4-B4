@@ -17,7 +17,8 @@ import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.d
 import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/views/task_page.dart';
-
+import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
+import 'package:sigma/data/models/schedule_local_model.dart';
 // Catatan: Jika ScheduleViewModel sudah siap, uncomment ini:
 // import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 
@@ -41,7 +42,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Panggil fungsi syncSchedules di sini saat module jadwal sudah siap
-      // context.read<ScheduleController>().syncSchedules();
+      context.read<ScheduleViewModel>().syncSchedules();
 
       // 1. Tarik ID User yang sedang aktif
       final userId = context.read<LoginViewModel>().user?.id;
@@ -95,6 +96,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
     // 🔥 MENGAMBIL VIEWMODEL DARI PROVIDER (Sesuai dengan main.dart)
     final announcementViewModel = context.watch<AnnouncementViewModel>();
     final taskViewModel = context.watch<TaskViewModel>();
+    final scheduleViewModel = context.watch<ScheduleViewModel>();
 
     return Scaffold(
       extendBody: true,
@@ -111,9 +113,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                   index: currentIndex,
                   children: [
                     _home(announcementViewModel), // Tab 0: Home
-                    const Center(
-                      child: Text("Halaman Jadwal (Segera Hadir)"),
-                    ), // Tab 1: Jadwal
+                    _schedule(scheduleViewModel), // Tab 1: Jadwal
                     _tasks(taskViewModel), // Tab 2: Tugas
                     _bookmark(), // Tab 3: Bookmark
                   ],
@@ -299,6 +299,345 @@ class _HomePageMhsState extends State<HomePageMhs> {
 
         const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
       ],
+    );
+  }
+
+  // ================= JADWAL =================
+  Widget _schedule(ScheduleViewModel viewModel) {
+    final grouped = viewModel.scheduleByDay;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+      children: [
+        Text(
+          "Jadwal Kuliah",
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: darkText,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "Semester Genap 2025/2026",
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+        ),
+        const SizedBox(height: 16),
+
+        // Jadwal Hari Ini
+        _todayCard(viewModel),
+        const SizedBox(height: 20),
+
+        // Loading indicator
+        if (viewModel.isLoading)
+          const Center(child: CircularProgressIndicator()),
+
+        // Error message
+        if (viewModel.errorMessage != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.wifi_off, size: 16, color: Colors.amber.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    viewModel.errorMessage!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.amber.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Kosong
+        if (!viewModel.isLoading && grouped.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 50,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Belum ada jadwal tersedia.",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // Jadwal per Hari
+        ...grouped.entries.map((entry) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  entry.key,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              ...entry.value.map((s) => _scheduleItem(s)),
+              const SizedBox(height: 16),
+            ],
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _todayCard(ScheduleViewModel viewModel) {
+    final todayList = viewModel.todaySchedules;
+    const hariMap = {
+      1: 'SENIN',
+      2: 'SELASA',
+      3: 'RABU',
+      4: 'KAMIS',
+      5: 'JUMAT',
+      6: 'SABTU',
+      7: 'MINGGU',
+    };
+    final hariIni = hariMap[DateTime.now().weekday] ?? '-';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryBlue, primaryBlue.withOpacity(0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.today, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                "Hari Ini — $hariIni",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${todayList.length} MK",
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (todayList.isEmpty)
+            const Text(
+              "Tidak ada kuliah hari ini 🎉",
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            )
+          else
+            ...todayList.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: accentOrange,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.namaMk,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            "${s.jamMulai} – ${s.jamSelesai} • ${s.ruangan}",
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scheduleItem(ScheduleLocalModel s) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Jam
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  s.jamMulai,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  s.jamSelesai,
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.namaMk,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: darkText,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 12,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        s.dosen,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.room_outlined,
+                      size: 12,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      s.ruangan,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Indikator warna kanan
+          Container(
+            width: 4,
+            height: 50,
+            decoration: BoxDecoration(
+              color: accentOrange.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

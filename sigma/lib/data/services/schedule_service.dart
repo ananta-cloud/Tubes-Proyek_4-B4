@@ -1,13 +1,14 @@
-import '../../core/network/mongo_database.dart';
+import 'package:sigma/core/network/mongo_database.dart';
 
 class ScheduleService {
   Future<List<Map<String, dynamic>>> getSchedules() async {
-    final data = await MongoDatabase.schedulesCollection.find({
-      "status": "PUBLISHED", //  FILTER PENTING
-    }).toList();
+    return MongoDatabase.runSafe(() async {
+      final data = await MongoDatabase.schedulesCollection.find({
+        "status": "PUBLISHED",
+      }).toList();
 
-    print("MONGO SCHEDULE: ${data.length}");
-
-    return data;
+      print("MONGO SCHEDULE: ${data.length}");
+      return data;
+    });
   }
 }
