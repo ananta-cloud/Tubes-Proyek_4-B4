@@ -4,7 +4,6 @@ import 'package:sigma/data/models/announcement_model.dart';
 
 class BookmarkService {
   
-  // 🔥 HELPER SAKTI: Untuk membersihkan ID dari teks 'ObjectId("...")' jika ada
   ObjectId _safeObjectId(String id) {
     // Hilangkan karakter aneh agar murni sisa 24 digit Hex-nya saja
     String cleanId = id.replaceAll('ObjectId("', '').replaceAll('")', '').replaceAll("'", "").trim();
@@ -41,11 +40,11 @@ class BookmarkService {
           'bookmarked_at': DateTime.now(),
           'updated_at': DateTime.now(),
         });
-        print("✅ SUKSES MENGIRIM BOOKMARK KE MONGODB!");
+        print("SUKSES MENGIRIM BOOKMARK KE MONGODB!");
       }
       return true;
     } catch (e) {
-      print("🔥 Error Save Bookmark (Mongo): $e");
+      print("Error Save Bookmark (Mongo): $e");
       return false;
     }
   }
@@ -58,10 +57,10 @@ class BookmarkService {
         where.eq('id_user', _safeObjectId(userId))
              .eq('id_announcement', _safeObjectId(announcementId))
       );
-      print("🗑️ SUKSES MENGHAPUS BOOKMARK DARI MONGODB!");
+      print("SUKSES MENGHAPUS BOOKMARK DARI MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Remove Bookmark (Mongo): $e");
+      print("Error Remove Bookmark (Mongo): $e");
       return false;
     }
   }

@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 // ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';
 
@@ -37,11 +40,14 @@ import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_vi
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: "assets/env/.env");
+  // Load Env
+  await dotenv.load(fileName: ".env");
   await initializeDateFormatting('id_ID', null);
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
-  // ── Hive Init ──────────────────────────────────────────────────────────────
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Hive
   await Hive.initFlutter();
 
   if (!Hive.isAdapterRegistered(1))
