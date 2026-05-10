@@ -5,6 +5,7 @@ import 'package:mongo_dart/mongo_dart.dart' hide Box;
 
 import 'package:sigma/core/network/mongo_database.dart';
 import 'package:sigma/data/models/announcement_model.dart';
+import 'package:sigma/data/services/fcm_sender_service.dart';
 
 const _kBoxAnnouncements = 'admin_announcements';
 const _kBoxQueue = 'announcement_queue';
@@ -158,6 +159,11 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
               'created_at': DateTime.parse(op['createdAt']),
               'updated_at': DateTime.parse(op['createdAt']),
             }),
+          );
+
+          await FcmSenderService.sendNotificationToAll(
+            judul: op['judul'],
+            isi: op['isi'],
           );
         }
         await _queueBox.delete(key);
