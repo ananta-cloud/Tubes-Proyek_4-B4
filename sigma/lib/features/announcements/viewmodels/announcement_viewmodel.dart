@@ -15,6 +15,8 @@ class AnnouncementViewModel extends ChangeNotifier {
   List<AnnouncementModel> announcements = [];
   bool isLoading = false;
   String selectedFilter = 'SEMUA';
+  
+  // Daftar filter untuk mahasiswa
   final List<String> filters = [
     'SEMUA',
     'AKADEMIK',
@@ -33,18 +35,21 @@ class AnnouncementViewModel extends ChangeNotifier {
   late final Box<AnnouncementModel> _bookmarkBox;
 
   AnnouncementViewModel(this.service) {
-    _bookmarkBox = Hive.box<AnnouncementModel>(
-      'bookmarks',
-    ); // Buka box bookmark
+    _bookmarkBox = Hive.box<AnnouncementModel>('bookmarks'); // Buka box bookmark
     syncAnnouncements();
   }
 
   // ==========================================
-  // LOGIKA HALAMAN UTAMA (LIST)
+  // LOGIKA HALAMAN UTAMA (LIST) & FILTERING
   // ==========================================
 
   void setFilter(String filter) {
-    selectedFilter = filter;
+    // Normalisasi: Jika string kosong atau "Semua" (dari Dosen), jadikan 'SEMUA'
+    if (filter.isEmpty || filter.toUpperCase() == 'SEMUA') {
+      selectedFilter = 'SEMUA';
+    } else {
+      selectedFilter = filter;
+    }
     _loadFromLocal();
   }
 
@@ -87,18 +92,30 @@ class AnnouncementViewModel extends ChangeNotifier {
     final box = Hive.box<AnnouncementModel>('announcements');
     List<AnnouncementModel> all = box.values.toList();
 
+    // Urutkan dari yang paling baru
     all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    if (selectedFilter != 'SEMUA') {
-      announcements = all
-          .where(
-            (a) =>
-                a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter),
-          )
-          .toList();
-    } else {
+    // LOGIKA FILTER DIPERBAIKI DI SINI
+    if (selectedFilter == 'SEMUA') {
       announcements = all;
+    } 
+    else if (selectedFilter == 'Informasi Umum') {
+      // Filter khusus Dosen: Target audience tertentu ATAU tag kategori manual
+      announcements = all.where((a) {
+        return a.targetAudience == 'SEMUA' || 
+               a.targetAudience == 'SEMUA_DOSEN' || 
+               a.targetAudience == 'JURUSAN' ||
+               a.kategori.map((k) => k.toUpperCase()).contains('INFORMASI UMUM');
+      }).toList();
+    } 
+    else {
+      // Filter dinamis untuk kategori lainnya (Mahasiswa maupun Dosen)
+      announcements = all.where((a) {
+        // Mengubah tag kategori menjadi uppercase untuk dicocokkan (case-insensitive)
+        return a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter.toUpperCase());
+      }).toList();
     }
+    
     notifyListeners();
   }
 
@@ -148,7 +165,6 @@ class AnnouncementViewModel extends ChangeNotifier {
 
     if (isSaved) {
       _bookmarkBox.delete(announcement.id);
-
       await _bookmarkService.removeBookmark(currentUserId, announcement.id);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -176,7 +192,6 @@ class AnnouncementViewModel extends ChangeNotifier {
       );
 
       _bookmarkBox.put(announcement.id, clonedData);
-
       await _bookmarkService.saveBookmark(currentUserId, announcement);
 
       ScaffoldMessenger.of(context).showSnackBar(

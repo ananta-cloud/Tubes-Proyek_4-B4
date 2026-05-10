@@ -7,6 +7,7 @@ class MongoDatabase {
   static late DbCollection announcementsCollection;
   static late DbCollection usersCollection;
   static late DbCollection schedulesCollection;
+  static late DbCollection mataKuliahCollection;
 
   // Flag untuk menandai apakah aplikasi dalam mode offline
   static bool isOffline = true;
@@ -47,6 +48,7 @@ class MongoDatabase {
       announcementsCollection = db.collection('announcements');
       usersCollection = db.collection('users');
       schedulesCollection = db.collection('schedules');
+      mataKuliahCollection = db.collection('mata_kuliah');
 
       isOffline = false;
       print("✅ Berhasil terkoneksi ke MongoDB!");

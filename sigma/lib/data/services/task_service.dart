@@ -44,6 +44,7 @@ class TaskService {
           'is_synced': true, // Wajib true agar lolos validasi MongoDB
           'created_at': task.createdAt,
           'updated_at': task.updatedAt,
+          'lampiran': task.lampiran,
         }),
       );
       print("✅ SUKSES MENGIRIM TUGAS BARU KE MONGODB!");
@@ -96,6 +97,7 @@ class TaskService {
               .set('nama_tugas', task.namaTugas)
               .set('nama_mk_snapshot', task.namaMkSnapshot)
               .set('deadline', task.deadline)
+              .set('lampiran', task.lampiran)
               .set('updated_at', DateTime.now()),
         ),
       );
