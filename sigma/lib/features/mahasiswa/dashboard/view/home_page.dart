@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../../../data/services/notification_service.dart';
+
 // ==========================================
 // 1. IMPORT DATA & MODELS
 // ==========================================
@@ -52,6 +54,8 @@ class _HomePageMhsState extends State<HomePageMhs> {
         context.read<AnnouncementViewModel>().syncBookmarks(userId);
         context.read<TaskViewModel>().syncTasks(userId);
       }
+
+      NotificationService().initNotification();
     });
   }
 
@@ -93,7 +97,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 MENGAMBIL VIEWMODEL DARI PROVIDER (Sesuai dengan main.dart)
+    //MENGAMBIL VIEWMODEL DARI PROVIDER (Sesuai dengan main.dart)
     final announcementViewModel = context.watch<AnnouncementViewModel>();
     final taskViewModel = context.watch<TaskViewModel>();
     final scheduleViewModel = context.watch<ScheduleViewModel>();
@@ -228,15 +232,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       children: [
-        Text(
-          "Jadwalmu hari ini adalah",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: darkText,
-          ),
-        ),
-        const SizedBox(height: 25),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
