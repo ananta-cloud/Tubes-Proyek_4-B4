@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
-import '../../main/views/admin_main_page.dart';
+import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
 import 'create_announcement_page.dart';
 import 'package:sigma/data/models/announcement_model.dart';

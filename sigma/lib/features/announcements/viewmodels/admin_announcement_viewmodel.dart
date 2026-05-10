@@ -6,7 +6,6 @@ import 'package:mongo_dart/mongo_dart.dart' hide Box;
 import 'package:sigma/core/network/mongo_database.dart';
 import 'package:sigma/data/models/announcement_model.dart';
 
-// Konstanta nama box Hive
 const _kBoxAnnouncements = 'admin_announcements';
 const _kBoxQueue = 'announcement_queue';
 
@@ -18,6 +17,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   List<AnnouncementModel> get announcements => _announcements;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
+  int get pendingQueueCount => _queueBox.length;
 
   int get thisMonthCount {
     final now = DateTime.now();
@@ -30,17 +30,18 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
   int get totalRead => 0;
 
-  // ─── Boxes ───────────────────────────────────────────────────────────────
+  // ─── Boxes ────────────────────────────────────────────────────────────────
   Box<AnnouncementModel> get _announcementsBox =>
       Hive.box<AnnouncementModel>(_kBoxAnnouncements);
-
   Box<Map> get _queueBox => Hive.box<Map>(_kBoxQueue);
 
   // ─── Init ─────────────────────────────────────────────────────────────────
-  /// Panggil saat halaman pertama kali dibuka.
-  /// Load dari Hive dulu (instan), lalu coba sync dari MongoDB.
   Future<void> init() async {
+    // 1. Load lokal dulu (instan)
     _loadFromLocal();
+    // 2. Drain queue SEBELUM sync — agar data offline tidak tertimpa
+    await _drainQueue();
+    // 3. Baru sync dari MongoDB
     await syncFromMongo();
   }
 
@@ -51,7 +52,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Fetch dari MongoDB ───────────────────────────────────────────────────
+  // ─── Sync dari MongoDB ────────────────────────────────────────────────────
   Future<void> syncFromMongo() async {
     final isOnline = await _checkOnline();
     if (!isOnline) return;
@@ -62,13 +63,15 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       final docs = await MongoDatabase.runSafe(
         () => MongoDatabase.announcementsCollection.find().toList(),
       );
-      // Simpan ke Hive
-      await _announcementsBox.clear();
-      for (final d in docs) {
-        final model = AnnouncementModel.fromMongo(d);
-        await _announcementsBox.put(model.id, model);
+      // Hanya overwrite Hive jika queue sudah kosong
+      if (_queueBox.isEmpty) {
+        await _announcementsBox.clear();
+        for (final d in docs) {
+          final model = AnnouncementModel.fromMongo(d);
+          await _announcementsBox.put(model.id, model);
+        }
+        _loadFromLocal();
       }
-      _loadFromLocal();
     } catch (e) {
       debugPrint('❌ AdminAnnouncementViewModel.syncFromMongo: $e');
     } finally {
@@ -83,13 +86,14 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     required String isi,
     required String kategori,
     required String target,
+    required String tingkatKepentingan,
     String namaPublisher = 'Ibu Admin TU',
     String rolePublisher = 'ADMIN_TU',
   }) async {
     final now = DateTime.now();
     final newId = ObjectId().toHexString();
 
-    // 1. Simpan ke Hive dulu (langsung terlihat di UI)
+    // 1. Simpan ke Hive (langsung tampil di UI)
     final model = AnnouncementModel(
       id: newId,
       judul: judul,
@@ -99,14 +103,14 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       idPublisher: ObjectId().toHexString(),
       namaPublisher: namaPublisher,
       rolePublisher: rolePublisher,
-      tingkatKepentingan: 'BIASA',
+      tingkatKepentingan: tingkatKepentingan,
       createdAt: now,
       updatedAt: now,
     );
     await _announcementsBox.put(newId, model);
     _loadFromLocal();
 
-    // 2. Masukkan ke queue
+    // 2. Tambah ke queue
     await _queueBox.add({
       'operation': 'create',
       'id': newId,
@@ -114,17 +118,17 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       'isi': isi,
       'kategori': kategori,
       'target': target,
+      'tingkatKepentingan': tingkatKepentingan,
       'namaPublisher': namaPublisher,
       'rolePublisher': rolePublisher,
       'createdAt': now.toIso8601String(),
     });
 
-    // 3. Coba langsung sync jika online
+    // 3. Langsung drain jika online
     await _drainQueue();
   }
 
   // ─── Queue drain ──────────────────────────────────────────────────────────
-  /// Kirim semua operasi pending ke MongoDB (dipanggil saat online).
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -134,33 +138,33 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
     final keys = _queueBox.keys.toList();
     for (final key in keys) {
-      final op = Map<String, dynamic>.from(_queueBox.get(key) ?? {});
-      if (op.isEmpty) continue;
+      final raw = _queueBox.get(key);
+      if (raw == null) continue;
+      final op = Map<String, dynamic>.from(raw);
 
       try {
         if (op['operation'] == 'create') {
-          final doc = {
-            '_id': ObjectId.fromHexString(op['id']),
-            'judul': op['judul'],
-            'isi': op['isi'],
-            'kategori': [op['kategori']],
-            'target_audience': op['target'],
-            'id_publisher': ObjectId(),
-            'nama_publisher': op['namaPublisher'],
-            'role_publisher': op['rolePublisher'],
-            'tingkat_kepentingan': 'BIASA',
-            'created_at': DateTime.parse(op['createdAt']),
-            'updated_at': DateTime.parse(op['createdAt']),
-          };
           await MongoDatabase.runSafe(
-            () => MongoDatabase.announcementsCollection.insertOne(doc),
+            () => MongoDatabase.announcementsCollection.insertOne({
+              '_id': ObjectId.fromHexString(op['id']),
+              'judul': op['judul'],
+              'isi': op['isi'],
+              'kategori': [op['kategori']],
+              'target_audience': op['target'],
+              'id_publisher': ObjectId(),
+              'nama_publisher': op['namaPublisher'],
+              'role_publisher': op['rolePublisher'],
+              'tingkat_kepentingan': op['tingkatKepentingan'] ?? 'BIASA',
+              'created_at': DateTime.parse(op['createdAt']),
+              'updated_at': DateTime.parse(op['createdAt']),
+            }),
           );
         }
-        // Hapus dari queue setelah berhasil
         await _queueBox.delete(key);
+        debugPrint('✅ Announcement queue item $key synced');
       } catch (e) {
-        debugPrint('❌ AdminAnnouncementViewModel._drainQueue: $e');
-        break; // Berhenti, coba lagi nanti
+        debugPrint('❌ AdminAnnouncementViewModel._drainQueue key=$key: $e');
+        break;
       }
     }
 
@@ -168,8 +172,9 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Panggil ini saat app kembali online (dari koneksi listener di main).
+  // ─── Connection restored ──────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
+    debugPrint('🔄 Connection restored — draining announcement queue...');
     await _drainQueue();
     await syncFromMongo();
   }
@@ -179,6 +184,4 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     final result = await Connectivity().checkConnectivity();
     return !(result as List).contains(ConnectivityResult.none);
   }
-
-  int get pendingQueueCount => _queueBox.length;
 }

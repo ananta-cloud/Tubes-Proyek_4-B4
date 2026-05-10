@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../main/views/admin_main_page.dart';
+import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
 
 class CreateAnnouncementPage extends StatefulWidget {
@@ -17,6 +17,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
   String? _selectedKategori;
   String _selectedTarget = 'SEMUA';
+  String _selectedTingkat = 'BIASA'; // ← default
 
   static const _kategoriList = [
     'Akademik',
@@ -28,6 +29,16 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   ];
 
   static const _targetList = ['SEMUA', 'MAHASISWA', 'DOSEN'];
+
+  // Tingkat kepentingan sesuai permintaan
+  static const _tingkatList = ['BIASA', 'PENTING', 'SANGAT PENTING'];
+
+  // Warna badge per tingkat
+  static const _tingkatColors = {
+    'BIASA': SigmaColors.textSub,
+    'PENTING': Color(0xFFF59E0B),
+    'SANGAT PENTING': SigmaColors.danger,
+  };
 
   @override
   void dispose() {
@@ -53,6 +64,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       isi: _isiCtrl.text.trim(),
       kategori: _selectedKategori ?? 'Umum',
       target: _selectedTarget,
+      tingkatKepentingan: _selectedTingkat,
     );
 
     if (mounted) {
@@ -134,7 +146,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Form card
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -179,7 +190,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             fontSize: 11,
                           ),
                         ),
-
                         const SizedBox(height: 20),
 
                         // Judul
@@ -195,7 +205,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             hint: 'Cth: Perubahan Jadwal Ujian Basis Data...',
                           ),
                         ),
-
                         const SizedBox(height: 16),
 
                         // Kategori + Target
@@ -239,7 +248,74 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
 
+                        // ── Tingkat Kepentingan ──────────────────────────────
+                        const _FieldLabel(label: 'Tingkat Kepentingan'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: _tingkatList.map((tingkat) {
+                            final isSelected = _selectedTingkat == tingkat;
+                            final color =
+                                _tingkatColors[tingkat] ?? SigmaColors.textSub;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selectedTingkat = tingkat),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  margin: EdgeInsets.only(
+                                    right: tingkat != _tingkatList.last ? 8 : 0,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? color.withOpacity(0.12)
+                                        : SigmaColors.bgPage,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? color
+                                          : SigmaColors.cardBorder,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        tingkat == 'BIASA'
+                                            ? Icons.info_outline_rounded
+                                            : tingkat == 'PENTING'
+                                            ? Icons.warning_amber_rounded
+                                            : Icons.error_rounded,
+                                        color: isSelected
+                                            ? color
+                                            : SigmaColors.textSub,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        tingkat,
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? color
+                                              : SigmaColors.textSub,
+                                          fontSize: 10,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w400,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                         const SizedBox(height: 16),
 
                         // Isi
@@ -370,7 +446,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 32),
                 ],
               ),
