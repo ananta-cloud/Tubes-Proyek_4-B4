@@ -130,41 +130,6 @@ class DosenRequestService {
     }
   }
 
-  // Future<bool> submitRequest({
-  //   required String idSchedule,
-  //   required String idDosen,
-  //   required String namaDosen,
-  //   required String tipeRequest,
-  //   required Map<String, dynamic> detailPerubahan,
-  //   required String alasan,
-  //   bool isLate = false,
-  //   String? idPeriodeRevisi,
-  // }) async {
-  //   try {
-  //     await _reqCol.insertOne({
-  //       'id_schedule': ObjectId.parse(idSchedule),
-  //       'id_dosen': ObjectId.parse(idDosen),
-  //       'nama_dosen': namaDosen,
-  //       'tipe_request': tipeRequest,
-  //       'detail_perubahan': detailPerubahan,
-  //       'alasan': alasan,
-  //       'status': 'PENDING',
-  //       'is_late': isLate,
-  //       'id_periode_revisi': idPeriodeRevisi != null
-  //           ? ObjectId.parse(idPeriodeRevisi)
-  //           : null,
-  //       'catatan_admin': null,
-  //       'id_processor': null,
-  //       'created_at': DateTime.now(),
-  //       'updated_at': DateTime.now(),
-  //     });
-  //     return true;
-  //   } catch (e) {
-  //     print('Error submitRequest: $e');
-  //     return false;
-  //   }
-  // }
-
   // ─────────────────────────────────────────────
   // RIWAYAT REQUEST DOSEN
   // ─────────────────────────────────────────────

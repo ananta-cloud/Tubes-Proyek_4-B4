@@ -18,8 +18,9 @@ class DosenRequestController extends ChangeNotifier {
 
   // Form
   Map<String, dynamic>? selectedJadwal;
-  String? selectedTipeRequest; // PINDAH_JAM | PINDAH_RUANGAN | KEDUANYA
-  String? selectedHariBaru;
+  // String? selectedTipeRequest; // PINDAH_JAM | PINDAH_RUANGAN | KEDUANYA
+  // String? selectedHariBaru;
+  DateTime? selectedTanggalBaru;
   String? selectedJamMulaiBaru;
   String? selectedJamSelesaiBaru;
   String? selectedRuanganBaru;
@@ -47,12 +48,41 @@ class DosenRequestController extends ChangeNotifier {
   // CEK RUANGAN TERSEDIA
   // ─────────────────────────────────────────────────
 
-  Future<void> checkRuangan({
-    required String hari,
-    required String jamMulai,
-    required String jamSelesai,
-    String? excludeScheduleId,
-  }) async {
+  // Future<void> checkRuangan({
+  //   required String hari,
+  //   required String jamMulai,
+  //   required String jamSelesai,
+  //   String? excludeScheduleId,
+  // }) async {
+  //   isCheckingRuangan = true;
+  //   ruanganTersedia = [];
+  //   notifyListeners();
+
+  //   try {
+  //     ruanganTersedia = await service.getRuanganTersedia(
+  //       hari: hari,
+  //       jamMulai: jamMulai,
+  //       jamSelesai: jamSelesai,
+  //       excludeScheduleId: excludeScheduleId,
+  //     );
+  //   } catch (e) {
+  //     errorMsg = e.toString();
+  //   }
+
+  //   isCheckingRuangan = false;
+  //   notifyListeners();
+  // }
+  Future<void> checkRuangan({String? excludeScheduleId}) async {
+    if (selectedTanggalBaru == null) return;
+
+    final hari = _hariDari(selectedTanggalBaru!);
+    final jamMulai =
+        selectedJamMulaiBaru ?? selectedJadwal?['jam_mulai']?.toString() ?? '';
+    final jamSelesai =
+        selectedJamSelesaiBaru ??
+        selectedJadwal?['jam_selesai']?.toString() ??
+        '';
+
     isCheckingRuangan = true;
     ruanganTersedia = [];
     notifyListeners();
@@ -76,39 +106,77 @@ class DosenRequestController extends ChangeNotifier {
   // SUBMIT REQUEST
   // ─────────────────────────────────────────────────
 
+  // Future<bool> submitRequest({
+  //   required String idDosen,
+  //   required String namaDosen,
+  //   required String alasan,
+  // }) async {
+  //   if (selectedJadwal == null || selectedTipeRequest == null) return false;
+
+  //   isSubmitting = true;
+  //   notifyListeners();
+
+  //   final detailPerubahan = <String, dynamic>{};
+  //   if (selectedHariBaru != null)
+  //     detailPerubahan['hari_baru'] = selectedHariBaru;
+  //   if (selectedJamMulaiBaru != null)
+  //     detailPerubahan['jam_mulai_baru'] = selectedJamMulaiBaru;
+  //   if (selectedJamSelesaiBaru != null)
+  //     detailPerubahan['jam_selesai_baru'] = selectedJamSelesaiBaru;
+  //   if (selectedRuanganBaru != null)
+  //     detailPerubahan['ruangan_baru'] = selectedRuanganBaru;
+  //   if (selectedTipeJadwalBaru != null)
+  //     detailPerubahan['tipe_jadwal_baru'] = selectedTipeJadwalBaru;
+
+  //   final ok = await service.submitRequest(
+  //     idSchedule: selectedJadwal!['_id'].toString(),
+  //     idDosen: idDosen,
+  //     namaDosen: namaDosen,
+  //     tipeRequest: selectedTipeRequest!,
+  //     detailPerubahan: detailPerubahan,
+  //     alasan: alasan,
+  //   );
+
+  //   if (ok) resetForm();
+
+  //   isSubmitting = false;
+  //   notifyListeners();
+  //   return ok;
+  // }
   Future<bool> submitRequest({
     required String idDosen,
     required String namaDosen,
     required String alasan,
   }) async {
-    if (selectedJadwal == null || selectedTipeRequest == null) return false;
+    if (selectedJadwal == null || selectedTanggalBaru == null) return false;
 
     isSubmitting = true;
     notifyListeners();
 
-    final detailPerubahan = <String, dynamic>{};
-    if (selectedHariBaru != null)
-      detailPerubahan['hari_baru'] = selectedHariBaru;
-    if (selectedJamMulaiBaru != null)
-      detailPerubahan['jam_mulai_baru'] = selectedJamMulaiBaru;
-    if (selectedJamSelesaiBaru != null)
-      detailPerubahan['jam_selesai_baru'] = selectedJamSelesaiBaru;
-    if (selectedRuanganBaru != null)
-      detailPerubahan['ruangan_baru'] = selectedRuanganBaru;
-    if (selectedTipeJadwalBaru != null)
-      detailPerubahan['tipe_jadwal_baru'] = selectedTipeJadwalBaru;
+    final hariLama = selectedJadwal!['hari']?.toString() ?? '';
+    final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
+    final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
+
+    final detailPerubahan = <String, dynamic>{
+      'tanggal_baru': selectedTanggalBaru!.toIso8601String(),
+      'hari_baru': _hariDari(selectedTanggalBaru!),
+      'jam_mulai_baru': selectedJamMulaiBaru ?? jamMulaiLama,
+      'jam_selesai_baru': selectedJamSelesaiBaru ?? jamSelesaiLama,
+      'ruangan_baru': selectedRuanganBaru,
+      if (selectedTipeJadwalBaru != null)
+        'tipe_jadwal_baru': selectedTipeJadwalBaru,
+    };
 
     final ok = await service.submitRequest(
       idSchedule: selectedJadwal!['_id'].toString(),
       idDosen: idDosen,
       namaDosen: namaDosen,
-      tipeRequest: selectedTipeRequest!,
+      tipeRequest: autoTipeRequest ?? 'KEDUANYA',
       detailPerubahan: detailPerubahan,
       alasan: alasan,
     );
 
     if (ok) resetForm();
-
     isSubmitting = false;
     notifyListeners();
     return ok;
@@ -150,21 +218,28 @@ class DosenRequestController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void selectTipeRequest(String tipe) {
-    selectedTipeRequest = tipe;
+  // void selectTipeRequest(String tipe) {
+  //   selectedTipeRequest = tipe;
 
-    // Jika hanya pindah ruangan, kunci waktu ke jadwal lama
-    if (tipe == 'PINDAH_RUANGAN' && selectedJadwal != null) {
-      selectedHariBaru = selectedJadwal!['hari'];
-      selectedJamMulaiBaru = selectedJadwal!['jam_mulai'];
-      selectedJamSelesaiBaru = selectedJadwal!['jam_selesai'];
-    }
-    notifyListeners();
-  }
+  //   // Jika hanya pindah ruangan, kunci waktu ke jadwal lama
+  //   if (tipe == 'PINDAH_RUANGAN' && selectedJadwal != null) {
+  //     selectedHariBaru = selectedJadwal!['hari'];
+  //     selectedJamMulaiBaru = selectedJadwal!['jam_mulai'];
+  //     selectedJamSelesaiBaru = selectedJadwal!['jam_selesai'];
+  //   }
+  //   notifyListeners();
+  // }
 
-  void selectHariBaru(String hari) {
-    selectedHariBaru = hari;
-    // Reset ruangan saat hari berubah
+  // void selectHariBaru(String hari) {
+  //   selectedHariBaru = hari;
+  //   // Reset ruangan saat hari berubah
+  //   selectedRuanganBaru = null;
+  //   ruanganTersedia = [];
+  //   notifyListeners();
+  // }
+
+  void selectTanggal(DateTime tanggal) {
+    selectedTanggalBaru = tanggal;
     selectedRuanganBaru = null;
     ruanganTersedia = [];
     notifyListeners();
@@ -189,10 +264,39 @@ class DosenRequestController extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? get autoTipeRequest {
+    if (selectedJadwal == null || selectedTanggalBaru == null) return null;
+
+    final hariLama = selectedJadwal!['hari']?.toString() ?? '';
+    final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
+    final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
+
+    final hariTanggalBaru = _hariDari(selectedTanggalBaru!);
+    final samaTanggal = hariTanggalBaru == hariLama;
+    final samaJamMulai = (selectedJamMulaiBaru ?? jamMulaiLama) == jamMulaiLama;
+    final samaJamSelesai =
+        (selectedJamSelesaiBaru ?? jamSelesaiLama) == jamSelesaiLama;
+
+    if (samaTanggal && samaJamMulai && samaJamSelesai) return 'PINDAH_RUANGAN';
+    return 'KEDUANYA';
+  }
+
+  String _hariDari(DateTime dt) {
+    const hari = [
+      'SENIN',
+      'SELASA',
+      'RABU',
+      'KAMIS',
+      'JUMAT',
+      'SABTU',
+      'MINGGU',
+    ];
+    return hari[dt.weekday - 1];
+  }
+
   void resetForm() {
     selectedJadwal = null;
-    selectedTipeRequest = null;
-    selectedHariBaru = null;
+    selectedTanggalBaru = null;
     selectedJamMulaiBaru = null;
     selectedJamSelesaiBaru = null;
     selectedRuanganBaru = null;

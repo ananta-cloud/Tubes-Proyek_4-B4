@@ -1,11 +1,13 @@
 class DetailPerubahan {
   final String? hariBaru;
+  final DateTime? tanggalBaru;
   final String? jamMulaiBaru;
   final String? jamSelesaiBaru;
   final String? ruanganBaru;
 
   DetailPerubahan({
     this.hariBaru,
+    this.tanggalBaru,
     this.jamMulaiBaru,
     this.jamSelesaiBaru,
     this.ruanganBaru,
@@ -14,6 +16,9 @@ class DetailPerubahan {
   factory DetailPerubahan.fromJson(Map<String, dynamic> json) {
     return DetailPerubahan(
       hariBaru: json['hari_baru'],
+      tanggalBaru: json['tanggal_baru'] != null
+          ? DateTime.tryParse(json['tanggal_baru'].toString())
+          : null,
       jamMulaiBaru: json['jam_mulai_baru'],
       jamSelesaiBaru: json['jam_selesai_baru'],
       ruanganBaru: json['ruangan_baru'],
