@@ -4,7 +4,7 @@ import 'package:mongo_dart/mongo_dart.dart';
 part 'schedule_model.g.dart';
 
 @HiveType(typeId: 5)
-class ScheduleModel extends HiveObject {
+class ScheduleModel {
   @HiveField(0)
   final String id;
 

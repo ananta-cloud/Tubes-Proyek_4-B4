@@ -13,6 +13,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
   List<ScheduleModel> _schedules = [];
   bool _isLoading = false;
   bool _isSyncing = false;
+  bool _isSyncInProgress = false;
 
   List<ScheduleModel> get schedules => _schedules;
   bool get isLoading => _isLoading;
@@ -24,44 +25,71 @@ class AdminScheduleViewModel extends ChangeNotifier {
   int get publishedCount =>
       _schedules.where((s) => s.status.toUpperCase() == 'PUBLISHED').length;
 
-  // ─── Boxes ───────────────────────────────────────────────────────────────
+  // ─── Boxes ────────────────────────────────────────────────────────────────
   Box<ScheduleModel> get _schedulesBox =>
       Hive.box<ScheduleModel>(_kBoxSchedules);
   Box<Map> get _queueBox => Hive.box<Map>(_kBoxQueue);
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   Future<void> fetchSchedules() async {
+    if (_isSyncInProgress) return;
     _loadFromLocal();
+    await _drainQueue();
     await _syncFromMongo();
   }
 
   // ─── Load lokal ───────────────────────────────────────────────────────────
   void _loadFromLocal() {
-    _schedules = _schedulesBox.values.toList();
-    notifyListeners();
+    try {
+      _schedules = _schedulesBox.values.toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ AdminScheduleViewModel._loadFromLocal: $e');
+    }
   }
 
   // ─── Sync dari MongoDB ────────────────────────────────────────────────────
   Future<void> _syncFromMongo() async {
+    if (_isSyncInProgress) return;
     final isOnline = await _checkOnline();
     if (!isOnline) return;
 
+    _isSyncInProgress = true;
     _isLoading = true;
     notifyListeners();
+
     try {
       final docs = await MongoDatabase.runSafe(
         () => MongoDatabase.schedulesCollection.find().toList(),
       );
-      await _schedulesBox.clear();
-      for (final d in docs) {
-        final model = ScheduleModel.fromMongo(d);
-        await _schedulesBox.put(model.id, model);
+
+      // Hanya overwrite jika queue kosong
+      if (_queueBox.isEmpty) {
+        final newEntries = <String, ScheduleModel>{};
+        for (final d in docs) {
+          final model = ScheduleModel.fromMongo(d);
+          newEntries[model.id] = model;
+        }
+
+        // Hapus key lama yang sudah tidak ada di MongoDB
+        final oldKeys = _schedulesBox.keys.cast<String>().toList();
+        final newKeys = newEntries.keys.toSet();
+        for (final oldKey in oldKeys) {
+          if (!newKeys.contains(oldKey)) {
+            await _schedulesBox.delete(oldKey);
+          }
+        }
+
+        // Upsert semua data baru
+        await _schedulesBox.putAll(newEntries);
       }
+
       _loadFromLocal();
     } catch (e) {
       debugPrint('❌ AdminScheduleViewModel._syncFromMongo: $e');
     } finally {
       _isLoading = false;
+      _isSyncInProgress = false;
       notifyListeners();
     }
   }
@@ -89,6 +117,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     // 2. Masukkan ke queue
     await _queueBox.add({'operation': 'publish', 'id': id});
 
+    // 3. Langsung drain jika online
     await _drainQueue();
   }
 
@@ -102,8 +131,12 @@ class AdminScheduleViewModel extends ChangeNotifier {
 
     final keys = _queueBox.keys.toList();
     for (final key in keys) {
-      final op = Map<String, dynamic>.from(_queueBox.get(key) ?? {});
-      if (op.isEmpty) continue;
+      final raw = _queueBox.get(key);
+      if (raw == null) {
+        await _queueBox.delete(key);
+        continue;
+      }
+      final op = Map<String, dynamic>.from(raw);
 
       try {
         if (op['operation'] == 'publish') {
@@ -115,8 +148,9 @@ class AdminScheduleViewModel extends ChangeNotifier {
           );
         }
         await _queueBox.delete(key);
+        debugPrint('✅ Schedule queue item $key synced');
       } catch (e) {
-        debugPrint('❌ AdminScheduleViewModel._drainQueue: $e');
+        debugPrint('❌ AdminScheduleViewModel._drainQueue key=$key: $e');
         break;
       }
     }
@@ -125,8 +159,9 @@ class AdminScheduleViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Panggil saat koneksi kembali online
+  // ─── Connection restored ──────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
+    debugPrint('🔄 Connection restored — draining schedule queue...');
     await _drainQueue();
     await _syncFromMongo();
   }

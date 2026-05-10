@@ -4,7 +4,7 @@ import 'package:mongo_dart/mongo_dart.dart';
 part 'matkul_model.g.dart';
 
 @HiveType(typeId: 4)
-class MatkulModel extends HiveObject {
+class MatkulModel {
   @HiveField(0)
   final String id;
 
@@ -15,13 +15,16 @@ class MatkulModel extends HiveObject {
   final String namaMatkul;
 
   @HiveField(3)
-  final String programStudi; // nama hasil lookup dari program_studi
+  final String programStudi;
 
   @HiveField(4)
-  final String idProdi; // ObjectId hex, untuk update ke MongoDB
+  final String idProdi;
 
   @HiveField(5)
   final int sks;
+
+  @HiveField(6)
+  final String idJurusan;
 
   MatkulModel({
     required this.id,
@@ -30,6 +33,7 @@ class MatkulModel extends HiveObject {
     required this.programStudi,
     required this.idProdi,
     required this.sks,
+    required this.idJurusan,
   });
 
   factory MatkulModel.fromMongo(
@@ -51,6 +55,7 @@ class MatkulModel extends HiveObject {
       sks: (map['sks'] is int)
           ? map['sks']
           : int.tryParse(map['sks']?.toString() ?? '0') ?? 0,
+      idJurusan: parseId(map['id_jurusan']),
     );
   }
 
