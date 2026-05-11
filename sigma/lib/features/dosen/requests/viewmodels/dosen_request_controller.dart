@@ -24,6 +24,7 @@ class DosenRequestController extends ChangeNotifier {
   bool isCheckingRuangan = false;
   bool isSubmitting = false;
   String? errorMsg;
+  String? _lastIdDosen;
   bool isOffline = false;
   List<Map<String, dynamic>> get pendingRequests => _pendingBox.values
       .map((e) => Map<String, dynamic>.from(e))
@@ -201,6 +202,7 @@ class DosenRequestController extends ChangeNotifier {
   // ─────────────────────────────────────────────────
 
   Future<void> loadMyRequests(String idDosen) async {
+    _lastIdDosen = idDosen;
     isLoadingRequests = true;
     notifyListeners();
 
@@ -342,6 +344,11 @@ class DosenRequestController extends ChangeNotifier {
         );
 
         if (ok) await _pendingBox.delete(key);
+      }
+
+      // ✅ Setelah sync, reload riwayat dari server otomatis
+      if (_pendingBox.isEmpty) {
+        await loadMyRequests(_lastIdDosen ?? '');
       }
     } finally {
       _isSyncing = false;

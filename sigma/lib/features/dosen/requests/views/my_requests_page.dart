@@ -53,8 +53,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                 children: [
                   // 1. Daftar permohonan yang masih nunggu internet (Hive)
                   ...ctrl.pendingRequests.map(
-                    (data) =>
-                        _buildPendingCard(ScheduleRequestModel.fromJson(data)),
+                    (data) => _buildPendingCard(data),
                   ),
                   if (ctrl.pendingRequests.isNotEmpty &&
                       ctrl.myRequests.isNotEmpty)
@@ -350,51 +349,148 @@ class _RequestCard extends StatelessWidget {
 
 // ── Sub widgets ───────────────────────────────────────────
 
-Widget _buildPendingCard(ScheduleRequestModel data) {
-  // final detail = data['detail_perubahan'] ?? {};
-  // final namaMk = data['nama_mk'] ?? 'Permohonan Baru';
-
-  final namaMk = data.namaMk ?? data.namaDosen ?? 'Permohonan Baru';
+Widget _buildPendingCard(Map<String, dynamic> data) {
+  final detail = Map<String, dynamic>.from(data['detail_perubahan'] ?? {});
+  final namaDosen = data['nama_dosen'] ?? 'Permohonan Baru';
 
   return Container(
     margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: Colors.orange.shade50,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.orange.shade200),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: Colors.orange.shade300, width: 1.5),
     ),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Indikator Loading
-        const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.orange,
+        // Banner offline
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade800,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.cloud_off, color: Colors.white, size: 13),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Menunggu koneksi untuk dikirim',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                namaMk,
+
+        // Header
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                namaDosen,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
               ),
-              const Text(
-                "Menunggu koneksi internet untuk mengirim...",
-                style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'PENDING',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFD97706),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+        Divider(color: Colors.orange.shade100, height: 1),
+        const SizedBox(height: 8),
+
+        // Perubahan
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'JADWAL BARU',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF3F5DB3),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${detail['hari_baru'] ?? '-'}\n'
+                    '${detail['jam_mulai_baru'] ?? '-'}–${detail['jam_selesai_baru'] ?? '-'}\n'
+                    '${detail['ruangan_baru'] ?? '-'}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF3F5DB3),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Tipe badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF7ED),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.swap_horiz, size: 11, color: Color(0xFFC2410C)),
+              const SizedBox(width: 4),
+              Text(
+                data['tipe_request']?.toString().replaceAll('_', ' ') ?? '-',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFC2410C),
+                ),
               ),
             ],
           ),
         ),
-        const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+
+        const SizedBox(height: 6),
+        Text(
+          data['alasan'] ?? '',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+        ),
       ],
     ),
   );
