@@ -28,6 +28,7 @@ class DosenRequestService {
       }
 
       await MongoDatabase.ensureConnected();
+      print('ONLINE: fetch jadwal dari MongoDB');
 
       // Cache semua jadwal sekali per sesi (untuk cek ruangan offline)
       if (!_allSchedulesCached) {

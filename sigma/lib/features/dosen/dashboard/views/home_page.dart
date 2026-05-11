@@ -8,20 +8,35 @@ import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 
 import 'package:sigma/features/dosen/requests/views/my_requests_page.dart';
-import 'package:sigma/features/dosen/requests/views/request_form_page.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 
 import 'package:sigma/data/models/user_model.dart';
+import '../../schedules/views/jadwal_mengajar_page.dart';
 
-class HomePageDsn extends StatelessWidget {
+class HomePageDsn extends StatefulWidget {
   final UserModel user;
   const HomePageDsn({super.key, required this.user});
+
+  @override
+  State<HomePageDsn> createState() => _HomePageDsnState();
+}
+
+class _HomePageDsnState extends State<HomePageDsn> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctrl = context.read<DosenRequestController>();
+      ctrl.loadMySchedules(widget.user.kodeDosen ?? '');
+      ctrl.loadMyRequests(widget.user.id);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => DosenHomeViewModel(),
-      child: _DosenHomeView(user: user),
+      child: _DosenHomeView(user: widget.user),
     );
   }
 }
@@ -81,7 +96,7 @@ class _DosenHomeView extends StatelessWidget {
               index: vm.currentIndex,
               children: [
                 _buildMainDashboard(context),
-                const Center(child: Text("Halaman Jadwal Mengajar")),
+                JadwalMengajarPage(user: user),
                 MyRequestsPage(user: user),
                 const Center(child: Text("Halaman Profil Dosen")),
               ],

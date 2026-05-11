@@ -11,7 +11,7 @@ import 'core/network/mongo_database.dart';
 
 // ================= IMPORT UI =================
 import 'features/auth/views/login_page.dart';
-
+import 'package:sigma/features/dosen/schedules/views/jadwal_mengajar_page.dart';
 // ================= IMPORT MODELS =================
 import 'data/models/schedule_local_model.dart';
 import 'features/admin_tu/announcements/models/announcement_model.dart';
@@ -25,7 +25,7 @@ import 'data/services/schedule_request_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
-import 'features/dosen/schedules/viewmodels/schedule_viewmodel.dart';
+// import 'features/dosen/schedules/viewmodels/schedule_viewmodel.dart';
 import 'features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart';
@@ -78,9 +78,9 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LoginViewModel(AuthRepository())),
 
         // 2. Schedule Controller
-        ChangeNotifierProvider(
-          create: (_) => ScheduleController(ScheduleService()),
-        ),
+        // ChangeNotifierProvider(
+        //   create: (_) => ScheduleController(ScheduleService()),
+        // ),
 
         // 3. Task Controller
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
@@ -99,9 +99,9 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => DosenRequestController(DosenRequestService()),
         ),
-        ChangeNotifierProvider(
-          create: (_) => ScheduleController(ScheduleService()),
-        ),
+        // ChangeNotifierProvider(
+        //   create: (_) => ScheduleController(ScheduleService()),
+        // ),
         ChangeNotifierProvider(
           create: (_) => ScheduleRequestController(ScheduleRequestService()),
         ),

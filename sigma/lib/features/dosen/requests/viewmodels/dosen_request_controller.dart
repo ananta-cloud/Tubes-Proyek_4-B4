@@ -60,13 +60,12 @@ class DosenRequestController extends ChangeNotifier {
   Future<void> loadMySchedules(String kodeDosen) async {
     isLoadingSchedules = true;
     notifyListeners();
-
     try {
       mySchedules = await service.getMySchedules(kodeDosen);
+      print('mySchedules loaded: ${mySchedules.length}');
     } catch (e) {
       errorMsg = e.toString();
     }
-
     isLoadingSchedules = false;
     notifyListeners();
   }
