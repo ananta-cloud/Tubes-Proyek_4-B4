@@ -70,6 +70,7 @@ void main() async {
   await Hive.openBox<AnnouncementModel>('bookmarks');
   await Hive.openBox('pending_requests');
   await Hive.openBox('schedule_cache');
+  await Hive.openBox('cancel_queue');
 
   runApp(
     MultiProvider(

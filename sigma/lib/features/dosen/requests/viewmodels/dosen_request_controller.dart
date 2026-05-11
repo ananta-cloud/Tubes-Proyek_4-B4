@@ -12,6 +12,7 @@ class DosenRequestController extends ChangeNotifier {
   }
 
   final Box _pendingBox = Hive.box('pending_requests');
+  final Box _cancelQueue = Hive.box('cancel_queue');
 
   bool _isSyncing = false;
 
@@ -215,7 +216,17 @@ class DosenRequestController extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<String> get cancelQueueIds =>
+      _cancelQueue.values.map((e) => e.toString()).toList();
   Future<bool> cancelRequest(String requestId, String idDosen) async {
+    final connectivity = await Connectivity().checkConnectivity();
+
+    if (connectivity.contains(ConnectivityResult.none)) {
+      await _cancelQueue.put(requestId, requestId);
+      notifyListeners();
+      return true;
+    }
+
     final ok = await service.cancelRequest(requestId);
     if (ok) await loadMyRequests(idDosen);
     return ok;
@@ -321,33 +332,43 @@ class DosenRequestController extends ChangeNotifier {
   }
 
   Future<void> syncPendingRequests() async {
-    if (_isSyncing || _pendingBox.isEmpty) return;
+    if (_isSyncing) return;
     _isSyncing = true;
 
     try {
-      final keys = _pendingBox.keys.toList();
-      for (var key in keys) {
-        final data = Map<String, dynamic>.from(_pendingBox.get(key));
-        final detail = Map<String, dynamic>.from(
-          data['detail_perubahan'] ?? {},
-        );
-
-        final ok = await service.submitRequest(
-          idSchedule: data['id_schedule'],
-          idDosen: data['id_dosen'],
-          namaDosen: data['nama_dosen'],
-          tipeRequest: data['tipe_request'],
-          detailPerubahan: detail,
-          alasan: data['alasan'],
-          offlineId: data['offline_id'],
-        );
-
-        if (ok) await _pendingBox.delete(key);
+      // Sync pending requests
+      if (_pendingBox.isNotEmpty) {
+        final keys = _pendingBox.keys.toList();
+        for (var key in keys) {
+          final data = Map<String, dynamic>.from(_pendingBox.get(key));
+          final detail = Map<String, dynamic>.from(
+            data['detail_perubahan'] ?? {},
+          );
+          final ok = await service.submitRequest(
+            idSchedule: data['id_schedule'],
+            idDosen: data['id_dosen'],
+            namaDosen: data['nama_dosen'],
+            tipeRequest: data['tipe_request'],
+            detailPerubahan: detail,
+            alasan: data['alasan'],
+            offlineId: data['offline_id'],
+          );
+          if (ok) await _pendingBox.delete(key);
+        }
       }
 
-      // ✅ Setelah sync, reload riwayat dari server otomatis
-      if (_pendingBox.isEmpty) {
-        await loadMyRequests(_lastIdDosen ?? '');
+      // Sync cancel queue
+      if (_cancelQueue.isNotEmpty) {
+        final keys = _cancelQueue.keys.toList();
+        for (var key in keys) {
+          final requestId = _cancelQueue.get(key).toString();
+          final ok = await service.cancelRequest(requestId);
+          if (ok) await _cancelQueue.delete(key);
+        }
+      }
+
+      if (_pendingBox.isEmpty && _cancelQueue.isEmpty && _lastIdDosen != null) {
+        await loadMyRequests(_lastIdDosen!);
       }
     } finally {
       _isSyncing = false;

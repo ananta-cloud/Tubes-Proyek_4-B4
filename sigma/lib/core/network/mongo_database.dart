@@ -44,9 +44,18 @@ class MongoDatabase {
 
   // Pastikan koneksi masih aktif sebelum operasi
   static Future<void> ensureConnected() async {
-    if (!db.isConnected) {
-      print("🔄 Reconnecting ke MongoDB...");
-      await connect();
+    try {
+      if (db.state != State.OPEN) {
+        await db.close().catchError((_) {});
+        await db.open();
+        return;
+      }
+      await db.serverStatus();
+    } catch (e) {
+      try {
+        await db.close().catchError((_) {});
+      } catch (_) {}
+      await db.open();
     }
   }
 
