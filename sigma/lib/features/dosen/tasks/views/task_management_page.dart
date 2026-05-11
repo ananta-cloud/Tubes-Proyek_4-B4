@@ -33,9 +33,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   List<TaskModel> get _myTasks {
     // 1. Ambil ID mentah dari ViewModel
     final rawUserId = context.read<LoginViewModel>().user?.id ?? '';
-    
+
     // 2. BERSIHKAN ID DARI FORMAT OBJECTID (SANGAT PENTING)
-    final cleanUserId = rawUserId.replaceAll('ObjectId("', '').replaceAll('")', '');
+    final cleanUserId = rawUserId
+        .replaceAll('ObjectId("', '')
+        .replaceAll('")', '');
 
     print('🔍 [TaskManagement] Raw UserId: $rawUserId');
     print('🔍 [TaskManagement] Clean UserId: $cleanUserId');
@@ -44,13 +46,15 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     // 3. Filter berdasarkan ID yang sudah bersih
     final filteredTasks = _taskBox.values.where((task) {
       // Pastikan task.idUser juga bersih dari ObjectId jika kebetulan kotor
-      final cleanTaskId = task.idUser.replaceAll('ObjectId("', '').replaceAll('")', '');
-      
+      final cleanTaskId = task.idUser
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+
       return cleanTaskId == cleanUserId;
     }).toList();
 
     print('✅ [TaskManagement] Filtered tasks: ${filteredTasks.length}');
-    
+
     return filteredTasks;
   }
 
@@ -82,6 +86,36 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     }
 
     return sortedGroups;
+  }
+
+  Future<void> _uploadPendingTasks() async {
+    try {
+      final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
+      if (pendingTasks.isEmpty) return;
+
+      print("☁️ Mengunggah ${pendingTasks.length} tugas offline ke Cloud...");
+
+      for (var task in pendingTasks) {
+        bool success = false;
+
+        // 1. Coba jadikan ini sebagai operasi EDIT (Update) terlebih dahulu
+        success = await _taskService.updateTask(task);
+
+        // 2. Jika gagal (misal: ID tidak ditemukan di MongoDB karena ini tugas baru),
+        //    maka lakukan operasi BUAT BARU (Create)
+        if (!success) {
+          success = await _taskService.createTask(task);
+        }
+
+        // 3. Jika salah satu operasi di atas berhasil, tandai sebagai tersinkronisasi
+        if (success) {
+          task.isSynced = true;
+          await task.save(); // Wajib gunakan .save()
+        }
+      }
+    } catch (e) {
+      print("❌ Gagal upload tugas offline: $e");
+    }
   }
 
   void _navigateToCreateTask() {
@@ -153,7 +187,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         valueListenable: _taskBox.listenable(),
         builder: (context, box, _) {
           // Getter _myTasks sekarang akan mendeteksi data baru yang masuk dari sync
-          final tasks = _myTasks; 
+          final tasks = _myTasks;
           final groups = _taskGroups;
           final allMatkul = _allMataKuliah.toList()..sort();
 
@@ -161,8 +195,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
             children: [
               if (allMatkul.isNotEmpty) _buildFilterBar(allMatkul),
               Expanded(
-                child: tasks.isEmpty 
-                    ? _buildEmptyState() 
+                child: tasks.isEmpty
+                    ? _buildEmptyState()
                     : _buildTaskList(groups),
               ),
             ],
@@ -405,29 +439,65 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     try {
       final user = context.read<LoginViewModel>().user;
       if (user == null) return;
-
-      // Pastikan ID bersih tanpa string "ObjectId"
       String cleanId = user.id
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
 
-      // Cek Koneksi
+      // 1. CEK KONEKSI INTERNET
       final connectivityResult = await Connectivity().checkConnectivity();
-      if ((connectivityResult as List).contains(ConnectivityResult.none))
-        return;
+      bool isOffline = (connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
 
-      // Panggil Service untuk ambil data dari MongoDB
-      // (Pastikan fungsi getTasksByUser sudah ada di TaskService Anda)
+      if (isOffline) {
+        print("📡 Offline: Menggunakan data cache lokal.");
+        return;
+      }
+
+      // 2. UPLOAD TUGAS YANG MASIH PENDING (Tugas Baru / Hasil Edit Offline)
+      await _uploadPendingTasks();
+
+      // 3. AMBIL DATA TERBARU DARI CLOUD
       final List<Map<String, dynamic>> cloudTasks = await _taskService
           .getTasksByUser(cleanId);
 
-      // Simpan data dari Cloud ke lokal Hive
+      // 4. PROSES PENGGABUNGAN (MERGE) - JANGAN PAKAI .clear()
       for (var data in cloudTasks) {
-        final task = TaskModel.fromMongo(data);
-        await _taskBox.put(task.id, task);
+        final taskFromServer = TaskModel.fromMongo(data);
+
+        // Ambil data yang ada di HP sekarang berdasarkan ID
+        final localTask = _taskBox.get(taskFromServer.id);
+
+        // ATURAN KRUSIAL:
+        // Hanya update data di HP jika:
+        // - Data tersebut belum ada di HP (null)
+        // - ATAU Data di HP statusnya sudah "Synced" (artinya tidak ada perubahan baru di HP)
+        if (localTask == null || localTask.isSynced == true) {
+          await _taskBox.put(taskFromServer.id, taskFromServer);
+        } else {
+          print(
+            "🛡️ Melindungi data lokal: Tugas ${localTask.namaTugas} sedang menunggu upload.",
+          );
+        }
       }
 
-      if (mounted) setState(() {}); // Segarkan layar setelah data masuk
+      // 5. (OPSIONAL) HAPUS DATA LOKAL YANG SUDAH TIDAK ADA DI SERVER
+      // Hanya hapus jika data tersebut statusnya sudah sinkron (isSynced == true)
+      final cloudIds = cloudTasks
+          .map((t) => (t['_id']).toHexString())
+          .toSet();
+      final localKeys = _taskBox.keys.cast<String>().toList();
+
+      for (var key in localKeys) {
+        final taskInHive = _taskBox.get(key);
+        if (taskInHive != null &&
+            taskInHive.isSynced &&
+            !cloudIds.contains(key)) {
+          await _taskBox.delete(key);
+        }
+      }
+
+      if (mounted) setState(() {});
     } catch (e) {
       print("❌ Gagal Sinkronisasi: $e");
     }

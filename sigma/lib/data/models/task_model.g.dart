@@ -28,13 +28,16 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       isSynced: fields[8] as bool,
       createdAt: fields[9] as DateTime,
       updatedAt: fields[10] as DateTime,
+      lampiran: (fields[11] as List?)
+          ?.map((dynamic e) => (e as Map).cast<String, String>())
+          ?.toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TaskModel obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +59,9 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       ..writeByte(9)
       ..write(obj.createdAt)
       ..writeByte(10)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(11)
+      ..write(obj.lampiran);
   }
 
   @override

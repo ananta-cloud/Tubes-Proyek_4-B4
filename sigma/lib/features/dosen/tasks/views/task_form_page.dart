@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../viewmodels/task_form_viewmodel.dart';
+import 'package:sigma/data/models/pengajaran_model.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
 
@@ -39,7 +40,10 @@ class _TaskFormPageState extends State<TaskFormPage> {
       );
     }
     if (user != null) {
-      _viewModel.loadMataKuliah(user.idJurusan, user.idProdi);
+      String cleanId = user.id
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+      _viewModel.loadPengajaran(cleanId);
     }
   }
 
@@ -160,10 +164,6 @@ class _TaskFormPageState extends State<TaskFormPage> {
   @override
   Widget build(BuildContext context) {
     final bool isEditMode = widget.taskToEdit != null;
-    bool isMatkulExist = _viewModel.matkulList.any(
-      (matkul) => matkul.namaMk == _viewModel.selectedMatkul,
-    );
-
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Scaffold(
@@ -226,22 +226,64 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 const SizedBox(height: 20),
 
                 Consumer<TaskFormViewModel>(
-                  builder: (context, viewModel, _) => DropdownButton<String>(
-                    // Jika ada, gunakan nilainya. Jika tidak ada (atau sedang loading), gunakan null
-                    value: isMatkulExist ? _viewModel.selectedMatkul : null,
-                    hint: const Text("Pilih Mata Kuliah"),
-                    items: _viewModel.matkulList.map((matkul) {
-                      return DropdownMenuItem<String>(
-                        value: matkul.namaMk,
-                        child: Text(matkul.namaMk),
+                  builder: (context, viewModel, _) {
+                    // Indikator Loading agar UI tidak kaku
+                    if (viewModel.isLoadingPengajaran) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: [
+                            SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: secondaryBlue)),
+                            SizedBox(width: 12),
+                            Text("Memuat data kelas pengajaran...", style: TextStyle(color: secondaryBlue)),
+                          ],
+                        ),
                       );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _viewModel.selectedMatkul = newValue;
-                      });
-                    },
-                  ),
+                    }
+
+                    // Trik aman Dropdown Flutter: Pastikan value yang terpilih ada di dalam list saat ini
+                    PengajaranModel? safeSelectedValue;
+                    try {
+                      safeSelectedValue = viewModel.selectedPengajaran != null
+                          ? viewModel.listPengajaran.firstWhere((p) => p.id == viewModel.selectedPengajaran!.id)
+                          : null;
+                    } catch (e) {
+                      safeSelectedValue = null;
+                    }
+
+                    // Dropdown Utama
+                    return InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: "Kelas & Mata Kuliah",
+                        prefixIcon: const Icon(Icons.class_outlined, color: secondaryBlue),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<PengajaranModel>(
+                          isExpanded: true,
+                          value: safeSelectedValue, 
+                          hint: Text(viewModel.listPengajaran.isEmpty 
+                            ? "Belum ada kelas yang Anda ajar" 
+                            : "Pilih Kelas Pengajaran"),
+                          items: viewModel.listPengajaran.map((pengajaran) {
+                            return DropdownMenuItem<PengajaranModel>(
+                              value: pengajaran,
+                              // Tampilkan "Nama Matkul - Kelas" (Contoh: Proyek 4 - 2B/D3)
+                              child: Text("${pengajaran.namaMk} - ${pengajaran.targetKelas}"),
+                            );
+                          }).toList(),
+                          // Matikan dropdown jika list kosong
+                          onChanged: viewModel.listPengajaran.isEmpty ? null : (PengajaranModel? newValue) {
+                            setState(() {
+                              viewModel.selectedPengajaran = newValue;
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
 

@@ -284,59 +284,64 @@ class _HomePageDsnState extends State<HomePageDsn> {
       'Pengajaran',
       'Penelitian',
       'Pengabdian Masyarakat',
-      'Informasi Umum',
+      'Informasi Umum'
     ];
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      children: [
-        // ... (Header Jadwal Mengajar)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: dosenFilters.map((filter) {
-              // Jika 'Semua', kita anggap filterKey adalah string kosong
-              final String filterKey = filter == 'Semua' ? '' : filter;
+    // Jangan tampilkan jika targetnya Semua Mahasiswa atau Prodi Mahasiswa
+    final filteredAnnouncementsForDosen = viewModel.announcements.where((data) {
+      return data.targetAudience != 'SEMUA_MAHASISWA' && 
+             data.targetAudience != 'PRODI_MAHASISWA';
+    }).toList();
 
-              // Cek status aktif berdasarkan filter yang ada di ViewModel
-              final isActive =
-                  (viewModel.selectedFilter == filterKey) ||
-                  (filter == 'Semua' &&
-                      (viewModel.selectedFilter == null ||
-                          viewModel.selectedFilter!.isEmpty));
+    // --- BUNGKUS DENGAN REFRESH INDICATOR ---
+    return RefreshIndicator(
+      color: accentOrange, // (Opsional) Sesuaikan dengan warna tema SIGMA
+      onRefresh: () async {
+        // Fungsi ini akan dieksekusi saat Dosen menarik layar ke bawah
+        await viewModel.syncAnnouncements();
+      },
+      child: ListView(
+        // --- TAMBAHKAN PHYSICS INI ---
+        // Wajib agar layar tetap bisa ditarik ke bawah meskipun daftar pengumumannya kosong atau sedikit
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        children: [
+          Text("Jadwal mengajar hari ini", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkText)),
+          const SizedBox(height: 25),
+          Text("Pengumuman Terbaru", style: TextStyle(fontWeight: FontWeight.bold, color: darkText, fontSize: 16)),
+          const SizedBox(height: 10),
 
-              return GestureDetector(
-                onTap: () => viewModel.setFilter(filterKey),
-                child: _chip(filter, isActive),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 15),
-
-        // Daftar Pengumuman Dinamis
-        if (viewModel.isLoading && viewModel.announcements.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 30),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (viewModel.announcements.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 30),
-            child: Center(
-              child: Text(
-                "Tidak ada pengumuman.",
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
+          // Filter Horizontal Khusus Dosen
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: dosenFilters.map((filter) {
+                final filterKey = filter == 'Semua' ? '' : filter;
+                final isActive = viewModel.selectedFilter == filterKey || 
+                                 (filter == 'Semua' && viewModel.selectedFilter == 'SEMUA');
+                return GestureDetector(
+                  onTap: () => viewModel.setFilter(filterKey),
+                  child: _chip(filter, isActive),
+                );
+              }).toList(),
             ),
-          )
-        else
-          ...viewModel.announcements
-              .map((data) => _announcement(data))
-              .toList(),
+          ),
+          const SizedBox(height: 15),
 
-        const SizedBox(height: 80),
-      ],
+          // Render Pengumuman
+          if (viewModel.isLoading && filteredAnnouncementsForDosen.isEmpty)
+            const Padding(padding: EdgeInsets.only(top: 30), child: Center(child: CircularProgressIndicator()))
+          else if (filteredAnnouncementsForDosen.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 30),
+              child: Center(child: Text("Tidak ada pengumuman.", style: TextStyle(color: Colors.grey.shade600))),
+            )
+          else
+            ...filteredAnnouncementsForDosen.map((data) => _announcement(data)).toList(),
+
+          const SizedBox(height: 80), 
+        ],
+      ),
     );
   }
 
@@ -467,13 +472,6 @@ class _HomePageDsnState extends State<HomePageDsn> {
                     ),
                   ],
                 ),
-              ),
-
-              // Label diubah menjadi Dosen (Jurusan/Pusat)
-              _infoRow(
-                Icons.business_outlined,
-                "Dosen (Jurusan/Pusat)",
-                user?.idJurusan ?? "-",
               ),
             ],
           ),

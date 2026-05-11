@@ -8,11 +8,13 @@ import 'core/network/mongo_database.dart';
 
 // ================= IMPORT UI =================
 import 'features/auth/views/login_page.dart';
+import 'features/auth/views/auth_gate.dart';
 
 // ================= IMPORT MODELS =================
 import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
 import 'data/models/task_model.dart';
+import 'data/models/pengajaran_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
@@ -43,19 +45,24 @@ void main() async {
   if (!Hive.isAdapterRegistered(3)) {
     Hive.registerAdapter(TaskModelAdapter());
   }
-
-  // Connect MongoDB
-  try {
-    await MongoDatabase.connect();
-  } catch (e) {
-    print("Mode Offline terdeteksi saat startup. Mengabaikan koneksi Mongo.");
+  if (!Hive.isAdapterRegistered(4)) {
+    Hive.registerAdapter(PengajaranModelAdapter());
   }
+
+  MongoDatabase.connect()
+      .then((_) {
+        debugPrint("✅ Background Mongo Terhubung!");
+      })
+      .catchError((e) {
+        debugPrint("❌ Background Mongo Gagal: $e");
+      });
 
   // OPEN BOXES
   await Hive.openBox<ScheduleLocalModel>('schedules');
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
+  await Hive.openBox<PengajaranModel>('pengajaran');
 
   runApp(
     MultiProvider(
@@ -89,7 +96,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       title: 'Sigma',
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      home: AuthGate(),
     );
   }
 }
