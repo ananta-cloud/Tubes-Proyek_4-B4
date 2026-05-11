@@ -16,6 +16,7 @@ import 'package:sigma/data/models/task_model.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
+import 'package:sigma/features/announcements/widgets/announcement_widget.dart';
 import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/views/task_page.dart';
@@ -243,15 +244,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 fontSize: 16,
               ),
             ),
-            GestureDetector(
-              onTap: () {
-                // Aksi lihat semua (Bisa diarahkan ke halaman list penuh)
-              },
-              child: Text(
-                "Lihat Semua >",
-                style: TextStyle(color: primaryBlue, fontSize: 12),
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -288,9 +280,14 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           )
         else
-          ...viewModel.announcements
-              .map((data) => _announcement(data))
-              .toList(),
+          ...viewModel.announcements.map((data) {
+                return AnnouncementCard(
+                  announcement: data, 
+                  isLecturer: false, 
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (context) => AnnouncementDetailPage(announcement: data),),);});
+              }).toList(),
 
         const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
       ],
@@ -656,145 +653,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
     );
   }
 
-  Widget _announcement(AnnouncementModel data) {
-    // Logika warna garis berdasarkan tingkat kepentingan
-    Color indikatorWarna;
-    switch (data.tingkatKepentingan) {
-      case 'SANGAT PENTING':
-        indikatorWarna = Colors.red;
-        break;
-      case 'PENTING':
-        indikatorWarna = accentOrange;
-        break;
-      case 'LUMAYAN PENTING':
-        indikatorWarna = Colors.amber;
-        break;
-      default:
-        indikatorWarna = primaryBlue.withOpacity(0.5);
-    }
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AnnouncementDetailPage(announcement: data),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 15),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(width: 6, color: indikatorWarna),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: primaryBlue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                data.targetAudience.replaceAll('_', ' '),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryBlue,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              data.tingkatKepentingan,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: indikatorWarna,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          data.judul,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: darkText,
-                            fontSize: 14,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 5),
-                        if (data.kategori.isNotEmpty)
-                          Wrap(
-                            spacing: 6,
-                            children: data.kategori.map((kat) {
-                              return Text(
-                                "#$kat",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: accentOrange,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.person,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              data.namaPublisher,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // ================= TASK / TUGAS =================
   Widget _tasks(TaskViewModel viewModel) {
     final allTasks = viewModel.tasks;
@@ -1005,7 +863,20 @@ class _HomePageMhsState extends State<HomePageMhs> {
               )
             // Jika ada isinya, panggil widget _announcement untuk menggambar kartunya
             else
-              ...bookmarkedItems.map((data) => _announcement(data)).toList(),
+              ...bookmarkedItems.map((data) {
+                return AnnouncementCard(
+                announcement: data,
+                isLecturer: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AnnouncementDetailPage(announcement: data),
+                    ),
+                  );
+                },
+              );
+              }).toList(),
 
             const SizedBox(
               height: 100,

@@ -17,16 +17,10 @@ class AnnouncementViewModel extends ChangeNotifier {
   String selectedFilter = 'SEMUA';
   final List<String> filters = [
     'SEMUA',
-    'AKADEMIK',
-    'BEASISWA',
-    'LOMBA',
-    'UKM',
-    'KARIR',
-    'PKM',
-    'WIRAUSAHA',
-    'KONSELING',
-    'FASILITAS',
-    'LAINNYA',
+    'PENGABDIAN',
+    'PENDIDIKAN',
+    'PENELITIAN',
+    'UMUM',
   ];
 
   // Box untuk bookmark
@@ -46,6 +40,21 @@ class AnnouncementViewModel extends ChangeNotifier {
   void setFilter(String filter) {
     selectedFilter = filter;
     _loadFromLocal();
+  }
+
+  // ==========================================
+  // HELPER PRIORITAS PENGURUTAN
+  // ==========================================
+  int _getPriorityWeight(String tingkat) {
+    switch (tingkat.toUpperCase()) {
+      case 'SANGAT PENTING':
+        return 1;
+      case 'PENTING':
+        return 2;
+      case 'BIASA':
+      default:
+        return 3;
+    }
   }
 
   Future<void> syncAnnouncements() async {
@@ -87,7 +96,16 @@ class AnnouncementViewModel extends ChangeNotifier {
     final box = Hive.box<AnnouncementModel>('announcements');
     List<AnnouncementModel> all = box.values.toList();
 
-    all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    all.sort((a, b) {
+      int weightA = _getPriorityWeight(a.tingkatKepentingan);
+      int weightB = _getPriorityWeight(b.tingkatKepentingan);
+
+      if (weightA != weightB) {
+        return weightA.compareTo(weightB);
+      } else {
+        return b.createdAt.compareTo(a.createdAt);
+      }
+    });
 
     if (selectedFilter != 'SEMUA') {
       announcements = all

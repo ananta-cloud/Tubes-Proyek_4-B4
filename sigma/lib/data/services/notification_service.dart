@@ -37,16 +37,16 @@ class NotificationService {
     // 2. Setup Local Notifications
     const AndroidInitializationSettings androidInitSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidInitSettings);
-
-    await _localNotificationsPlugin.initialize(
-      settings: initSettings,
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidInitSettings,
     );
+
+    await _localNotificationsPlugin.initialize(settings: initSettings);
 
     await _localNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(_channel);
 
     // 3. Berlangganan Topik

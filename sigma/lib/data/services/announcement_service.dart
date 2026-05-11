@@ -8,7 +8,7 @@ class AnnouncementService {
       final announcements = await MongoDatabase.announcementsCollection.find().toList();
       return announcements;
     } catch (e) {
-      print("❌ Error AnnouncementService (Mongo): $e");
+      print("Error AnnouncementService (Mongo): $e");
       rethrow; 
     }
   }
