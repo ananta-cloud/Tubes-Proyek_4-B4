@@ -6,6 +6,7 @@ import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
 import 'create_announcement_page.dart';
 import 'package:sigma/data/models/announcement_model.dart';
+import 'admin_announcement_detail_page.dart';
 
 class AdminAnnouncementPage extends StatefulWidget {
   const AdminAnnouncementPage({super.key});
@@ -130,8 +131,17 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, i) =>
-                              _AnnouncementCard(item: vm.announcements[i]),
+                          (context, i) => GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AdminAnnouncementDetailPage(
+                                  announcement: vm.announcements[i],
+                                ),
+                              ),
+                            ),
+                            child: _AnnouncementCard(item: vm.announcements[i]),
+                          ),
                           childCount: vm.announcements.length,
                         ),
                       ),
@@ -157,6 +167,10 @@ class _AnnouncementCard extends StatelessWidget {
     'Lomba': Color(0xFFF59E0B),
     'UKM': Color(0xFF8B5CF6),
     'Karir': Color(0xFF0EA5E9),
+    // Kategori dosen
+    'Penelitian': Color(0xFF059669),
+    'Pengabdian': Color(0xFFD97706),
+    'Pengajaran': Color(0xFF7C3AED),
   };
 
   @override

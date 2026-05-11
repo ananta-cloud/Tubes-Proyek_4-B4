@@ -90,6 +90,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     required String tingkatKepentingan,
     String namaPublisher = 'Ibu Admin TU',
     String rolePublisher = 'ADMIN_TU',
+    List<Map<String, String>> attachments = const [],
   }) async {
     final now = DateTime.now();
     final newId = ObjectId().toHexString();
@@ -107,6 +108,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       tingkatKepentingan: tingkatKepentingan,
       createdAt: now,
       updatedAt: now,
+      attachments: attachments,
     );
     await _announcementsBox.put(newId, model);
     _loadFromLocal();
@@ -123,6 +125,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       'namaPublisher': namaPublisher,
       'rolePublisher': rolePublisher,
       'createdAt': now.toIso8601String(),
+      'attachments': attachments,
     });
 
     // 3. Langsung drain jika online
@@ -158,6 +161,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
               'tingkat_kepentingan': op['tingkatKepentingan'] ?? 'BIASA',
               'created_at': DateTime.parse(op['createdAt']),
               'updated_at': DateTime.parse(op['createdAt']),
+              'attachments': op['attachments'] ?? [],
             }),
           );
 
