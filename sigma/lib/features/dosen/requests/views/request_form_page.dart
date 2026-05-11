@@ -54,6 +54,21 @@ class _RequestFormPageState extends State<RequestFormPage> {
         key: _formKey,
         child: Column(
           children: [
+            if (context.watch<DosenRequestController>().isOffline)
+              Container(
+                width: double.infinity,
+                color: Colors.orange.shade800,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: const Text(
+                  "Mode Offline: Permohonan akan disimpan lokal & sync otomatis",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             _buildStepper(),
             Expanded(
               child: SingleChildScrollView(
@@ -368,12 +383,23 @@ class _RequestFormPageState extends State<RequestFormPage> {
             );
 
             if (ok && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Permohonan berhasil dikirim!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              if (ctrl.isOffline) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Offline! Permohonan disimpan di HP & akan dikirim otomatis nanti.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Permohonan berhasil dikirim ke server!'),
+                  ),
+                );
+              }
               Navigator.pop(context);
             }
           },

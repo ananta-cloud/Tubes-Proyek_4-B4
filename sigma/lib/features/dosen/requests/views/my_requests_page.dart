@@ -44,20 +44,35 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
       ),
       body: ctrl.isLoadingRequests
           ? const Center(child: CircularProgressIndicator())
-          : ctrl.myRequests.isEmpty
+          : (ctrl.myRequests.isEmpty && ctrl.pendingRequests.isEmpty)
           ? _EmptyState()
           : RefreshIndicator(
               onRefresh: () => ctrl.loadMyRequests(widget.user.id),
-              child: ListView.separated(
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                itemCount: ctrl.myRequests.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _RequestCard(
-                  request: ctrl.myRequests[i],
-                  onCancel: ctrl.myRequests[i].isPending
-                      ? () => _confirmCancel(context, ctrl, ctrl.myRequests[i])
-                      : null,
-                ),
+                children: [
+                  // 1. Daftar permohonan yang masih nunggu internet (Hive)
+                  ...ctrl.pendingRequests.map(
+                    (data) =>
+                        _buildPendingCard(ScheduleRequestModel.fromJson(data)),
+                  ),
+                  if (ctrl.pendingRequests.isNotEmpty &&
+                      ctrl.myRequests.isNotEmpty)
+                    const SizedBox(height: 10),
+
+                  // 2. Daftar permohonan yang sudah ada di server
+                  ...ctrl.myRequests.map(
+                    (req) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _RequestCard(
+                        request: req,
+                        onCancel: req.isPending
+                            ? () => _confirmCancel(context, ctrl, req)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -154,6 +169,21 @@ class _RequestCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (context.watch<DosenRequestController>().isOffline)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade800,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: const Text(
+                "Mode Offline: Permohonan akan disimpan lokal & sync otomatis",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           // ── Header ────────────────────────────────────
           Row(
             children: [
@@ -319,6 +349,56 @@ class _RequestCard extends StatelessWidget {
 }
 
 // ── Sub widgets ───────────────────────────────────────────
+
+Widget _buildPendingCard(ScheduleRequestModel data) {
+  // final detail = data['detail_perubahan'] ?? {};
+  // final namaMk = data['nama_mk'] ?? 'Permohonan Baru';
+
+  final namaMk = data.namaMk ?? data.namaDosen ?? 'Permohonan Baru';
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.orange.shade50,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.orange.shade200),
+    ),
+    child: Row(
+      children: [
+        // Indikator Loading
+        const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                namaMk,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const Text(
+                "Menunggu koneksi internet untuk mengirim...",
+                style: TextStyle(fontSize: 12, color: Colors.orange),
+              ),
+            ],
+          ),
+        ),
+        const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+      ],
+    ),
+  );
+}
 
 class _MiniInfo extends StatelessWidget {
   final String label;

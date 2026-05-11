@@ -2,9 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/data/services/dosen_request_service.dart';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
 class DosenRequestController extends ChangeNotifier {
   final DosenRequestService service;
-  DosenRequestController(this.service);
+  DosenRequestController(this.service) {
+    monitorConnection();
+  }
+
+  final Box _pendingBox = Hive.box('pending_requests');
+
+  bool _isSyncing = false;
 
   List<Map<String, dynamic>> mySchedules = [];
   List<ScheduleRequestModel> myRequests = [];
@@ -15,6 +24,12 @@ class DosenRequestController extends ChangeNotifier {
   bool isCheckingRuangan = false;
   bool isSubmitting = false;
   String? errorMsg;
+  bool isOffline = false;
+  List<Map<String, dynamic>> get pendingRequests => _pendingBox.values
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList()
+      .reversed
+      .toList();
 
   // Form
   Map<String, dynamic>? selectedJadwal;
@@ -26,6 +41,17 @@ class DosenRequestController extends ChangeNotifier {
   String? selectedRuanganBaru;
   String? selectedTipeJadwalBaru; // TE | PR
 
+  void monitorConnection() {
+    Connectivity().onConnectivityChanged.listen((results) {
+      final wasOffline = isOffline;
+      isOffline = results.contains(ConnectivityResult.none);
+      notifyListeners();
+
+      if (wasOffline && !isOffline) {
+        syncPendingRequests();
+      }
+    });
+  }
   // ─────────────────────────────────────────────────
   // LOAD JADWAL MILIK DOSEN
   // ─────────────────────────────────────────────────
@@ -106,43 +132,6 @@ class DosenRequestController extends ChangeNotifier {
   // SUBMIT REQUEST
   // ─────────────────────────────────────────────────
 
-  // Future<bool> submitRequest({
-  //   required String idDosen,
-  //   required String namaDosen,
-  //   required String alasan,
-  // }) async {
-  //   if (selectedJadwal == null || selectedTipeRequest == null) return false;
-
-  //   isSubmitting = true;
-  //   notifyListeners();
-
-  //   final detailPerubahan = <String, dynamic>{};
-  //   if (selectedHariBaru != null)
-  //     detailPerubahan['hari_baru'] = selectedHariBaru;
-  //   if (selectedJamMulaiBaru != null)
-  //     detailPerubahan['jam_mulai_baru'] = selectedJamMulaiBaru;
-  //   if (selectedJamSelesaiBaru != null)
-  //     detailPerubahan['jam_selesai_baru'] = selectedJamSelesaiBaru;
-  //   if (selectedRuanganBaru != null)
-  //     detailPerubahan['ruangan_baru'] = selectedRuanganBaru;
-  //   if (selectedTipeJadwalBaru != null)
-  //     detailPerubahan['tipe_jadwal_baru'] = selectedTipeJadwalBaru;
-
-  //   final ok = await service.submitRequest(
-  //     idSchedule: selectedJadwal!['_id'].toString(),
-  //     idDosen: idDosen,
-  //     namaDosen: namaDosen,
-  //     tipeRequest: selectedTipeRequest!,
-  //     detailPerubahan: detailPerubahan,
-  //     alasan: alasan,
-  //   );
-
-  //   if (ok) resetForm();
-
-  //   isSubmitting = false;
-  //   notifyListeners();
-  //   return ok;
-  // }
   Future<bool> submitRequest({
     required String idDosen,
     required String namaDosen,
@@ -150,10 +139,7 @@ class DosenRequestController extends ChangeNotifier {
   }) async {
     if (selectedJadwal == null || selectedTanggalBaru == null) return false;
 
-    isSubmitting = true;
-    notifyListeners();
-
-    final hariLama = selectedJadwal!['hari']?.toString() ?? '';
+    // final hariLama = selectedJadwal!['hari']?.toString() ?? '';
     final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
     final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
 
@@ -162,10 +148,37 @@ class DosenRequestController extends ChangeNotifier {
       'hari_baru': _hariDari(selectedTanggalBaru!),
       'jam_mulai_baru': selectedJamMulaiBaru ?? jamMulaiLama,
       'jam_selesai_baru': selectedJamSelesaiBaru ?? jamSelesaiLama,
-      'ruangan_baru': selectedRuanganBaru,
+      'ruangan_baru': selectedRuanganBaru ?? '',
       if (selectedTipeJadwalBaru != null)
         'tipe_jadwal_baru': selectedTipeJadwalBaru,
     };
+
+    var connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none)) {
+      final offlineId = DateTime.now().millisecondsSinceEpoch.toString();
+      await _pendingBox.put(offlineId, {
+        'id': offlineId,
+        'id_schedule': selectedJadwal!['_id'].toString(),
+        'id_dosen': idDosen,
+        'nama_dosen': namaDosen,
+        'tipe_request': autoTipeRequest ?? 'KEDUANYA',
+        'alasan': alasan,
+        'status': 'PENDING',
+        'offline_id': offlineId,
+        'detail_perubahan': {
+          'tanggal_baru': selectedTanggalBaru!.toIso8601String(),
+          'hari_baru': _hariDari(selectedTanggalBaru!),
+          'jam_mulai_baru': selectedJamMulaiBaru ?? jamMulaiLama,
+          'jam_selesai_baru': selectedJamSelesaiBaru ?? jamSelesaiLama,
+          'ruangan_baru': selectedRuanganBaru ?? '',
+        },
+      });
+      resetForm();
+      return true;
+    }
+
+    isSubmitting = true;
+    notifyListeners();
 
     final ok = await service.submitRequest(
       idSchedule: selectedJadwal!['_id'].toString(),
@@ -174,6 +187,7 @@ class DosenRequestController extends ChangeNotifier {
       tipeRequest: autoTipeRequest ?? 'KEDUANYA',
       detailPerubahan: detailPerubahan,
       alasan: alasan,
+      offlineId: DateTime.now().millisecondsSinceEpoch.toString(),
     );
 
     if (ok) resetForm();
@@ -303,5 +317,35 @@ class DosenRequestController extends ChangeNotifier {
     selectedTipeJadwalBaru = null;
     ruanganTersedia = [];
     notifyListeners();
+  }
+
+  Future<void> syncPendingRequests() async {
+    if (_isSyncing || _pendingBox.isEmpty) return;
+    _isSyncing = true;
+
+    try {
+      final keys = _pendingBox.keys.toList();
+      for (var key in keys) {
+        final data = Map<String, dynamic>.from(_pendingBox.get(key));
+        final detail = Map<String, dynamic>.from(
+          data['detail_perubahan'] ?? {},
+        );
+
+        final ok = await service.submitRequest(
+          idSchedule: data['id_schedule'],
+          idDosen: data['id_dosen'],
+          namaDosen: data['nama_dosen'],
+          tipeRequest: data['tipe_request'],
+          detailPerubahan: detail,
+          alasan: data['alasan'],
+          offlineId: data['offline_id'],
+        );
+
+        if (ok) await _pendingBox.delete(key);
+      }
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
   }
 }

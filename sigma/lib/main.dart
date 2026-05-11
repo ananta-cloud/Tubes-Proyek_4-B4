@@ -16,6 +16,7 @@ import 'features/auth/views/login_page.dart';
 import 'data/models/schedule_local_model.dart';
 import 'features/admin_tu/announcements/models/announcement_model.dart';
 import 'data/models/task_model.dart';
+import 'data/models/schedule_request_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
@@ -55,12 +56,20 @@ void main() async {
   if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(TaskModelAdapter());
   }
+  if (!Hive.isAdapterRegistered(3)) {
+    Hive.registerAdapter(DetailPerubahanAdapter());
+  }
+  if (!Hive.isAdapterRegistered(4)) {
+    Hive.registerAdapter(ScheduleRequestModelAdapter());
+  }
 
   // OPEN BOXES
   await Hive.openBox<ScheduleLocalModel>('schedules');
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
+  await Hive.openBox('pending_requests');
+  await Hive.openBox('schedule_cache');
 
   runApp(
     MultiProvider(
