@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
 import '../models/schedule_model.dart';
+import 'import_schedule_page.dart';
 
 class AdminSchedulePage extends StatefulWidget {
   const AdminSchedulePage({super.key});
@@ -74,12 +75,26 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                             size: 18,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Daftar Jadwal Kuliah',
-                            style: TextStyle(
-                              color: SigmaColors.navy,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                          const Expanded(
+                            // ← tambah Expanded
+                            child: Text(
+                              'Daftar Jadwal Kuliah',
+                              style: TextStyle(
+                                color: SigmaColors.navy,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          SigmaPrimaryButton(
+                            // ← tambah button
+                            label: 'Import',
+                            icon: Icons.upload_file_rounded,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ImportSchedulePage(),
+                              ),
                             ),
                           ),
                         ],
