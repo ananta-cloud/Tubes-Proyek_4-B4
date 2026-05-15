@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
 import '../models/schedule_model.dart';
+import 'import_schedule_page.dart';
 
 class AdminSchedulePage extends StatefulWidget {
   const AdminSchedulePage({super.key});
@@ -74,12 +75,26 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                             size: 18,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Daftar Jadwal Kuliah',
-                            style: TextStyle(
-                              color: SigmaColors.navy,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                          const Expanded(
+                            // ← tambah Expanded
+                            child: Text(
+                              'Daftar Jadwal Kuliah',
+                              style: TextStyle(
+                                color: SigmaColors.navy,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          SigmaPrimaryButton(
+                            // ← tambah button
+                            label: 'Import',
+                            icon: Icons.upload_file_rounded,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ImportSchedulePage(),
+                              ),
                             ),
                           ),
                         ],
@@ -108,10 +123,14 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, i) => _ScheduleCard(
-                            schedule: vm.schedules[i],
-                            onPublish: () =>
-                                vm.publishSchedule(vm.schedules[i].id),
+                          (context, i) => GestureDetector(
+                            onTap: () =>
+                                _showScheduleDetail(context, vm.schedules[i]),
+                            child: _ScheduleCard(
+                              schedule: vm.schedules[i],
+                              onPublish: () =>
+                                  vm.publishSchedule(vm.schedules[i].id),
+                            ),
                           ),
                           childCount: vm.schedules.length,
                         ),
@@ -122,6 +141,132 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showScheduleDetail(BuildContext context, ScheduleModel schedule) {
+    final isPublished = schedule.status.toUpperCase() == 'PUBLISHED';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
+        decoration: const BoxDecoration(
+          color: SigmaColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: SigmaColors.cardBorder,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header: nama MK + status badge
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    schedule.namaMatkul,
+                    style: const TextStyle(
+                      color: SigmaColors.navy,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                _StatusBadge(isPublished: isPublished),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: SigmaColors.cardBorder),
+            const SizedBox(height: 12),
+
+            // Detail rows
+            // Ganti bagian detail rows jadi ini:
+            _DetailRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Dosen',
+              value: schedule.namaDosen,
+            ),
+            const SizedBox(height: 10),
+            _DetailRow(
+              icon: Icons.access_time_rounded,
+              label: 'Hari & Waktu',
+              value:
+                  '${schedule.hari}, ${schedule.jamMulai}–${schedule.jamSelesai}',
+            ),
+            const SizedBox(height: 10),
+            _DetailRow(
+              icon: Icons.room_outlined,
+              label: 'Ruangan',
+              value: schedule.ruangan,
+            ),
+            const SizedBox(height: 10),
+            _DetailRow(
+              icon: Icons.calendar_today_outlined,
+              label: 'Status',
+              value: schedule.status,
+            ),
+
+            if (!isPublished) ...[
+              const SizedBox(height: 20),
+              const Divider(color: SigmaColors.cardBorder),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.read<AdminScheduleViewModel>().publishSchedule(
+                      schedule.id,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.navy,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.publish_rounded,
+                          color: SigmaColors.white,
+                          size: 16,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Publish Jadwal',
+                          style: TextStyle(
+                            color: SigmaColors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -299,6 +444,45 @@ class _StatusBadge extends StatelessWidget {
           letterSpacing: 0.5,
         ),
       ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: SigmaColors.textSub),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: Text(
+            label,
+            style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: SigmaColors.navy,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -34,13 +34,13 @@ class AuthRepository {
       final isValid = BCrypt.checkpw(password, hashedPassword);
       if (!isValid) return null;
 
-      await _storage.write(key: "user_id", value: user["_id"].toHexHexString());
+      await _storage.write(key: "user_id", value: user["_id"].oid);
       await _storage.write(key: "user_nama", value: user["nama"]);
       await _storage.write(key: "user_role", value: user["role"]);
       await _storage.write(key: "user_email", value: user["email"]);
 
       return UserModel(
-        id: user["_id"].toHexString(),
+        id: user["_id"].oid,
         nama: user["nama"],
         email: user["email"],
         role: user["role"],

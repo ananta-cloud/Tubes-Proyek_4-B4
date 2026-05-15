@@ -31,13 +31,16 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       createdAt: fields[11] as DateTime,
       updatedAt: fields[12] as DateTime,
       tingkatKepentingan: fields[13] as String,
+      attachments: (fields[14] as List)
+          .map((dynamic e) => (e as Map).cast<String, String>())
+          .toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, AnnouncementModel obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +68,9 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       ..writeByte(12)
       ..write(obj.updatedAt)
       ..writeByte(13)
-      ..write(obj.tingkatKepentingan);
+      ..write(obj.tingkatKepentingan)
+      ..writeByte(14)
+      ..write(obj.attachments);
   }
 
   @override

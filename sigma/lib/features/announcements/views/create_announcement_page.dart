@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 
-import '../../main/views/admin_main_page.dart';
+import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
 
 class CreateAnnouncementPage extends StatefulWidget {
@@ -17,6 +20,11 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
   String? _selectedKategori;
   String _selectedTarget = 'SEMUA';
+  String _selectedTingkat = 'BIASA';
+
+  // File attachments
+  List<PlatformFile> _selectedFiles = [];
+  bool _isUploading = false;
 
   static const _kategoriList = [
     'Akademik',
@@ -25,9 +33,22 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     'UKM',
     'Karir',
     'Umum',
+    'Penelitian',
+    'Pengabdian',
+    'Pengajaran',
   ];
 
   static const _targetList = ['SEMUA', 'MAHASISWA', 'DOSEN'];
+  static const _tingkatList = ['BIASA', 'PENTING', 'SANGAT PENTING'];
+
+  static const _tingkatColors = {
+    'BIASA': SigmaColors.textSub,
+    'PENTING': Color(0xFFF59E0B),
+    'SANGAT PENTING': SigmaColors.danger,
+  };
+
+  // Batas maksimal ukuran file: 5 MB
+  static const int _maxFileSizeBytes = 5 * 1024 * 1024;
 
   @override
   void dispose() {
@@ -36,6 +57,71 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     super.dispose();
   }
 
+  // ─── Pick File ────────────────────────────────────────────────────────────
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+    );
+    if (result == null) return;
+
+    final oversized = <String>[];
+    final valid = <PlatformFile>[];
+
+    for (final file in result.files) {
+      if (file.size > _maxFileSizeBytes) {
+        oversized.add(file.name);
+      } else {
+        final existing = _selectedFiles.map((f) => f.name).toSet();
+        if (!existing.contains(file.name)) {
+          valid.add(file);
+        }
+      }
+    }
+
+    if (oversized.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'File berikut melebihi 5MB dan dilewati: ${oversized.join(', ')}',
+          ),
+          backgroundColor: SigmaColors.danger,
+        ),
+      );
+    }
+
+    if (valid.isNotEmpty) {
+      setState(() => _selectedFiles.addAll(valid));
+    }
+  }
+
+  void _removeFile(int index) {
+    setState(() => _selectedFiles.removeAt(index));
+  }
+
+  // ─── Encode file ke base64 ────────────────────────────────────────────────
+  Future<List<Map<String, String>>> _encodeFiles() async {
+    final encoded = <Map<String, String>>[];
+    for (final file in _selectedFiles) {
+      if (file.path == null) continue;
+      try {
+        final bytes = await File(file.path!).readAsBytes();
+        final base64Data = base64Encode(bytes);
+        encoded.add({
+          'name': file.name,
+          'type': file.extension?.toLowerCase() ?? 'file',
+          'data': base64Data,
+          'size': file.size.toString(),
+        });
+      } catch (e) {
+        debugPrint('❌ Encode file ${file.name}: $e');
+      }
+    }
+    return encoded;
+  }
+
+  // ─── Submit ───────────────────────────────────────────────────────────────
   Future<void> _submit() async {
     if (_judulCtrl.text.trim().isEmpty || _isiCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,12 +133,25 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       return;
     }
 
+    setState(() => _isUploading = true);
+
+    List<Map<String, String>> attachments = [];
+    if (_selectedFiles.isNotEmpty) {
+      attachments = await _encodeFiles();
+    }
+
+    setState(() => _isUploading = false);
+
+    if (!mounted) return;
+
     final vm = context.read<AdminAnnouncementViewModel>();
     await vm.createAnnouncement(
       judul: _judulCtrl.text.trim(),
       isi: _isiCtrl.text.trim(),
       kategori: _selectedKategori ?? 'Umum',
       target: _selectedTarget,
+      tingkatKepentingan: _selectedTingkat,
+      attachments: attachments,
     );
 
     if (mounted) {
@@ -134,7 +233,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Form card
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -179,7 +277,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             fontSize: 11,
                           ),
                         ),
-
                         const SizedBox(height: 20),
 
                         // Judul
@@ -195,7 +292,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             hint: 'Cth: Perubahan Jadwal Ujian Basis Data...',
                           ),
                         ),
-
                         const SizedBox(height: 16),
 
                         // Kategori + Target
@@ -239,7 +335,74 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
 
+                        // Tingkat Kepentingan
+                        const _FieldLabel(label: 'Tingkat Kepentingan'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: _tingkatList.map((tingkat) {
+                            final isSelected = _selectedTingkat == tingkat;
+                            final color =
+                                _tingkatColors[tingkat] ?? SigmaColors.textSub;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selectedTingkat = tingkat),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  margin: EdgeInsets.only(
+                                    right: tingkat != _tingkatList.last ? 8 : 0,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? color.withOpacity(0.12)
+                                        : SigmaColors.bgPage,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? color
+                                          : SigmaColors.cardBorder,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        tingkat == 'BIASA'
+                                            ? Icons.info_outline_rounded
+                                            : tingkat == 'PENTING'
+                                            ? Icons.warning_amber_rounded
+                                            : Icons.error_rounded,
+                                        color: isSelected
+                                            ? color
+                                            : SigmaColors.textSub,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        tingkat,
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? color
+                                              : SigmaColors.textSub,
+                                          fontSize: 10,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w400,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                         const SizedBox(height: 16),
 
                         // Isi
@@ -256,6 +419,151 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             hint: 'Tuliskan detail pengumuman di sini...',
                           ),
                         ),
+                        const SizedBox(height: 16),
+
+                        // ── Upload Lampiran ────────────────────────────────
+                        const _FieldLabel(label: 'Lampiran'),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'PDF, PNG, JPG, JPEG • Maks. 5 MB per file',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Tombol pilih file
+                        GestureDetector(
+                          onTap: _pickFile,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: SigmaColors.bgPage,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: SigmaColors.navy.withOpacity(0.3),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.attach_file_rounded,
+                                  color: SigmaColors.navy,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Pilih File',
+                                  style: TextStyle(
+                                    color: SigmaColors.navy,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Daftar file dipilih
+                        if (_selectedFiles.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ..._selectedFiles.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final file = entry.value;
+                            final isImage = [
+                              'png',
+                              'jpg',
+                              'jpeg',
+                            ].contains(file.extension?.toLowerCase());
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: SigmaColors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: SigmaColors.cardBorder,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isImage
+                                        ? Icons.image_outlined
+                                        : Icons.picture_as_pdf_outlined,
+                                    color: isImage
+                                        ? SigmaColors.accent
+                                        : SigmaColors.danger,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      file.name,
+                                      style: const TextStyle(
+                                        color: SigmaColors.navy,
+                                        fontSize: 12,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                    style: const TextStyle(
+                                      color: SigmaColors.textSub,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () => _removeFile(i),
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      color: SigmaColors.danger,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+
+                        // Indikator encoding
+                        if (_isUploading)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 10),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: SigmaColors.navy,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Memproses lampiran...',
+                                  style: TextStyle(
+                                    color: SigmaColors.textSub,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -326,17 +634,19 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                       Expanded(
                         flex: 2,
                         child: GestureDetector(
-                          onTap: vm.isLoading ? null : _submit,
+                          onTap: (vm.isLoading || _isUploading)
+                              ? null
+                              : _submit,
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
-                              color: vm.isLoading
+                              color: (vm.isLoading || _isUploading)
                                   ? SigmaColors.textSub
                                   : SigmaColors.navy,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
-                              child: vm.isLoading
+                              child: (vm.isLoading || _isUploading)
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
@@ -370,7 +680,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 32),
                 ],
               ),

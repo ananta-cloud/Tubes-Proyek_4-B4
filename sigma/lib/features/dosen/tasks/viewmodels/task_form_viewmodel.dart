@@ -90,7 +90,7 @@ class TaskFormViewModel extends ChangeNotifier {
 
       // 2. BUKA SISTEM FILE MANAGER BAWAAN HP
       // Kita kembalikan ke FileType.any agar sistem HP tidak crash (invalid_format_type)
-      FilePickerResult? result = await FilePicker.pickFiles(
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
         // withData di-set false agar aplikasi tidak kehabisan RAM saat memilih file besar
