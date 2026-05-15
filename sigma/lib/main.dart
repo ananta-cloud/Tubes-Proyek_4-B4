@@ -16,6 +16,7 @@ import 'features/auth/views/login_page.dart';
 // ================= IMPORT MODELS =================
 import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
+import 'data/models/announcement_model.dart';
 import 'data/models/task_model.dart';
 import 'features/admin_tu/master_matkul/models/matkul_model.dart';
 import 'features/admin_tu/schedules/models/schedule_model.dart';

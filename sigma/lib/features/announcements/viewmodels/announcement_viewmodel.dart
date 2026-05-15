@@ -12,6 +12,7 @@ class AnnouncementViewModel extends ChangeNotifier {
   final BookmarkService _bookmarkService = BookmarkService();
 
   // State untuk daftar pengumuman
+  // State untuk daftar pengumuman
   List<AnnouncementModel> announcements = [];
   bool isLoading = false;
   String selectedFilter = 'SEMUA';
@@ -38,7 +39,12 @@ class AnnouncementViewModel extends ChangeNotifier {
   // ==========================================
 
   void setFilter(String filter) {
-    selectedFilter = filter;
+    // Normalisasi: Jika string kosong atau "Semua" (dari Dosen), jadikan 'SEMUA'
+    if (filter.isEmpty || filter.toUpperCase() == 'SEMUA') {
+      selectedFilter = 'SEMUA';
+    } else {
+      selectedFilter = filter;
+    }
     _loadFromLocal();
   }
 
@@ -107,15 +113,25 @@ class AnnouncementViewModel extends ChangeNotifier {
       }
     });
 
-    if (selectedFilter != 'SEMUA') {
-      announcements = all
-          .where(
-            (a) =>
-                a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter),
-          )
-          .toList();
-    } else {
+    // LOGIKA FILTER DIPERBAIKI DI SINI
+    if (selectedFilter == 'SEMUA') {
       announcements = all;
+    } 
+    else if (selectedFilter == 'Informasi Umum') {
+      // Filter khusus Dosen: Target audience tertentu ATAU tag kategori manual
+      announcements = all.where((a) {
+        return a.targetAudience == 'SEMUA' || 
+               a.targetAudience == 'SEMUA_DOSEN' || 
+               a.targetAudience == 'JURUSAN' ||
+               a.kategori.map((k) => k.toUpperCase()).contains('INFORMASI UMUM');
+      }).toList();
+    } 
+    else {
+      // Filter dinamis untuk kategori lainnya (Mahasiswa maupun Dosen)
+      announcements = all.where((a) {
+        // Mengubah tag kategori menjadi uppercase untuk dicocokkan (case-insensitive)
+        return a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter.toUpperCase());
+      }).toList();
     }
     notifyListeners();
   }
