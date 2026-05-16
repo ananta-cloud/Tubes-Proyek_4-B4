@@ -23,6 +23,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
   List<ScheduleModel> _parsedSchedules = [];
   Map<String, int> _kelasSummary = {};
 
+  // Mapping jam ke → jam mulai & selesai
   static const Map<int, String> _jamMulaiMap = {
     1: '07:00',
     2: '07:50',
@@ -91,10 +92,26 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helper: buat merge-key dari sebuah baris jadwal.
+  // Baris dianggap "sambungan" dari baris sebelumnya jika key-nya sama.
+  // Key = hari|kelas|kodeMk|kodeDosen|tePr|ruangan
+  // ─────────────────────────────────────────────────────────────────────────
+  String _mergeKey({
+    required String hari,
+    required String kelas,
+    required String kodeMk,
+    required String kodeDosen,
+    required String tePr,
+    required String ruangan,
+  }) => '$hari|$kelas|$kodeMk|$kodeDosen|$tePr|$ruangan';
+
   Future<List<ScheduleModel>> _parseExcel(String path) async {
     final bytes = await File(path).readAsBytes();
     final excelFile = excel_pkg.Excel.decodeBytes(bytes);
-    final results = <ScheduleModel>[];
+
+    // Kumpulkan semua baris mentah dulu (belum di-merge)
+    final rawRows = <_RawRow>[];
 
     String semester = 'GENAP';
     String tahunAkademik = '2025/2026';
@@ -106,6 +123,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
       final rows = sheet.rows;
       if (rows.isEmpty) continue;
 
+      // Cari header row
       int headerRowIndex = -1;
       for (int i = 0; i < rows.length && i < 20; i++) {
         final rowText = rows[i]
@@ -120,9 +138,9 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         final tahunMatch = RegExp(r'(\d{4}/\d{4})').firstMatch(rowText);
         if (tahunMatch != null) tahunAkademik = tahunMatch.group(1)!;
       }
-
       if (headerRowIndex == -1) continue;
 
+      // Petakan nama kolom → index
       final headerRow = rows[headerRowIndex];
       final colMap = <String, int>{};
       for (int j = 0; j < headerRow.length; j++) {
@@ -152,9 +170,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
 
         String cell(int? idx) {
           if (idx == null || idx >= row.length) return '';
-          final c = row[idx];
-          if (c == null) return '';
-          final v = c.value;
+          final v = row[idx]?.value;
           if (v == null) return '';
           return v.toString().trim();
         }
@@ -170,12 +186,15 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         final kodeMk = cell(colKodeMk);
         final namaMk = cell(colNamaMk);
 
+        // Skip baris kosong / istirahat
         if (kodeMk.isEmpty && namaMk.isEmpty) continue;
         if (namaMk.toUpperCase().contains('ISTIRAHAT')) continue;
+        if (effectiveHari.isEmpty || effectiveKelas.isEmpty) continue;
 
         final jamKeStr = cell(colJamKe);
         final jamKe = int.tryParse(jamKeStr) ?? 0;
 
+        // Ambil waktu dari kolom WAKTU atau lookup dari jamKe
         String jamMulai = '';
         String jamSelesai = '';
         final waktu = cell(colWaktu);
@@ -190,37 +209,141 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
 
         if (jamMulai.isEmpty) continue;
 
-        final model = ScheduleModel(
-          // ✅ FIX #2: toHexString() deprecated → gunakan .oid
-          id: ObjectId().oid,
-          namaMatkul: namaMk.isNotEmpty ? namaMk : '-',
-          namaDosen: cell(colNamaDosen).isNotEmpty ? cell(colNamaDosen) : '-',
-          hari: effectiveHari,
-          jamMulai: jamMulai,
-          jamSelesai: jamSelesai,
-          ruangan: cell(colRuangan),
-          status: 'PUBLISHED',
-          createdAt: DateTime.now(),
-          kelas: effectiveKelas,
-          kodeMk: kodeMk,
-          kodeDosen: cell(colKodeDosen),
-          tePr: cell(colTePr),
-          semester: semester,
-          tahunAkademik: tahunAkademik,
-          jamKe: jamKe,
+        rawRows.add(
+          _RawRow(
+            hari: effectiveHari,
+            kelas: effectiveKelas,
+            jamKe: jamKe,
+            jamMulai: jamMulai,
+            jamSelesai: jamSelesai,
+            kodeMk: kodeMk,
+            namaMk: namaMk.isNotEmpty ? namaMk : '-',
+            tePr: cell(colTePr),
+            kodeDosen: cell(colKodeDosen),
+            namaDosen: cell(colNamaDosen).isNotEmpty ? cell(colNamaDosen) : '-',
+            ruangan: cell(colRuangan),
+            semester: semester,
+            tahunAkademik: tahunAkademik,
+          ),
         );
-
-        results.add(model);
       }
     }
 
-    if (results.isEmpty) {
+    if (rawRows.isEmpty) {
       throw Exception(
         'Tidak ada data yang berhasil diparsing. '
         'Pastikan format kolom sesuai: HARI, KODE MK, NAMA MK, '
         'KODE DOSEN, NAMA DOSEN, RUANGAN, KELAS.',
       );
     }
+
+    // ── MERGE: gabungkan baris berurutan yang merupakan 1 matkul ────────────
+    //
+    // Algoritma:
+    //   1. Iterasi rawRows secara berurutan.
+    //   2. Jika baris saat ini memiliki merge-key yang sama dengan baris
+    //      sebelumnya DAN (jamKe saat ini == jamKe sebelumnya + 1,
+    //      dengan toleransi lompatan istirahat), perpanjang jamSelesai
+    //      dan perbarui jamKe terakhir.
+    //   3. Jika beda, finalisasi entry sebelumnya dan mulai entry baru.
+    //
+    // "Toleransi lompatan istirahat": di jadwal ada istirahat yang sudah
+    // kita skip, sehingga jamKe bisa lompat (mis. 3→4 normal, 3→5 jika ada
+    // istirahat di tengah). Kita toleransi lompatan ≤ 2 jam.
+    // ───────────────────────────────────────────────────────────────────────
+
+    final results = <ScheduleModel>[];
+
+    // Pending entry yang sedang "dibangun"
+    _RawRow? current;
+    int currentLastJamKe = 0; // jamKe terakhir yang sudah dimasukkan
+
+    void flush() {
+      if (current == null) return;
+      results.add(
+        ScheduleModel(
+          id: ObjectId().oid,
+          namaMatkul: current!.namaMk,
+          namaDosen: current!.namaDosen,
+          hari: current!.hari,
+          jamMulai: current!.jamMulai,
+          jamSelesai: current!.jamSelesai, // sudah diupdate ke jam akhir
+          ruangan: current!.ruangan,
+          status: 'PUBLISHED',
+          createdAt: DateTime.now(),
+          kelas: current!.kelas,
+          kodeMk: current!.kodeMk,
+          kodeDosen: current!.kodeDosen,
+          tePr: current!.tePr,
+          semester: current!.semester,
+          tahunAkademik: current!.tahunAkademik,
+          jamKe: current!.jamKe, // jamKe mulai (baris pertama)
+        ),
+      );
+      current = null;
+      currentLastJamKe = 0;
+    }
+
+    for (final row in rawRows) {
+      if (current == null) {
+        // Mulai entry baru
+        current = row;
+        currentLastJamKe = row.jamKe;
+      } else {
+        final sameKey =
+            _mergeKey(
+              hari: row.hari,
+              kelas: row.kelas,
+              kodeMk: row.kodeMk,
+              kodeDosen: row.kodeDosen,
+              tePr: row.tePr,
+              ruangan: row.ruangan,
+            ) ==
+            _mergeKey(
+              hari: current!.hari,
+              kelas: current!.kelas,
+              kodeMk: current!.kodeMk,
+              kodeDosen: current!.kodeDosen,
+              tePr: current!.tePr,
+              ruangan: current!.ruangan,
+            );
+
+        // Dianggap "baris lanjutan" jika:
+        //   - merge-key sama, DAN
+        //   - jamKe baru > jamKe terakhir, DAN
+        //   - selisih jamKe ≤ 2 (toleransi 1 slot istirahat)
+        final isConsecutive =
+            sameKey &&
+            row.jamKe > currentLastJamKe &&
+            (row.jamKe - currentLastJamKe) <= 2;
+
+        if (isConsecutive) {
+          // Perpanjang jamSelesai ke jam akhir baris ini
+          current = _RawRow(
+            hari: current!.hari,
+            kelas: current!.kelas,
+            jamKe: current!.jamKe, // tetap jamKe awal
+            jamMulai: current!.jamMulai, // tetap jam mulai awal
+            jamSelesai: row.jamSelesai, // ← update ke jam selesai terbaru
+            kodeMk: current!.kodeMk,
+            namaMk: current!.namaMk,
+            tePr: current!.tePr,
+            kodeDosen: current!.kodeDosen,
+            namaDosen: current!.namaDosen,
+            ruangan: current!.ruangan,
+            semester: current!.semester,
+            tahunAkademik: current!.tahunAkademik,
+          );
+          currentLastJamKe = row.jamKe;
+        } else {
+          // Beda matkul/hari/kelas — flush entry lama, mulai baru
+          flush();
+          current = row;
+          currentLastJamKe = row.jamKe;
+        }
+      }
+    }
+    flush(); // flush entry terakhir
 
     return results;
   }
@@ -323,15 +446,12 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      // ✅ FIX #3: withOpacity() deprecated → withValues()
                       color: SigmaColors.navy.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: SigmaColors.navy.withValues(alpha: 0.12),
                       ),
                     ),
-                    // ✅ FIX #4: _infoChip() method diganti jadi _InfoChip widget
-                    // agar bisa dipakai dalam const Column
                     child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -366,8 +486,8 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                         _InfoChip('KELAS'),
                         SizedBox(height: 6),
                         Text(
-                          'Baris dengan kolom NAMA MK kosong atau '
-                          '"ISTIRAHAT" akan diabaikan otomatis.',
+                          'Baris berurutan dengan matkul & dosen yang sama '
+                          'akan digabung otomatis menjadi 1 jadwal.',
                           style: TextStyle(
                             color: SigmaColors.textSub,
                             fontSize: 11,
@@ -485,7 +605,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Preview: ${_parsedSchedules.length} baris '
+                          'Preview: ${_parsedSchedules.length} jadwal '
                           'dari ${_kelasSummary.length} kelas',
                           style: const TextStyle(
                             color: SigmaColors.navy,
@@ -497,6 +617,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                     ),
                     const SizedBox(height: 10),
 
+                    // Chip per kelas
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
@@ -559,7 +680,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Tabel preview
+                    // Tabel preview (max 20 jadwal)
                     Container(
                       decoration: BoxDecoration(
                         color: SigmaColors.white,
@@ -571,7 +692,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: DataTable(
-                            // ✅ WidgetStateProperty tidak boleh di-const
                             headingRowColor: WidgetStateProperty.all(
                               SigmaColors.navy.withValues(alpha: 0.06),
                             ),
@@ -590,7 +710,8 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                             columns: const [
                               DataColumn(label: Text('Kelas')),
                               DataColumn(label: Text('Hari')),
-                              DataColumn(label: Text('Jam')),
+                              DataColumn(label: Text('Jam Mulai')),
+                              DataColumn(label: Text('Jam Selesai')),
                               DataColumn(label: Text('Kode MK')),
                               DataColumn(label: Text('Nama MK')),
                               DataColumn(label: Text('Dosen')),
@@ -604,13 +725,12 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                                     cells: [
                                       DataCell(Text(s.kelas)),
                                       DataCell(Text(s.hari)),
-                                      DataCell(
-                                        Text('${s.jamMulai}–${s.jamSelesai}'),
-                                      ),
+                                      DataCell(Text(s.jamMulai)),
+                                      DataCell(Text(s.jamSelesai)),
                                       DataCell(Text(s.kodeMk)),
                                       DataCell(
                                         SizedBox(
-                                          width: 160,
+                                          width: 150,
                                           child: Text(
                                             s.namaMatkul,
                                             overflow: TextOverflow.ellipsis,
@@ -619,7 +739,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                                       ),
                                       DataCell(
                                         SizedBox(
-                                          width: 140,
+                                          width: 130,
                                           child: Text(
                                             s.namaDosen,
                                             overflow: TextOverflow.ellipsis,
@@ -641,7 +761,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          '... dan ${_parsedSchedules.length - 20} baris lainnya',
+                          '... dan ${_parsedSchedules.length - 20} jadwal lainnya',
                           style: const TextStyle(
                             color: SigmaColors.textSub,
                             fontSize: 12,
@@ -736,8 +856,40 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
   }
 }
 
-// ✅ FIX #5: Jadikan StatelessWidget top-level (bukan method dalam class)
-// agar bisa dipakai sebagai const di dalam Column
+// ─── Helper model untuk menampung baris mentah sebelum di-merge ───────────────
+class _RawRow {
+  final String hari;
+  final String kelas;
+  final int jamKe;
+  final String jamMulai;
+  final String jamSelesai;
+  final String kodeMk;
+  final String namaMk;
+  final String tePr;
+  final String kodeDosen;
+  final String namaDosen;
+  final String ruangan;
+  final String semester;
+  final String tahunAkademik;
+
+  const _RawRow({
+    required this.hari,
+    required this.kelas,
+    required this.jamKe,
+    required this.jamMulai,
+    required this.jamSelesai,
+    required this.kodeMk,
+    required this.namaMk,
+    required this.tePr,
+    required this.kodeDosen,
+    required this.namaDosen,
+    required this.ruangan,
+    required this.semester,
+    required this.tahunAkademik,
+  });
+}
+
+// ─── Info chip untuk daftar format kolom ─────────────────────────────────────
 class _InfoChip extends StatelessWidget {
   const _InfoChip(this.label);
   final String label;
