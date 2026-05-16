@@ -5,6 +5,8 @@ import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
 import '../models/schedule_model.dart';
 import 'import_schedule_page.dart';
+import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
+import 'package:sigma/features/auth/views/login_page.dart';
 
 class AdminSchedulePage extends StatefulWidget {
   const AdminSchedulePage({super.key});
@@ -63,7 +65,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                     ),
                   ),
 
-                  // ── Section title ──
+                  // ── Section title + tombol Import ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
@@ -76,7 +78,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                           ),
                           const SizedBox(width: 8),
                           const Expanded(
-                            // ← tambah Expanded
                             child: Text(
                               'Daftar Jadwal Kuliah',
                               style: TextStyle(
@@ -87,7 +88,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                             ),
                           ),
                           SigmaPrimaryButton(
-                            // ← tambah button
                             label: 'Import',
                             icon: Icons.upload_file_rounded,
                             onTap: () => Navigator.push(
@@ -189,6 +189,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 _StatusBadge(isPublished: isPublished),
               ],
             ),
@@ -196,8 +197,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
             const Divider(color: SigmaColors.cardBorder),
             const SizedBox(height: 12),
 
-            // Detail rows
-            // Ganti bagian detail rows jadi ini:
             _DetailRow(
               icon: Icons.person_outline_rounded,
               label: 'Dosen',
@@ -304,6 +303,7 @@ class _ScheduleCard extends StatelessWidget {
           children: [
             // Nama MK + badge status
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
@@ -315,12 +315,13 @@ class _ScheduleCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 _StatusBadge(isPublished: isPublished),
               ],
             ),
             const SizedBox(height: 6),
 
-            // Dosen
+            // ── Dosen — Flexible agar tidak overflow ──
             Row(
               children: [
                 const Icon(
@@ -329,18 +330,21 @@ class _ScheduleCard extends StatelessWidget {
                   color: SigmaColors.textSub,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  schedule.namaDosen,
-                  style: const TextStyle(
-                    color: SigmaColors.textSub,
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    schedule.namaDosen,
+                    style: const TextStyle(
+                      color: SigmaColors.textSub,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
 
-            // Waktu & ruangan
+            // ── Waktu & ruangan — Flexible agar tidak overflow ──
             Row(
               children: [
                 const Icon(
@@ -349,25 +353,31 @@ class _ScheduleCard extends StatelessWidget {
                   color: SigmaColors.textSub,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  '${schedule.hari}, ${schedule.jamMulai}–${schedule.jamSelesai}',
-                  style: const TextStyle(
-                    color: SigmaColors.textSub,
-                    fontSize: 12,
+                Flexible(
+                  child: Text(
+                    '${schedule.hari}, ${schedule.jamMulai}–${schedule.jamSelesai}',
+                    style: const TextStyle(
+                      color: SigmaColors.textSub,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 const Icon(
                   Icons.room_outlined,
                   size: 13,
                   color: SigmaColors.textSub,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  schedule.ruangan,
-                  style: const TextStyle(
-                    color: SigmaColors.textSub,
-                    fontSize: 12,
+                Flexible(
+                  child: Text(
+                    schedule.ruangan,
+                    style: const TextStyle(
+                      color: SigmaColors.textSub,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -421,6 +431,7 @@ class _ScheduleCard extends StatelessWidget {
   }
 }
 
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.isPublished});
   final bool isPublished;
@@ -448,6 +459,7 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+// ─── Detail Row ───────────────────────────────────────────────────────────────
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
     required this.icon,
@@ -492,9 +504,61 @@ class _LogoutButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // TODO: panggil logout dari AuthViewModel
-        Navigator.of(context).popUntil((r) => r.isFirst);
+      onTap: () async {
+        // Konfirmasi logout
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Logout?',
+              style: TextStyle(
+                color: SigmaColors.navy,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+            content: const Text(
+              'Yakin ingin keluar dari akun ini?',
+              style: TextStyle(color: SigmaColors.textSub, fontSize: 13),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: SigmaColors.textSub),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: SigmaColors.danger,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (confirm != true) return;
+        if (!context.mounted) return;
+
+        // Panggil logout dari LoginViewModel
+        await context.read<LoginViewModel>().logout();
+
+        if (!context.mounted) return;
+
+        // Navigate ke LoginPage, hapus semua route
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
