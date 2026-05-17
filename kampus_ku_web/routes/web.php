@@ -5,6 +5,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\MasterMatkulController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PeriodeRevisiController;
 
 // Rute Publik (Login)
 Route::get('/', [AuthController::class, 'showLogin'])->name('login');
@@ -57,6 +58,14 @@ Route::middleware(['auth'])->group(function () {
         });
 
         Route::get('/master-matkul', [MasterMatkulController::class, 'index'])->name('master-matkul.index');
+
+        // --- Periode Revisi ---
+        Route::prefix('revisi')->name('revisi.')->group(function () {
+            Route::get('/',        [PeriodeRevisiController::class, 'index'])->name('index');
+            Route::post('/',       [PeriodeRevisiController::class, 'store'])->name('store');
+            Route::patch('/{id}/toggle',  [PeriodeRevisiController::class, 'toggle'])->name('toggle');
+            Route::delete('/{id}', [PeriodeRevisiController::class, 'destroy'])->name('destroy');
+        });
     });
 
     // ==================================================

@@ -13,16 +13,29 @@ class Announcement extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'judul', 'isi', 'target_audience', 'id_prodi', 'id_jurusan',
-        'id_publisher', 'nama_publisher', 'role_publisher',
-        'kategori', 'target_angkatan', 'created_at', 'updated_at',
+        'judul', 
+        'isi',
+        'target_audience',
+        'id_prodi', 
+        'id_jurusan',
+        'id_publisher',
+        'nama_publisher', 
+        'role_publisher',
+        'kategori', // 'Akademik', 'Beasiswa', 'Lomba' dsb.
+        'target_angkatan', // Filter tambahan
+        'created_at',
+        'updated_at',
     ];
 
-    // Array penyimpan user_id yang sudah membaca (Read Confirmation - Should Have DOCX)
+    // Array penyimpan user_id yang sudah membaca (Read Confirmation)
     protected $casts = [
         // 'read_by_users' => 'array',
         // 'kategori' => 'array',
         // 'target_angkatan' => 'array',
+
+        'read_by_users' => 'array',
+
+        'target_angkatan' => 'array',
 
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -54,4 +67,25 @@ class Announcement extends Model
         'FASILITAS',
         'LAINNYA'
     ];
+
+    public function getKategoriAttribute($value): array
+    {
+        if (is_array($value)) return $value;
+        if (is_string($value)) return json_decode($value, true) ?? [];
+        return [];
+    }
+
+    public function getReadByUsersAttribute($value): array
+    {
+        if (is_array($value)) return $value;
+        if (is_string($value)) return json_decode($value, true) ?? [];
+        return [];
+    }
+
+    public function getTargetAngkatanAttribute($value): array
+    {
+        if (is_array($value)) return $value;
+        if (is_string($value)) return json_decode($value, true) ?? [];
+        return [];
+    }
 }

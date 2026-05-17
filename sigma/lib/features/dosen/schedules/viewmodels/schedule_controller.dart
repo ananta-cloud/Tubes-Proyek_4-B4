@@ -7,10 +7,12 @@ import '../../../../data/services/schedule_service.dart';
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;
 
-  List<ScheduleLocalModel> schedules = [];
-  bool isLoading = false;
-
   ScheduleController(this.service);
+
+  List<ScheduleLocalModel> schedules = [];
+
+  bool isLoading = false;
+  String? errorMsg;
 
   Future<void> syncSchedules() async {
     isLoading = true;
@@ -20,7 +22,9 @@ class ScheduleController extends ChangeNotifier {
 
     try {
       //  Ambil langsung dari Mongo
-      final List<Map<String, dynamic>> list = await service.getSchedules();
+      final List<Map<String, dynamic>> list = await service.getSchedules(
+        idJurusan: '12345',
+      );
 
       print("MONGO DATA: ${list.length}");
 
