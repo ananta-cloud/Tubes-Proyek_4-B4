@@ -15,7 +15,6 @@ class AdminScheduleViewModel extends ChangeNotifier {
   bool _isSyncing = false;
   bool _isSyncInProgress = false;
 
-  // Progress import
   String _importStatus = '';
   bool _isImporting = false;
 
@@ -26,17 +25,12 @@ class AdminScheduleViewModel extends ChangeNotifier {
   String get importStatus => _importStatus;
   int get pendingQueueCount => _queueBox.length;
 
-  int get draftCount =>
-      _schedules.where((s) => s.status.toUpperCase() == 'DRAFT').length;
-  int get publishedCount =>
-      _schedules.where((s) => s.status.toUpperCase() == 'PUBLISHED').length;
-
-  // ─── Boxes ────────────────────────────────────────────────────────────────
+  // ── Boxes ──────────────────────────────────────────────────────────────────
   Box<ScheduleModel> get _schedulesBox =>
       Hive.box<ScheduleModel>(_kBoxSchedules);
   Box<Map> get _queueBox => Hive.box<Map>(_kBoxQueue);
 
-  // ─── Init ─────────────────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────────────────────────
   Future<void> fetchSchedules() async {
     if (_isSyncInProgress) return;
     _loadFromLocal();
@@ -44,7 +38,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     await _syncFromMongo();
   }
 
-  // ─── Load lokal ───────────────────────────────────────────────────────────
+  // ── Load lokal ─────────────────────────────────────────────────────────────
   void _loadFromLocal() {
     try {
       _schedules = _schedulesBox.values.toList();
@@ -54,7 +48,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     }
   }
 
-  // ─── Sync dari MongoDB ────────────────────────────────────────────────────
+  // ── Sync dari MongoDB ───────────────────────────────────────────────────────
   Future<void> _syncFromMongo() async {
     if (_isSyncInProgress) return;
     final isOnline = await _checkOnline();
@@ -79,9 +73,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
         final oldKeys = _schedulesBox.keys.cast<String>().toList();
         final newKeys = newEntries.keys.toSet();
         for (final oldKey in oldKeys) {
-          if (!newKeys.contains(oldKey)) {
-            await _schedulesBox.delete(oldKey);
-          }
+          if (!newKeys.contains(oldKey)) await _schedulesBox.delete(oldKey);
         }
 
         await _schedulesBox.putAll(newEntries);
@@ -97,9 +89,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     }
   }
 
-  // ─── Import dari Excel ────────────────────────────────────────────────────
-  /// Menerima list jadwal hasil parse Excel, hapus duplikat berdasarkan
-  /// semester + tahunAkademik + kelas, lalu simpan semua ke Hive dan MongoDB.
+  // ── Import dari Excel ───────────────────────────────────────────────────────
   Future<void> importSchedules(List<ScheduleModel> parsed) async {
     if (parsed.isEmpty) return;
 
@@ -108,7 +98,6 @@ class AdminScheduleViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Kumpulkan kombinasi unik semester + tahunAkademik + kelas dari data baru
       final kelasKeys = parsed
           .map((s) => '${s.semester}|${s.tahunAkademik}|${s.kelas}')
           .toSet();
@@ -116,7 +105,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
       _importStatus = 'Menghapus jadwal lama...';
       notifyListeners();
 
-      // 1. Hapus dari Hive — semua entry yang cocok semester+tahunAkademik+kelas
+      // 1. Hapus dari Hive
       final keysToDelete = _schedulesBox.keys.cast<String>().where((key) {
         final existing = _schedulesBox.get(key);
         if (existing == null) return false;
@@ -152,7 +141,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
         }
       }
 
-      // 3. Simpan data baru ke Hive
+      // 3. Simpan ke Hive
       _importStatus = 'Menyimpan ${parsed.length} jadwal...';
       notifyListeners();
 
@@ -163,7 +152,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
       await _schedulesBox.putAll(newEntries);
       _loadFromLocal();
 
-      // 4. Simpan ke MongoDB (jika online) atau queue
+      // 4. Simpan ke MongoDB atau queue
       if (isOnline) {
         int saved = 0;
         for (final s in parsed) {
@@ -180,7 +169,6 @@ class AdminScheduleViewModel extends ChangeNotifier {
           saved++;
         }
       } else {
-        // Offline — masukkan ke queue batch
         await _queueBox.add({
           'operation': 'import_batch',
           'ids': parsed.map((s) => s.id).toList(),
@@ -201,37 +189,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     }
   }
 
-  // ─── Publish ──────────────────────────────────────────────────────────────
-  Future<void> publishSchedule(String id) async {
-    final existing = _schedulesBox.get(id);
-    if (existing != null) {
-      final updated = ScheduleModel(
-        id: existing.id,
-        namaMatkul: existing.namaMatkul,
-        namaDosen: existing.namaDosen,
-        hari: existing.hari,
-        jamMulai: existing.jamMulai,
-        jamSelesai: existing.jamSelesai,
-        ruangan: existing.ruangan,
-        status: 'PUBLISHED',
-        createdAt: existing.createdAt,
-        kelas: existing.kelas,
-        kodeMk: existing.kodeMk,
-        kodeDosen: existing.kodeDosen,
-        tePr: existing.tePr,
-        semester: existing.semester,
-        tahunAkademik: existing.tahunAkademik,
-        jamKe: existing.jamKe,
-      );
-      await _schedulesBox.put(id, updated);
-      _loadFromLocal();
-    }
-
-    await _queueBox.add({'operation': 'publish', 'id': id});
-    await _drainQueue();
-  }
-
-  // ─── Queue drain ──────────────────────────────────────────────────────────
+  // ── Queue drain ─────────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -249,19 +207,10 @@ class AdminScheduleViewModel extends ChangeNotifier {
       final op = Map<String, dynamic>.from(raw);
 
       try {
-        if (op['operation'] == 'publish') {
-          await MongoDatabase.runSafe(
-            () => MongoDatabase.schedulesCollection.updateOne(
-              where.id(ObjectId.fromHexString(op['id'])),
-              modify.set('status', 'PUBLISHED'),
-            ),
-          );
-        } else if (op['operation'] == 'import_batch') {
-          // Drain import yang pending saat offline
+        if (op['operation'] == 'import_batch') {
           final ids = List<String>.from(op['ids'] ?? []);
           final kelasKeys = List<String>.from(op['kelas_keys'] ?? []);
 
-          // Hapus duplikat dulu
           for (final kelasKey in kelasKeys) {
             final parts = kelasKey.split('|');
             if (parts.length < 3) continue;
@@ -275,7 +224,6 @@ class AdminScheduleViewModel extends ChangeNotifier {
             );
           }
 
-          // Insert semua dari Hive
           for (final id in ids) {
             final s = _schedulesBox.get(id);
             if (s == null) continue;
@@ -301,14 +249,14 @@ class AdminScheduleViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Connection restored ──────────────────────────────────────────────────
+  // ── Connection restored ────────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
     debugPrint('🔄 Connection restored — draining schedule queue...');
     await _drainQueue();
     await _syncFromMongo();
   }
 
-  // ─── Helper ───────────────────────────────────────────────────────────────
+  // ── Helper ─────────────────────────────────────────────────────────────────
   Future<bool> _checkOnline() async {
     final result = await Connectivity().checkConnectivity();
     return !(result as List).contains(ConnectivityResult.none);

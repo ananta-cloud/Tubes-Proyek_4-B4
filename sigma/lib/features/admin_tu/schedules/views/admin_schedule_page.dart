@@ -16,17 +16,96 @@ class AdminSchedulePage extends StatefulWidget {
 }
 
 class _AdminSchedulePageState extends State<AdminSchedulePage> {
+  // ── Filter state ──────────────────────────────────────────────────────────
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  final Set<String> _filterKelas = {};
+  final Set<String> _filterHari = {};
+  final Set<String> _filterTePr = {};
+
+  bool _filterExpanded = true;
+
+  static const _hariOrder = [
+    'SENIN',
+    'SELASA',
+    'RABU',
+    'KAMIS',
+    'JUMAT',
+    'SABTU',
+  ];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminScheduleViewModel>().fetchSchedules();
     });
+    _searchCtrl.addListener(() {
+      setState(() => _searchQuery = _searchCtrl.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  int get _activeFilterCount =>
+      (_searchQuery.isNotEmpty ? 1 : 0) +
+      _filterKelas.length +
+      _filterHari.length +
+      _filterTePr.length;
+
+  void _resetFilters() => setState(() {
+    _searchCtrl.clear();
+    _searchQuery = '';
+    _filterKelas.clear();
+    _filterHari.clear();
+    _filterTePr.clear();
+  });
+
+  void _toggle(Set<String> set, String value) =>
+      setState(() => set.contains(value) ? set.remove(value) : set.add(value));
+
+  List<ScheduleModel> _applyFilters(List<ScheduleModel> all) {
+    return all.where((s) {
+      if (_filterKelas.isNotEmpty && !_filterKelas.contains(s.kelas)) {
+        return false;
+      }
+      if (_filterHari.isNotEmpty && !_filterHari.contains(s.hari.toUpperCase()))
+        return false;
+      if (_filterTePr.isNotEmpty && !_filterTePr.contains(s.tePr.toUpperCase()))
+        return false;
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery;
+        return s.namaMatkul.toLowerCase().contains(q) ||
+            s.namaDosen.toLowerCase().contains(q) ||
+            s.kodeMk.toLowerCase().contains(q) ||
+            s.kelas.toLowerCase().contains(q) ||
+            s.ruangan.toLowerCase().contains(q);
+      }
+      return true;
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminScheduleViewModel>();
+    final schedules = _applyFilters(vm.schedules);
+
+    // Opsi filter dinamis dari data yang ada
+    final allKelas =
+        vm.schedules
+            .map((s) => s.kelas)
+            .where((k) => k.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final allHari = _hariOrder
+        .where((h) => vm.schedules.any((s) => s.hari.toUpperCase() == h))
+        .toList();
 
     return Scaffold(
       backgroundColor: SigmaColors.bgPage,
@@ -41,52 +120,81 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
               onRefresh: () => vm.fetchSchedules(),
               child: CustomScrollView(
                 slivers: [
-                  // ── Stat Cards ──
+                  // ── Stat — hanya total ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                       child: Row(
                         children: [
                           SigmaStatCard(
-                            label: 'DRAFT',
-                            value: '${vm.draftCount}',
-                            sublabel: 'Belum difinalisasi',
-                            accentColor: SigmaColors.textSub,
+                            label: 'TOTAL JADWAL',
+                            value: '${vm.schedules.length}',
+                            sublabel: 'Semester Genap 2025/2026',
                           ),
                           const SizedBox(width: 12),
                           SigmaStatCard(
-                            label: 'PUBLISHED',
-                            value: '${vm.publishedCount}',
-                            sublabel: 'Live di HP mahasiswa',
-                            accentColor: SigmaColors.success,
+                            label: 'KELAS',
+                            value: '${allKelas.length}',
+                            sublabel: 'kelas terdaftar',
+                            accentColor: SigmaColors.accent,
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // ── Section title + tombol Import ──
+                  // ── Filter Panel ──
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                      child: _FilterPanel(
+                        expanded: _filterExpanded,
+                        onToggleExpand: () =>
+                            setState(() => _filterExpanded = !_filterExpanded),
+                        activeCount: _activeFilterCount,
+                        onReset: _activeFilterCount > 0 ? _resetFilters : null,
+                        searchCtrl: _searchCtrl,
+                        allKelas: allKelas,
+                        filterKelas: _filterKelas,
+                        onToggleKelas: (v) => _toggle(_filterKelas, v),
+                        allHari: allHari,
+                        filterHari: _filterHari,
+                        onToggleHari: (v) => _toggle(_filterHari, v),
+                        filterTePr: _filterTePr,
+                        onToggleTePr: (v) => _toggle(_filterTePr, v),
+                      ),
+                    ),
+                  ),
+
+                  // ── List header ──
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                       child: Row(
                         children: [
                           const Icon(
                             Icons.format_list_bulleted_rounded,
                             color: SigmaColors.navy,
-                            size: 18,
+                            size: 16,
                           ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Daftar Jadwal Kuliah',
-                              style: TextStyle(
-                                color: SigmaColors.navy,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Daftar Jadwal',
+                            style: TextStyle(
+                              color: SigmaColors.navy,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${schedules.length} jadwal',
+                            style: const TextStyle(
+                              color: SigmaColors.textSub,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const Spacer(),
                           SigmaPrimaryButton(
                             label: 'Import',
                             icon: Icons.upload_file_rounded,
@@ -111,11 +219,15 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                         ),
                       ),
                     )
-                  else if (vm.schedules.isEmpty)
+                  else if (schedules.isEmpty)
                     SliverFillRemaining(
                       child: SigmaEmptyState(
-                        icon: Icons.calendar_today_outlined,
-                        message: 'Belum ada data jadwal perkuliahan.',
+                        icon: vm.schedules.isEmpty
+                            ? Icons.calendar_today_outlined
+                            : Icons.search_off_rounded,
+                        message: vm.schedules.isEmpty
+                            ? 'Belum ada data jadwal.\nTap "Import" untuk mengunggah.'
+                            : 'Tidak ada jadwal yang cocok\ndengan filter yang dipilih.',
                       ),
                     )
                   else
@@ -124,15 +236,10 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, i) => GestureDetector(
-                            onTap: () =>
-                                _showScheduleDetail(context, vm.schedules[i]),
-                            child: _ScheduleCard(
-                              schedule: vm.schedules[i],
-                              onPublish: () =>
-                                  vm.publishSchedule(vm.schedules[i].id),
-                            ),
+                            onTap: () => _showDetail(context, schedules[i]),
+                            child: _ScheduleCard(schedule: schedules[i]),
                           ),
-                          childCount: vm.schedules.length,
+                          childCount: schedules.length,
                         ),
                       ),
                     ),
@@ -145,15 +252,14 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
     );
   }
 
-  void _showScheduleDetail(BuildContext context, ScheduleModel schedule) {
-    final isPublished = schedule.status.toUpperCase() == 'PUBLISHED';
-
+  // ── Bottom sheet detail ───────────────────────────────────────────────────
+  void _showDetail(BuildContext context, ScheduleModel s) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
         decoration: const BoxDecoration(
           color: SigmaColors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -175,23 +281,26 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
             ),
             const SizedBox(height: 16),
 
-            // Header: nama MK + status badge
+            // Kelas chip + kode MK
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    schedule.namaMatkul,
-                    style: const TextStyle(
-                      color: SigmaColors.navy,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _StatusBadge(isPublished: isPublished),
+                if (s.kelas.isNotEmpty) _KelasChip(s.kelas),
+                if (s.kelas.isNotEmpty) const SizedBox(width: 8),
+                if (s.kodeMk.isNotEmpty) _KodeMkChip(s.kodeMk),
+                const Spacer(),
+                _TePrChip(s.tePr),
               ],
+            ),
+            const SizedBox(height: 10),
+
+            // Nama MK
+            Text(
+              s.namaMatkul,
+              style: const TextStyle(
+                color: SigmaColors.navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 16),
             const Divider(color: SigmaColors.cardBorder),
@@ -200,70 +309,34 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
             _DetailRow(
               icon: Icons.person_outline_rounded,
               label: 'Dosen',
-              value: schedule.namaDosen,
+              value: s.namaDosen.replaceAll(';', '\n'),
+            ),
+            const SizedBox(height: 10),
+            _DetailRow(
+              icon: Icons.calendar_today_outlined,
+              label: 'Hari',
+              value: _capitalizeFirst(s.hari),
             ),
             const SizedBox(height: 10),
             _DetailRow(
               icon: Icons.access_time_rounded,
-              label: 'Hari & Waktu',
+              label: 'Jam',
               value:
-                  '${schedule.hari}, ${schedule.jamMulai}–${schedule.jamSelesai}',
+                  '${s.jamMulai} – ${s.jamSelesai}'
+                  '${s.jamKe > 0 ? '  (Jam ke-${s.jamKe})' : ''}',
             ),
             const SizedBox(height: 10),
             _DetailRow(
               icon: Icons.room_outlined,
               label: 'Ruangan',
-              value: schedule.ruangan,
+              value: s.ruangan,
             ),
             const SizedBox(height: 10),
             _DetailRow(
-              icon: Icons.calendar_today_outlined,
-              label: 'Status',
-              value: schedule.status,
+              icon: Icons.school_outlined,
+              label: 'Semester',
+              value: '${_capitalizeFirst(s.semester)} ${s.tahunAkademik}',
             ),
-
-            if (!isPublished) ...[
-              const SizedBox(height: 20),
-              const Divider(color: SigmaColors.cardBorder),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.read<AdminScheduleViewModel>().publishSchedule(
-                      schedule.id,
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: SigmaColors.navy,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.publish_rounded,
-                          color: SigmaColors.white,
-                          size: 16,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Publish Jadwal',
-                          style: TextStyle(
-                            color: SigmaColors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -271,19 +344,236 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
   }
 }
 
-// ─── Schedule Card ────────────────────────────────────────────────────────────
-class _ScheduleCard extends StatelessWidget {
-  const _ScheduleCard({required this.schedule, required this.onPublish});
+// ─────────────────────────────────────────────────────────────────────────────
+//  Filter Panel
+// ─────────────────────────────────────────────────────────────────────────────
+class _FilterPanel extends StatelessWidget {
+  const _FilterPanel({
+    required this.expanded,
+    required this.onToggleExpand,
+    required this.activeCount,
+    required this.onReset,
+    required this.searchCtrl,
+    required this.allKelas,
+    required this.filterKelas,
+    required this.onToggleKelas,
+    required this.allHari,
+    required this.filterHari,
+    required this.onToggleHari,
+    required this.filterTePr,
+    required this.onToggleTePr,
+  });
 
-  final ScheduleModel schedule;
-  final VoidCallback onPublish;
+  final bool expanded;
+  final VoidCallback onToggleExpand;
+  final int activeCount;
+  final VoidCallback? onReset;
+  final TextEditingController searchCtrl;
+
+  final List<String> allKelas;
+  final Set<String> filterKelas;
+  final void Function(String) onToggleKelas;
+
+  final List<String> allHari;
+  final Set<String> filterHari;
+  final void Function(String) onToggleHari;
+
+  final Set<String> filterTePr;
+  final void Function(String) onToggleTePr;
 
   @override
   Widget build(BuildContext context) {
-    final isPublished = schedule.status.toUpperCase() == 'PUBLISHED';
+    return Container(
+      decoration: BoxDecoration(
+        color: SigmaColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SigmaColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header filter (selalu tampil) ──
+          GestureDetector(
+            onTap: onToggleExpand,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.tune_rounded,
+                    color: SigmaColors.navy,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Filter Jadwal',
+                    style: TextStyle(
+                      color: SigmaColors.navy,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (activeCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: SigmaColors.navy,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        '$activeCount aktif',
+                        style: const TextStyle(
+                          color: SigmaColors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (onReset != null)
+                    GestureDetector(
+                      onTap: onReset,
+                      child: const Text(
+                        'Reset',
+                        style: TextStyle(
+                          color: SigmaColors.danger,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  if (onReset != null) const SizedBox(width: 10),
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: SigmaColors.textSub,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Isi filter (collapsible) ──
+          if (expanded) ...[
+            const Divider(color: SigmaColors.cardBorder, height: 1),
+
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search
+                  Container(
+                    decoration: BoxDecoration(
+                      color: SigmaColors.bgPage,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: TextField(
+                      controller: searchCtrl,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: SigmaColors.navy,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Cari nama MK, dosen, ruangan...',
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          color: SigmaColors.textSub,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: SigmaColors.textSub,
+                          size: 18,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Kelas
+                  if (allKelas.isNotEmpty) ...[
+                    _FilterLabel(icon: Icons.group_outlined, label: 'Kelas'),
+                    const SizedBox(height: 6),
+                    _ChipGroup(
+                      options: allKelas,
+                      selected: filterKelas,
+                      onTap: onToggleKelas,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Hari
+                  if (allHari.isNotEmpty) ...[
+                    _FilterLabel(
+                      icon: Icons.date_range_outlined,
+                      label: 'Hari',
+                    ),
+                    const SizedBox(height: 6),
+                    _ChipGroup(
+                      options: allHari,
+                      selected: filterHari,
+                      onTap: onToggleHari,
+                      displayMap: {
+                        'SENIN': 'Senin',
+                        'SELASA': 'Selasa',
+                        'RABU': 'Rabu',
+                        'KAMIS': 'Kamis',
+                        'JUMAT': 'Jumat',
+                        'SABTU': 'Sabtu',
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Tipe (TE / PR)
+                  _FilterLabel(
+                    icon: Icons.label_outline_rounded,
+                    label: 'Tipe',
+                  ),
+                  const SizedBox(height: 6),
+                  _ChipGroup(
+                    options: const ['TE', 'PR'],
+                    selected: filterTePr,
+                    onTap: onToggleTePr,
+                    displayMap: const {
+                      'TE': 'Teori (TE)',
+                      'PR': 'Praktik (PR)',
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Schedule Card — info lengkap, tanpa status publish
+// ─────────────────────────────────────────────────────────────────────────────
+class _ScheduleCard extends StatelessWidget {
+  const _ScheduleCard({required this.schedule});
+  final ScheduleModel schedule;
+
+  @override
+  Widget build(BuildContext context) {
+    final dosenDisplay = schedule.namaDosen.replaceAll(';', ', ');
+    final isMultiDosen = schedule.namaDosen.contains(';');
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: SigmaColors.white,
         borderRadius: BorderRadius.circular(14),
@@ -297,54 +587,63 @@ class _ScheduleCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Nama MK + badge status
+            // ── Baris atas: kelas + kode MK + tePr chip ──
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    schedule.namaMatkul,
-                    style: const TextStyle(
-                      color: SigmaColors.navy,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _StatusBadge(isPublished: isPublished),
+                if (schedule.kelas.isNotEmpty) ...[
+                  _KelasChip(schedule.kelas),
+                  const SizedBox(width: 6),
+                ],
+                if (schedule.kodeMk.isNotEmpty) _KodeMkChip(schedule.kodeMk),
+                const Spacer(),
+                _TePrChip(schedule.tePr),
               ],
+            ),
+            const SizedBox(height: 8),
+
+            // ── Nama MK ──
+            Text(
+              schedule.namaMatkul,
+              style: const TextStyle(
+                color: SigmaColors.navy,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+              softWrap: true,
             ),
             const SizedBox(height: 6),
 
-            // ── Dosen — Flexible agar tidak overflow ──
+            // ── Dosen (icon users jika multi) ──
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.person_outline_rounded,
+                Icon(
+                  isMultiDosen
+                      ? Icons.group_outlined
+                      : Icons.person_outline_rounded,
                   size: 13,
                   color: SigmaColors.textSub,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    schedule.namaDosen,
+                    dosenDisplay,
                     style: const TextStyle(
                       color: SigmaColors.textSub,
                       fontSize: 12,
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
 
-            // ── Waktu & ruangan — Flexible agar tidak overflow ──
+            // ── Hari + jam ──
             Row(
               children: [
                 const Icon(
@@ -353,24 +652,48 @@ class _ScheduleCard extends StatelessWidget {
                   color: SigmaColors.textSub,
                 ),
                 const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    '${schedule.hari}, ${schedule.jamMulai}–${schedule.jamSelesai}',
-                    style: const TextStyle(
-                      color: SigmaColors.textSub,
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  '${_capitalizeFirst(schedule.hari)}, '
+                  '${schedule.jamMulai}–${schedule.jamSelesai}',
+                  style: const TextStyle(
+                    color: SigmaColors.textSub,
+                    fontSize: 12,
                   ),
                 ),
-                const SizedBox(width: 8),
+                if (schedule.jamKe > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.bgPage,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Jam ke-${schedule.jamKe}',
+                      style: const TextStyle(
+                        color: SigmaColors.textSub,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+
+            // ── Ruangan ──
+            Row(
+              children: [
                 const Icon(
                   Icons.room_outlined,
                   size: 13,
                   color: SigmaColors.textSub,
                 ),
                 const SizedBox(width: 4),
-                Flexible(
+                Expanded(
                   child: Text(
                     schedule.ruangan,
                     style: const TextStyle(
@@ -382,48 +705,6 @@ class _ScheduleCard extends StatelessWidget {
                 ),
               ],
             ),
-
-            // Tombol publish (hanya jika masih draft)
-            if (!isPublished) ...[
-              const SizedBox(height: 12),
-              const Divider(color: SigmaColors.cardBorder, height: 1),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: onPublish,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: SigmaColors.navy,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.publish_rounded,
-                          color: SigmaColors.white,
-                          size: 15,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Publish',
-                          style: TextStyle(
-                            color: SigmaColors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -431,35 +712,158 @@ class _ScheduleCard extends StatelessWidget {
   }
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.isPublished});
-  final bool isPublished;
+// ─────────────────────────────────────────────────────────────────────────────
+//  Shared small widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _KelasChip extends StatelessWidget {
+  const _KelasChip(this.kelas);
+  final String kelas;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isPublished
-            ? SigmaColors.success.withOpacity(0.1)
-            : SigmaColors.textSub.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(99),
+        color: SigmaColors.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        isPublished ? 'PUBLISHED' : 'DRAFT',
-        style: TextStyle(
-          color: isPublished ? SigmaColors.success : SigmaColors.textSub,
-          fontSize: 10,
+        kelas,
+        style: const TextStyle(
+          color: SigmaColors.accent,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
         ),
       ),
     );
   }
 }
 
-// ─── Detail Row ───────────────────────────────────────────────────────────────
+class _KodeMkChip extends StatelessWidget {
+  const _KodeMkChip(this.kode);
+  final String kode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: SigmaColors.bgPage,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: SigmaColors.cardBorder),
+      ),
+      child: Text(
+        kode,
+        style: const TextStyle(
+          color: SigmaColors.textSub,
+          fontSize: 11,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+}
+
+class _TePrChip extends StatelessWidget {
+  const _TePrChip(this.tePr);
+  final String tePr;
+
+  @override
+  Widget build(BuildContext context) {
+    final isTE = tePr.toUpperCase() == 'TE';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isTE
+            ? const Color(0xFFFFF3E0)
+            : SigmaColors.navy.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        tePr.isEmpty ? '–' : tePr.toUpperCase(),
+        style: TextStyle(
+          color: isTE ? const Color(0xFFE65100) : SigmaColors.navy,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterLabel extends StatelessWidget {
+  const _FilterLabel({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: SigmaColors.textSub),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: SigmaColors.textSub,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChipGroup extends StatelessWidget {
+  const _ChipGroup({
+    required this.options,
+    required this.selected,
+    required this.onTap,
+    this.displayMap,
+  });
+
+  final List<String> options;
+  final Set<String> selected;
+  final void Function(String) onTap;
+  final Map<String, String>? displayMap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: options.map((opt) {
+        final isActive = selected.contains(opt);
+        final label = displayMap?[opt] ?? opt;
+        return GestureDetector(
+          onTap: () => onTap(opt),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isActive ? SigmaColors.navy : SigmaColors.bgPage,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(
+                color: isActive ? SigmaColors.navy : SigmaColors.cardBorder,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isActive ? SigmaColors.white : SigmaColors.textSub,
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
     required this.icon,
@@ -478,7 +882,7 @@ class _DetailRow extends StatelessWidget {
         Icon(icon, size: 16, color: SigmaColors.textSub),
         const SizedBox(width: 10),
         SizedBox(
-          width: 90,
+          width: 80,
           child: Text(
             label,
             style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
@@ -499,13 +903,14 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-// ─── Logout Button ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  Logout Button
+// ─────────────────────────────────────────────────────────────────────────────
 class _LogoutButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        // Konfirmasi logout
         final confirm = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
@@ -546,15 +951,11 @@ class _LogoutButton extends StatelessWidget {
           ),
         );
 
-        if (confirm != true) return;
-        if (!context.mounted) return;
+        if (confirm != true || !context.mounted) return;
 
-        // Panggil logout dari LoginViewModel
         await context.read<LoginViewModel>().logout();
 
         if (!context.mounted) return;
-
-        // Navigate ke LoginPage, hapus semua route
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginPage()),
           (route) => false,
@@ -563,7 +964,7 @@ class _LogoutButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: SigmaColors.danger.withOpacity(0.08),
+          color: SigmaColors.danger.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Row(
@@ -584,4 +985,12 @@ class _LogoutButton extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+String _capitalizeFirst(String s) {
+  if (s.isEmpty) return s;
+  return s[0].toUpperCase() + s.substring(1).toLowerCase();
 }
