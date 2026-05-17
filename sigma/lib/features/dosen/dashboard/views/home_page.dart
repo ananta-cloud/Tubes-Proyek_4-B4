@@ -283,14 +283,15 @@ class _HomePageDsnState extends State<HomePageDsn> {
       'Semua',
       'Pengajaran',
       'Penelitian',
-      'Pengabdian Masyarakat',
+      'Pengabdian',
       'Informasi Umum'
     ];
 
     // Jangan tampilkan jika targetnya Semua Mahasiswa atau Prodi Mahasiswa
     final filteredAnnouncementsForDosen = viewModel.announcements.where((data) {
       return data.targetAudience != 'SEMUA_MAHASISWA' && 
-             data.targetAudience != 'PRODI_MAHASISWA';
+             data.targetAudience != 'PRODI_MAHASISWA' &&
+             data.targetAudience != 'MAHASISWA'; 
     }).toList();
 
     // --- BUNGKUS DENGAN REFRESH INDICATOR ---

@@ -21,14 +21,15 @@ class PengajaranModelAdapter extends TypeAdapter<PengajaranModel> {
       idDosen: fields[1] as String,
       idMk: fields[2] as String,
       namaMk: fields[3] as String,
-      targetKelas: fields[4] as String,
+      kodeMk: fields[4] as String,
+      targetKelas: (fields[5] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, PengajaranModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,6 +39,8 @@ class PengajaranModelAdapter extends TypeAdapter<PengajaranModel> {
       ..writeByte(3)
       ..write(obj.namaMk)
       ..writeByte(4)
+      ..write(obj.kodeMk)
+      ..writeByte(5)
       ..write(obj.targetKelas);
   }
 
