@@ -76,7 +76,7 @@ class BookmarkService {
       
       return data;
     } catch (e) {
-      print("🔥 Error Get Bookmarks (Mongo): $e");
+      print("Error Get Bookmarks (Mongo): $e");
       return [];
     }
   }

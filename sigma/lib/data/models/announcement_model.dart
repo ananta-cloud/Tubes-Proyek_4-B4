@@ -115,8 +115,8 @@ class AnnouncementModel extends HiveObject {
       }
 
       String parseId(dynamic value) {
-        if (value == null) return ObjectId().toHexString();
-        if (value is ObjectId) return value.toHexString();
+        if (value == null) return ObjectId().oid;
+        if (value is ObjectId) return value.oid;
         return value.toString();
       }
 
