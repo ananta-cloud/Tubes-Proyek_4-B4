@@ -58,10 +58,10 @@ class _LoginPageState extends State<LoginPage> {
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),
         );
-      } else if (user.role?.toUpperCase() == 'TIM_PENJADWALAN') {
+      } else if (user.role?.toUpperCase() == 'MANAJEMEN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => PenjadwalanMainPage(user: user)),
+          MaterialPageRoute(builder: (_) => const AdminMainPage()),
         );
       }
     } else {

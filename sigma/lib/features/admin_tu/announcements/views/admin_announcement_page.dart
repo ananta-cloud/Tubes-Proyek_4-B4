@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/announcement_viewmodel.dart';
 import 'create_announcement_page.dart';
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 class AdminAnnouncementPage extends StatefulWidget {
   const AdminAnnouncementPage({super.key});

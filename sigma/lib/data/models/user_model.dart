@@ -19,6 +19,10 @@ class UserModel {
     this.idProdi,
     this.kodeDosen,
     this.kelas,
+    this.idJurusan,
+    this.idProdi,
+    this.kodeDosen,
+    this.kelas,
     this.angkatan,
     this.deviceToken,
   });
@@ -42,6 +46,17 @@ class UserModel {
       kelas: json['kelas']?.toString(),
       angkatan: json['angkatan']?.toString(),
       deviceToken: json['device_token']?.toString(),
+      id: json["_id"]
+          .toString()
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', ''),
+      nama: json["nama"] ?? "",
+      email: json["email"],
+      role: json["role"] ?? "",
+      idJurusan: json["id_jurusan"]?.toString(),
+      idProdi: json["id_prodi"]?.toString(),
+      kodeDosen: json["kode_dosen"],
+      kelas: json["kelas"],
     );
   }
 

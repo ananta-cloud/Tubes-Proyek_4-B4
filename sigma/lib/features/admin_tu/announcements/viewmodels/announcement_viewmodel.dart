@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 
 import 'package:sigma/core/network/mongo_database.dart';
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 class AnnouncementViewModel extends ChangeNotifier {
   List<AnnouncementModel> _announcements = [];

@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 // ==========================================
 // 1. IMPORT DATA & MODELS
 // ==========================================
-import 'package:sigma/features/admin_tu/announcements/models/announcement_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 import 'package:sigma/data/models/task_model.dart';
 
 // ==========================================
 // 2. IMPORT VIEWMODELS & VIEWS
 // ==========================================
+import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
+import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/tasks/tasks/views/task_page.dart';
-import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
+
 // Catatan: Jika ScheduleViewModel sudah siap, uncomment ini:
 // import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 
@@ -37,8 +40,54 @@ class _HomePageMhsState extends State<HomePageMhs> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ScheduleViewModel>().fetchSchedules();
+      // Panggil fungsi syncSchedules di sini saat module jadwal sudah siap
+      // context.read<ScheduleController>().syncSchedules();
+
+      // 1. Tarik ID User yang sedang aktif
+      final userId = context.read<LoginViewModel>().user?.id;
+
+      if (userId != null) {
+        // 2. Lakukan sinkronisasi Bookmark
+        context.read<AnnouncementViewModel>().syncBookmarks(userId);
+        context.read<TaskViewModel>().syncTasks(userId);
+      }
     });
+  }
+
+  void _handleLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Konfirmasi Keluar"),
+        content: const Text("Apakah Anda yakin ingin keluar dari aplikasi?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Batal"),
+          ),
+          TextButton(
+            onPressed: () async {
+              // Lakukan proses logout
+              await context.read<LoginViewModel>().logout();
+
+              if (context.mounted) {
+                // Tendang kembali ke halaman Login dan hapus seluruh tumpukan halaman
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text(
+              "Keluar",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -46,7 +95,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
     // 🔥 MENGAMBIL VIEWMODEL DARI PROVIDER (Sesuai dengan main.dart)
     final announcementViewModel = context.watch<AnnouncementViewModel>();
     final taskViewModel = context.watch<TaskViewModel>();
-    final scheduleViewModel = context.watch<ScheduleViewModel>();
 
     return Scaffold(
       extendBody: true,
@@ -54,7 +102,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       body: SafeArea(
         child: Column(
           children: [
-            _header(),
+            _header(context),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -63,7 +111,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
                   index: currentIndex,
                   children: [
                     _home(announcementViewModel), // Tab 0: Home
-                    _schedule(scheduleViewModel), // Tab 1: Jadwal
+                    const Center(
+                      child: Text("Halaman Jadwal (Segera Hadir)"),
+                    ), // Tab 1: Jadwal
                     _tasks(taskViewModel), // Tab 2: Tugas
                     _bookmark(), // Tab 3: Bookmark
                   ],
@@ -78,7 +128,17 @@ class _HomePageMhsState extends State<HomePageMhs> {
   }
 
   // ================= HEADER =================
-  Widget _header() {
+  Widget _header(BuildContext context) {
+    final user = context.watch<LoginViewModel>().user;
+
+    final namaLengkap = user?.nama ?? "Mahasiswa";
+
+    // final listKata = namaLengkap.split(' ');
+
+    // final namaPanggilan = (listKata.length > 1 && (listKata[0].toLowerCase() == 'muhammad' || listKata[0].toLowerCase() == 'm.'))
+    //     ? listKata[1]
+    //     : listKata[0];
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
       decoration: BoxDecoration(
@@ -97,21 +157,21 @@ class _HomePageMhsState extends State<HomePageMhs> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "SIGMA",
+                      "Selamat Datang,",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      "D3 Teknik Informatika",
-                      style: TextStyle(color: Colors.white70),
+                      "$namaLengkap",
+                      style: TextStyle(color: Colors.white, fontSize: 22),
                     ),
                   ],
                 ),
@@ -131,6 +191,11 @@ class _HomePageMhsState extends State<HomePageMhs> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(width: 15),
+              GestureDetector(
+                onTap: () => _handleLogout(context),
+                child: const Icon(Icons.logout_rounded, color: Colors.white),
               ),
             ],
           ),
@@ -164,20 +229,14 @@ class _HomePageMhsState extends State<HomePageMhs> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       children: [
         Text(
-          "Halo, Naufal! 👋",
+          "Jadwalmu hari ini adalah",
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: darkText,
           ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          "Jadwal pertamamu hari ini jam 07:00.",
-          style: TextStyle(color: darkText.withOpacity(0.6)),
-        ),
         const SizedBox(height: 25),
-
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -561,47 +620,66 @@ class _HomePageMhsState extends State<HomePageMhs> {
     );
   }
 
-  Widget _schedule(ScheduleViewModel vm) {
-    if (vm.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (vm.schedules.isEmpty) {
-      return const Center(child: Text("Tidak ada jadwal"));
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: vm.schedules.map((s) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border(left: BorderSide(color: primaryBlue, width: 4)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("${s['jam_mulai']} - ${s['jam_selesai']}"),
-              const SizedBox(height: 5),
-              Text(
-                s['nama_mk'],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 5),
-              Text("${s['ruangan']} - ${s['nama_dosen']}"),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   // ================= BOOKMARK =================
   Widget _bookmark() {
-    return const Center(child: Text("Pengumuman Tersimpan"));
+    // ValueListenableBuilder akan membuat halaman ini otomatis ter-refresh (rebuild)
+    // setiap kali ada data baru yang masuk/keluar dari kotak 'bookmarks' di Hive.
+    return ValueListenableBuilder<Box<AnnouncementModel>>(
+      valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
+      builder: (context, box, _) {
+        // Ambil datanya dan urutkan dari yang paling baru
+        final bookmarkedItems = box.values.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          children: [
+            Text(
+              "Pengumuman Tersimpan",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: darkText,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Jika kosong, tampilkan pesan ramah
+            if (bookmarkedItems.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.bookmark_border,
+                        size: 50,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Belum ada pengumuman yang disimpan.",
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            // Jika ada isinya, panggil widget _announcement untuk menggambar kartunya
+            else
+              ...bookmarkedItems.map((data) => _announcement(data)).toList(),
+
+            const SizedBox(
+              height: 100,
+            ), // Spasi agar tidak tertutup bottom navbar
+          ],
+        );
+      },
+    );
   }
 
   // ================= NAVBAR =================
