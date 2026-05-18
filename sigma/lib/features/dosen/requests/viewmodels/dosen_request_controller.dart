@@ -58,14 +58,51 @@ class DosenRequestController extends ChangeNotifier {
   // LOAD JADWAL MILIK DOSEN
   // ─────────────────────────────────────────────────
 
-  Future<void> loadMySchedules(String kodeDosen) async {
+Future<void> loadMySchedules(String kodeDosen) async {
+    if (kodeDosen.isEmpty) {
+      print('⚠️ loadMySchedules dibatalkan karena kodeDosen kosong');
+      return;
+    }
+    
     isLoadingSchedules = true;
     notifyListeners();
     try {
-      mySchedules = await service.getMySchedules(kodeDosen);
-      print('mySchedules loaded: ${mySchedules.length}');
+      print('🔄 Memulai fetch jadwal untuk kode dosen: "$kodeDosen"');
+      final rawSchedules = await service.getMySchedules(kodeDosen);
+      
+      print('📦 Total data mentah dari MongoDB: ${rawSchedules.length} dokumen.');
+      
+      final List<Map<String, dynamic>> tempSchedules = [];
+      final targetKode = kodeDosen.trim().toUpperCase();
+      
+      for (var item in rawSchedules) {
+        final kodes = item['kode_dosen'];
+        bool isMengampu = false;
+        
+        if (kodes is List) {
+          // Normalisasi setiap elemen di dalam array (buang spasi & jadikan uppercase)
+          isMengampu = kodes.any((k) => k.toString().trim().toUpperCase() == targetKode);
+        } else if (kodes != null) {
+          isMengampu = kodes.toString().trim().toUpperCase() == targetKode;
+        }
+        
+        if (isMengampu) {
+          final sanitizedItem = item.map((key, value) {
+            if (value != null && value.runtimeType.toString() == 'ObjectId') {
+              return MapEntry(key, value.toHexString());
+            }
+            return MapEntry(key, value);
+          });
+          tempSchedules.add(sanitizedItem);
+        }
+      }
+      
+      mySchedules = tempSchedules;
+      print('🎯 Selesai menyaring! Jadwal lolos filter untuk $targetKode: ${mySchedules.length} data.');
+      
     } catch (e) {
       errorMsg = e.toString();
+      print('❌ Error saat load/filter MySchedules: $e');
     }
     isLoadingSchedules = false;
     notifyListeners();
@@ -243,26 +280,6 @@ class DosenRequestController extends ChangeNotifier {
     ruanganTersedia = [];
     notifyListeners();
   }
-
-  // void selectTipeRequest(String tipe) {
-  //   selectedTipeRequest = tipe;
-
-  //   // Jika hanya pindah ruangan, kunci waktu ke jadwal lama
-  //   if (tipe == 'PINDAH_RUANGAN' && selectedJadwal != null) {
-  //     selectedHariBaru = selectedJadwal!['hari'];
-  //     selectedJamMulaiBaru = selectedJadwal!['jam_mulai'];
-  //     selectedJamSelesaiBaru = selectedJadwal!['jam_selesai'];
-  //   }
-  //   notifyListeners();
-  // }
-
-  // void selectHariBaru(String hari) {
-  //   selectedHariBaru = hari;
-  //   // Reset ruangan saat hari berubah
-  //   selectedRuanganBaru = null;
-  //   ruanganTersedia = [];
-  //   notifyListeners();
-  // }
 
   void selectTanggal(DateTime tanggal) {
     selectedTanggalBaru = tanggal;

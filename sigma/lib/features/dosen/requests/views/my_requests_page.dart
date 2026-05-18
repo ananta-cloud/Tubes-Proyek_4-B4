@@ -19,7 +19,9 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DosenRequestController>().loadMyRequests(widget.user.id);
+      if (mounted) {
+        context.read<DosenRequestController>().loadMyRequests(widget.user.id);
+        }
     });
   }
 
@@ -103,14 +105,12 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
 
                   // 2. Daftar dari server
                   if (ctrl.myRequests.isNotEmpty) ...[
-                    if (ctrl.pendingRequests.isNotEmpty)
-                      const _SectionHeader(
-                        label: 'Riwayat Server',
-                        icon: Icons.history,
-                        color: Color(0xFF3F5DB3),
-                      ),
-                    if (ctrl.pendingRequests.isNotEmpty)
-                      const SizedBox(height: 8),
+                    const _SectionHeader(
+                      label: 'Riwayat Server',
+                      icon: Icons.history,
+                      color: Color(0xFF3F5DB3),
+                    ),
+                    const SizedBox(height: 8),
                     ...ctrl.myRequests.map((req) {
                       final willBeDeleted = cancelIds.contains(req.id);
                       return Padding(
@@ -210,8 +210,8 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                     content: Text(
                       ok
                           ? isOffline
-                                ? 'Akan dibatalkan setelah online'
-                                : 'Permohonan dibatalkan'
+                              ? 'Akan dibatalkan setelah online'
+                              : 'Permohonan dibatalkan'
                           : 'Gagal membatalkan',
                     ),
                     backgroundColor: ok && isOffline ? Colors.orange : null,
@@ -235,8 +235,10 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
       context,
       MaterialPageRoute(builder: (_) => RequestFormPage(user: widget.user)),
     ).then(
-      (_) =>
-          context.read<DosenRequestController>().loadMyRequests(widget.user.id),
+      (_) {
+        if (mounted) {
+          context.read<DosenRequestController>().loadMyRequests(widget.user.id);        }
+      }
     );
   }
 }
@@ -347,11 +349,12 @@ class _RequestCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request.namaMk ?? '-',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+                        (request.namaMk != null && request.namaMk!.isNotEmpty) 
+                            ? request.namaMk! 
+                            : 'Permohonan: ${request.alasan}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -380,10 +383,10 @@ class _RequestCard extends StatelessWidget {
                   child: _MiniInfo(
                     label: 'JADWAL LAMA',
                     value:
-                        '${request.hariJadwal ?? '-'}\n'
-                        '${request.jamMulaiJadwal ?? '-'}–'
-                        '${request.jamSelesaiJadwal ?? '-'}\n'
-                        '${request.ruanganJadwal ?? '-'}',
+                        '${request.hariJadwal ?? request.detailPerubahan.hariBaru ?? '-'}\n'
+                        '${request.jamMulaiJadwal ?? request.detailPerubahan.jamMulaiBaru ?? '-'}–'
+                        '${request.jamSelesaiJadwal ?? request.detailPerubahan.jamSelesaiBaru ?? '-'}\n'
+                        '${request.ruanganJadwal ?? request.detailPerubahan.ruanganBaru ?? '-'}',
                     color: AppColors.slate500,
                   ),
                 ),

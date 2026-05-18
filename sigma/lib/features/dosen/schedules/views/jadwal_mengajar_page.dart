@@ -26,6 +26,16 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
     'SABTU',
   ];
 
+  @override
+    void initState() {
+      super.initState();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<DosenRequestController>().loadMySchedules(widget.user.kodeDosen ?? '');
+        }
+    });
+  }
+
   List<Map<String, dynamic>> _filtered(List<Map<String, dynamic>> jadwals) {
     if (_filterHari == 'SEMUA') return jadwals;
     return jadwals.where((j) => j['hari']?.toString() == _filterHari).toList();
@@ -156,6 +166,8 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
                         .read<DosenRequestController>()
                         .loadMySchedules(widget.user.kodeDosen ?? ''),
                     child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                       itemCount: filtered.length,
                       itemBuilder: (context, i) =>

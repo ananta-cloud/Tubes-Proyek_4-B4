@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
-// Import halaman Home Anda
 import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
 
@@ -25,17 +24,16 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _checkSavedLogin() async {
     final authVm = context.read<LoginViewModel>();
 
-    // Cek apakah ada data user di storage
     final isLoggedIn = await authVm.checkLogin();
 
     if (!mounted) return;
 
     if (isLoggedIn && authVm.user != null) {
-      // Jika sudah login, cek rolenya untuk diarahkan ke halaman yang tepat
+      // Jika sudah login, cek rolenya untuk diarahkan ke halaman yang sesuai
       if (authVm.user!.role.toUpperCase() == 'DOSEN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomePageDsn()),
+          MaterialPageRoute(builder: (_) => HomePageDsn(user: authVm.user!)),
         );
       } else {
         Navigator.pushReplacement(
@@ -54,9 +52,8 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    // Layar putih dengan logo/loading saat mengecek memori lokal
     return const Scaffold(
-      backgroundColor: Color(0xFF3F5DB3), // Warna Primary Blue
+      backgroundColor: Color(0xFF3F5DB3),
       body: Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }

@@ -22,7 +22,12 @@ class JadwalCard extends StatelessWidget {
     final jamMulai = jadwal['jam_mulai']?.toString() ?? '-';
     final jamSelesai = jadwal['jam_selesai']?.toString() ?? '-';
     final ruangan = jadwal['ruangan']?.toString() ?? '-';
-    final namaMk = jadwal['nama_mk']?.toString() ?? '-';
+    // final namaMk = jadwal['nama_mk']?.toString() ?? '-';
+    final namaMk = (jadwal['nama_mk'] != null && jadwal['nama_mk'].toString().isNotEmpty) ? jadwal['nama_mk'].toString() :
+               (jadwal['namaMk'] != null && jadwal['namaMk'].toString().isNotEmpty) ? jadwal['namaMk'].toString() :
+               (jadwal['nama_matkul'] != null && jadwal['nama_matkul'].toString().isNotEmpty) ? jadwal['nama_matkul'].toString() :
+               (jadwal['namaMatkul'] != null && jadwal['tahun_akademik'].toString().isNotEmpty) ? jadwal['namaMatkul'].toString() : 
+               'Mata Kuliah Tidak Terdefinisi';
     final kelas = jadwal['kelas']?.toString() ?? '-';
     final tipe = jadwal['tipe']?.toString() ?? 'KULIAH';
     final semester = jadwal['semester']?.toString() ?? '-';
@@ -102,20 +107,20 @@ class JadwalCard extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: AppColors.slate400),
                 ),
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 8, 
+                  runSpacing: 8,
                   children: [
                     _InfoChip(
                       icon: Icons.calendar_today,
                       label: hari,
                       color: _tipeColor,
                     ),
-                    const SizedBox(width: 8),
                     _InfoChip(
                       icon: Icons.access_time,
                       label: '$jamMulai–$jamSelesai',
                       color: _tipeColor,
                     ),
-                    const SizedBox(width: 8),
                     _InfoChip(
                       icon: Icons.room,
                       label: ruangan,

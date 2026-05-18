@@ -5,9 +5,9 @@ class UserModel {
   final String role;
   final String? idJurusan;
   final String? idProdi;
-  final String? kodeDosen; // DOSEN — untuk match ke schedules.kode_dosen
-  final String? kelas; // MAHASISWA — untuk filter jadwal
-  final String? angkatan; // MAHASISWA
+  final String? kodeDosen; 
+  final String? kelas; 
+  final String? angkatan; 
   final String? deviceToken;
 
   UserModel({
@@ -15,10 +15,6 @@ class UserModel {
     required this.nama,
     required this.email,
     required this.role,
-    this.idJurusan,
-    this.idProdi,
-    this.kodeDosen,
-    this.kelas,
     this.idJurusan,
     this.idProdi,
     this.kodeDosen,
@@ -31,7 +27,6 @@ class UserModel {
     String? cleanId(dynamic val) {
       if (val == null) return null;
       String str = val.toString();
-      // Menghilangkan 'ObjectId("' dan '")' jika ada
       return str.replaceAll('ObjectId("', '').replaceAll('")', '');
     }
 
@@ -46,17 +41,6 @@ class UserModel {
       kelas: json['kelas']?.toString(),
       angkatan: json['angkatan']?.toString(),
       deviceToken: json['device_token']?.toString(),
-      id: json["_id"]
-          .toString()
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', ''),
-      nama: json["nama"] ?? "",
-      email: json["email"],
-      role: json["role"] ?? "",
-      idJurusan: json["id_jurusan"]?.toString(),
-      idProdi: json["id_prodi"]?.toString(),
-      kodeDosen: json["kode_dosen"],
-      kelas: json["kelas"],
     );
   }
 
@@ -73,7 +57,6 @@ class UserModel {
     'device_token': deviceToken,
   };
 
-  // Helper role checks
   bool get isMahasiswa => role == 'MAHASISWA';
   bool get isDosen => role == 'DOSEN';
   bool get isTimPenjadwalan => role == 'TIM_PENJADWALAN';

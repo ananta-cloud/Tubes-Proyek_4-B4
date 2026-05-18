@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:sigma/data/services/dosen_request_service.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 // ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';
@@ -31,10 +32,10 @@ import 'features/auth/viewmodels/login_viewmodel.dart';
 // import 'features/dosen/schedules/viewmodels/schedule_viewmodel.dart';
 import 'features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
 import 'features/announcements/viewmodels/announcement_viewmodel.dart';
-import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
+// import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart';
 import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_viewmodel.dart';
-import 'features/admin_tu/announcements/viewmodels/announcement_viewmodel.dart';
+// import 'features/admin_tu/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_viewmodel.dart';
 import 'features/penjadwalan/viewmodels/schedule_request_controller.dart';
 
@@ -73,7 +74,7 @@ void main() async {
   await Hive.openBox('schedule_cache');
   await Hive.openBox('cancel_queue');
   await Hive.openBox<PengajaranModel>('pengajaran');
-
+  await MongoDatabase.connect();
   runApp(
     MultiProvider(
       providers: [
@@ -89,9 +90,9 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
 
         // 4. Announcement ViewModel
-        ChangeNotifierProvider(create: (_) => AnnouncementViewModel()),
+        ChangeNotifierProvider(create: (_) => AnnouncementViewModel(AnnouncementService())),
 
-        ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
+        // ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
 
         ChangeNotifierProvider(create: (_) => AdminMainViewModel()),
 

@@ -74,19 +74,18 @@ class AuthRepository {
         email: user["email"],
         role: user["role"] ?? "MAHASISWA",
         idJurusan: user["id_jurusan"]?.toString(),
+        idProdi: user["id_prodi"]?.toString(),
+        kodeDosen: user["kode_dosen"]?.toString(), 
+        kelas: user["kelas"]?.toString(),          
+        angkatan: user["angkatan"]?.toString(),
+        deviceToken: user["device_token"]?.toString(),
       );
 
       //  5. SIMPAN KE STORAGE LOKAL (UNTUK OFFLINE)
       await _storage.write(key: "user_id", value: cleanId);
 
       // Simpan data lengkap sebagai JSON String agar profil bisa di-load offline
-      final userDataString = jsonEncode({
-        "id": loggedInUser.id,
-        "nama": loggedInUser.nama,
-        "email": loggedInUser.email,
-        "role": loggedInUser.role,
-        "id_jurusan": loggedInUser.idJurusan,
-      });
+      final userDataString = jsonEncode(loggedInUser.toJson());
       await _storage.write(key: "user_data", value: userDataString);
 
       return loggedInUser;
@@ -105,15 +104,9 @@ class AuthRepository {
       final userDataString = await _storage.read(key: "user_data");
 
       if (userDataString != null && userDataString.isNotEmpty) {
-        // Decode JSON kembali menjadi UserModel
         final Map<String, dynamic> userMap = jsonDecode(userDataString);
-        return UserModel(
-          id: userMap["id"],
-          nama: userMap["nama"],
-          email: userMap["email"],
-          role: userMap["role"],
-          idJurusan: userMap["id_jurusan"],
-        );
+        
+        return UserModel.fromJson(userMap);
       }
     } catch (e) {
       debugPrint("AUTO LOGIN ERROR: $e");
