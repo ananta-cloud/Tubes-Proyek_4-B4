@@ -41,31 +41,28 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
               onRefresh: () => vm.init(),
               child: CustomScrollView(
                 slivers: [
-                  // ── Stat Cards ──
+                  // ── Stat Cards ── (hanya TOTAL dan BULAN INI)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                       child: Row(
                         children: [
-                          SigmaStatCard(
-                            label: 'TOTAL',
-                            value: '${vm.announcements.length}',
-                            sublabel: 'Semua pengumuman',
-                            accentColor: SigmaColors.navy,
+                          Expanded(
+                            child: SigmaStatCard(
+                              label: 'TOTAL',
+                              value: '${vm.announcements.length}',
+                              sublabel: 'Semua pengumuman',
+                              accentColor: SigmaColors.navy,
+                            ),
                           ),
                           const SizedBox(width: 12),
-                          SigmaStatCard(
-                            label: 'BULAN INI',
-                            value: '${vm.thisMonthCount}',
-                            sublabel: 'Diterbitkan bulan ini',
-                            accentColor: SigmaColors.success,
-                          ),
-                          const SizedBox(width: 12),
-                          SigmaStatCard(
-                            label: 'DIBACA',
-                            value: '${vm.totalRead}',
-                            sublabel: 'Konfirmasi mahasiswa',
-                            accentColor: SigmaColors.gold,
+                          Expanded(
+                            child: SigmaStatCard(
+                              label: 'BULAN INI',
+                              value: '${vm.thisMonthCount}',
+                              sublabel: 'Diterbitkan bulan ini',
+                              accentColor: SigmaColors.success,
+                            ),
                           ),
                         ],
                       ),
@@ -167,7 +164,6 @@ class _AnnouncementCard extends StatelessWidget {
     'Lomba': Color(0xFFF59E0B),
     'UKM': Color(0xFF8B5CF6),
     'Karir': Color(0xFF0EA5E9),
-    // Kategori dosen
     'Penelitian': Color(0xFF059669),
     'Pengabdian': Color(0xFFD97706),
     'Pengajaran': Color(0xFF7C3AED),
@@ -198,7 +194,7 @@ class _AnnouncementCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Judul + badge kategori
+            // Judul + badge kategori (tampilkan semua kategori)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -213,6 +209,7 @@ class _AnnouncementCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Tampilkan badge kategori pertama saja di card
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -233,6 +230,34 @@ class _AnnouncementCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Jika ada lebih dari 1 kategori, tampilkan sisanya
+            if (item.kategori.length > 1) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                children: item.kategori.skip(1).map((k) {
+                  final c = _kategoriColors[k] ?? SigmaColors.accent;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      k,
+                      style: TextStyle(
+                        color: c,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: 6),
 
             // Preview isi

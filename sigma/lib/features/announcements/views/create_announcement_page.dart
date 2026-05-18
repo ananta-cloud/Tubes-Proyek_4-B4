@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
@@ -18,9 +19,13 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   final _judulCtrl = TextEditingController();
   final _isiCtrl = TextEditingController();
 
-  String? _selectedKategori;
+  // Multi-select kategori
+  final Set<String> _selectedKategori = {};
+
   String _selectedTarget = 'SEMUA';
+  String? _selectedProdi; // null = tidak dipilih
   String _selectedTingkat = 'BIASA';
+  DateTime? _selectedDeadline;
 
   // File attachments
   List<PlatformFile> _selectedFiles = [];
@@ -39,7 +44,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   ];
 
   static const _targetList = ['SEMUA', 'MAHASISWA', 'DOSEN'];
-  static const _tingkatList = ['BIASA', 'PENTING', 'SANGAT PENTING'];
+
+  // Pilihan prodi berdasarkan data MongoDB
+  static const _prodiList = ['D3 Teknik Informatika', 'D4 Teknik Informatika'];
 
   static const _tingkatColors = {
     'BIASA': SigmaColors.textSub,
@@ -47,8 +54,51 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     'SANGAT PENTING': SigmaColors.danger,
   };
 
-  // Batas maksimal ukuran file: 5 MB
   static const int _maxFileSizeBytes = 5 * 1024 * 1024;
+
+  bool get _isTargetMahasiswa => _selectedTarget == 'MAHASISWA';
+
+  // ─── Deadline → auto tingkat kepentingan ─────────────────────────────────
+  void _onDeadlineChanged(DateTime? date) {
+    setState(() {
+      _selectedDeadline = date;
+      if (date == null) {
+        _selectedTingkat = 'BIASA';
+      } else {
+        final diff = date.difference(DateTime.now()).inDays;
+        if (diff <= 3) {
+          _selectedTingkat = 'SANGAT PENTING';
+        } else if (diff <= 7) {
+          _selectedTingkat = 'PENTING';
+        } else {
+          _selectedTingkat = 'BIASA';
+        }
+      }
+    });
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDeadline ?? now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: SigmaColors.navy,
+            onPrimary: SigmaColors.white,
+            surface: SigmaColors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) _onDeadlineChanged(picked);
+  }
+
+  void _clearDeadline() => _onDeadlineChanged(null);
 
   @override
   void dispose() {
@@ -74,9 +124,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
         oversized.add(file.name);
       } else {
         final existing = _selectedFiles.map((f) => f.name).toSet();
-        if (!existing.contains(file.name)) {
-          valid.add(file);
-        }
+        if (!existing.contains(file.name)) valid.add(file);
       }
     }
 
@@ -91,27 +139,21 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       );
     }
 
-    if (valid.isNotEmpty) {
-      setState(() => _selectedFiles.addAll(valid));
-    }
+    if (valid.isNotEmpty) setState(() => _selectedFiles.addAll(valid));
   }
 
-  void _removeFile(int index) {
-    setState(() => _selectedFiles.removeAt(index));
-  }
+  void _removeFile(int index) => setState(() => _selectedFiles.removeAt(index));
 
-  // ─── Encode file ke base64 ────────────────────────────────────────────────
   Future<List<Map<String, String>>> _encodeFiles() async {
     final encoded = <Map<String, String>>[];
     for (final file in _selectedFiles) {
       if (file.path == null) continue;
       try {
         final bytes = await File(file.path!).readAsBytes();
-        final base64Data = base64Encode(bytes);
         encoded.add({
           'name': file.name,
           'type': file.extension?.toLowerCase() ?? 'file',
-          'data': base64Data,
+          'data': base64Encode(bytes),
           'size': file.size.toString(),
         });
       } catch (e) {
@@ -134,23 +176,29 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     }
 
     setState(() => _isUploading = true);
-
     List<Map<String, String>> attachments = [];
-    if (_selectedFiles.isNotEmpty) {
-      attachments = await _encodeFiles();
-    }
-
+    if (_selectedFiles.isNotEmpty) attachments = await _encodeFiles();
     setState(() => _isUploading = false);
 
     if (!mounted) return;
+
+    // Susun target string: kalau MAHASISWA + prodi dipilih, tambahkan info prodi
+    String targetFinal = _selectedTarget;
+    if (_isTargetMahasiswa && _selectedProdi != null) {
+      // Misal: "MAHASISWA - D4 Teknik Informatika"
+      targetFinal = 'MAHASISWA - $_selectedProdi';
+    }
 
     final vm = context.read<AdminAnnouncementViewModel>();
     await vm.createAnnouncement(
       judul: _judulCtrl.text.trim(),
       isi: _isiCtrl.text.trim(),
-      kategori: _selectedKategori ?? 'Umum',
-      target: _selectedTarget,
+      kategoriList: _selectedKategori.isEmpty
+          ? ['Umum']
+          : _selectedKategori.toList(),
+      target: targetFinal,
       tingkatKepentingan: _selectedTingkat,
+      deadline: _selectedDeadline,
       attachments: attachments,
     );
 
@@ -165,6 +213,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     }
   }
 
+  // ─── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminAnnouncementViewModel>();
@@ -279,8 +328,11 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Judul
-                        _FieldLabel(label: 'Judul Pengumuman', required: true),
+                        // ── Judul ──────────────────────────────────────────
+                        const _FieldLabel(
+                          label: 'Judul Pengumuman',
+                          required: true,
+                        ),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _judulCtrl,
@@ -294,27 +346,71 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Kategori + Target
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const _FieldLabel(label: 'Kategori'),
-                                  const SizedBox(height: 6),
-                                  _SigmaDropdown<String>(
-                                    value: _selectedKategori,
-                                    hint: 'Pilih...',
-                                    items: _kategoriList,
-                                    labelBuilder: (e) => e,
-                                    onChanged: (v) =>
-                                        setState(() => _selectedKategori = v),
+                        // ── Kategori (multi-select, full width) ───────────
+                        const _FieldLabel(label: 'Kategori'),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Dapat memilih lebih dari satu',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _kategoriList.map((k) {
+                            final isSelected = _selectedKategori.contains(k);
+                            return GestureDetector(
+                              onTap: () => setState(() {
+                                if (isSelected) {
+                                  _selectedKategori.remove(k);
+                                } else {
+                                  _selectedKategori.add(k);
+                                }
+                              }),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? SigmaColors.navy
+                                      : SigmaColors.bgPage,
+                                  borderRadius: BorderRadius.circular(99),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? SigmaColors.navy
+                                        : SigmaColors.cardBorder,
+                                    width: isSelected ? 1.5 : 1,
                                   ),
-                                ],
+                                ),
+                                child: Text(
+                                  k,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? SigmaColors.white
+                                        : SigmaColors.textSub,
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Target + Prodi (2 kolom) ───────────────────────
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Target
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,33 +422,236 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                     hint: 'Pilih...',
                                     items: _targetList,
                                     labelBuilder: (e) => e,
-                                    onChanged: (v) => setState(
-                                      () => _selectedTarget = v ?? 'SEMUA',
-                                    ),
+                                    onChanged: (v) => setState(() {
+                                      _selectedTarget = v ?? 'SEMUA';
+                                      // Reset prodi jika target bukan MAHASISWA
+                                      if (_selectedTarget != 'MAHASISWA') {
+                                        _selectedProdi = null;
+                                      }
+                                    }),
                                   ),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Sub-field Prodi
+                            Expanded(
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _isTargetMahasiswa ? 1.0 : 0.35,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const _FieldLabel(label: 'Prodi'),
+                                        const SizedBox(width: 4),
+                                        if (!_isTargetMahasiswa)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: SigmaColors.textSub
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'nonaktif',
+                                              style: TextStyle(
+                                                color: SigmaColors.textSub,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _SigmaDropdown<String>(
+                                      value: _selectedProdi,
+                                      hint: 'Semua prodi',
+                                      items: _prodiList,
+                                      labelBuilder: (e) => e,
+                                      onChanged: _isTargetMahasiswa
+                                          ? (v) => setState(
+                                              () => _selectedProdi = v,
+                                            )
+                                          : null,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 16),
 
-                        // Tingkat Kepentingan
-                        const _FieldLabel(label: 'Tingkat Kepentingan'),
-                        const SizedBox(height: 6),
+                        // ── Deadline (opsional) ────────────────────────────
                         Row(
-                          children: _tingkatList.map((tingkat) {
+                          children: [
+                            const _FieldLabel(label: 'Deadline'),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: SigmaColors.textSub.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'opsional',
+                                style: TextStyle(
+                                  color: SigmaColors.textSub,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          '≤ 3 hari → Sangat Penting · ≤ 7 hari → Penting · Tidak ada → Biasa',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _pickDeadline,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: SigmaColors.bgPage,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _selectedDeadline != null
+                                    ? SigmaColors.navy
+                                    : SigmaColors.cardBorder,
+                                width: _selectedDeadline != null ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.event_rounded,
+                                  size: 16,
+                                  color: _selectedDeadline != null
+                                      ? SigmaColors.navy
+                                      : SigmaColors.textSub,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _selectedDeadline != null
+                                        ? DateFormat(
+                                            'd MMMM yyyy',
+                                            'id_ID',
+                                          ).format(_selectedDeadline!)
+                                        : 'Pilih tanggal deadline...',
+                                    style: TextStyle(
+                                      color: _selectedDeadline != null
+                                          ? SigmaColors.navy
+                                          : SigmaColors.textSub,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                if (_selectedDeadline != null)
+                                  GestureDetector(
+                                    onTap: _clearDeadline,
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      size: 16,
+                                      color: SigmaColors.textSub,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Tingkat Kepentingan ────────────────────────────
+                        // Manual jika tanpa deadline; dikunci otomatis jika deadline diisi
+                        Row(
+                          children: [
+                            const _FieldLabel(label: 'Tingkat Kepentingan'),
+                            const SizedBox(width: 6),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: _selectedDeadline != null
+                                  ? Container(
+                                      key: const ValueKey('auto'),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: SigmaColors.navy.withOpacity(
+                                          0.07,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'otomatis dari deadline',
+                                        style: TextStyle(
+                                          color: SigmaColors.navy,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      key: const ValueKey('manual'),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: SigmaColors.textSub.withOpacity(
+                                          0.08,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'pilih manual',
+                                        style: TextStyle(
+                                          color: SigmaColors.textSub,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: ['BIASA', 'PENTING', 'SANGAT PENTING'].map((
+                            tingkat,
+                          ) {
                             final isSelected = _selectedTingkat == tingkat;
+                            final isLocked = _selectedDeadline != null;
                             final color =
                                 _tingkatColors[tingkat] ?? SigmaColors.textSub;
                             return Expanded(
                               child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedTingkat = tingkat),
+                                onTap: isLocked
+                                    ? null
+                                    : () => setState(
+                                        () => _selectedTingkat = tingkat,
+                                      ),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
+                                  duration: const Duration(milliseconds: 200),
                                   margin: EdgeInsets.only(
-                                    right: tingkat != _tingkatList.last ? 8 : 0,
+                                    right: tingkat != 'SANGAT PENTING' ? 8 : 0,
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 10,
@@ -389,7 +688,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                           color: isSelected
                                               ? color
                                               : SigmaColors.textSub,
-                                          fontSize: 10,
+                                          fontSize: 9,
                                           fontWeight: isSelected
                                               ? FontWeight.w700
                                               : FontWeight.w400,
@@ -405,8 +704,11 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Isi
-                        _FieldLabel(label: 'Isi Pengumuman', required: true),
+                        // ── Isi ────────────────────────────────────────────
+                        const _FieldLabel(
+                          label: 'Isi Pengumuman',
+                          required: true,
+                        ),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _isiCtrl,
@@ -432,8 +734,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-
-                        // Tombol pilih file
                         GestureDetector(
                           onTap: _pickFile,
                           child: Container(
@@ -470,7 +770,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           ),
                         ),
 
-                        // Daftar file dipilih
                         if (_selectedFiles.isNotEmpty) ...[
                           const SizedBox(height: 10),
                           ..._selectedFiles.asMap().entries.map((entry) {
@@ -539,7 +838,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           }),
                         ],
 
-                        // Indikator encoding
                         if (_isUploading)
                           const Padding(
                             padding: EdgeInsets.only(top: 10),
@@ -755,7 +1053,7 @@ class _SigmaDropdown<T> extends StatelessWidget {
   final String hint;
   final List<T> items;
   final String Function(T) labelBuilder;
-  final ValueChanged<T?> onChanged;
+  final ValueChanged<T?>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -776,13 +1074,13 @@ class _SigmaDropdown<T> extends StatelessWidget {
           isExpanded: true,
           dropdownColor: SigmaColors.white,
           style: const TextStyle(color: SigmaColors.navy, fontSize: 13),
+          onChanged: onChanged,
           items: items
               .map(
                 (e) =>
                     DropdownMenuItem<T>(value: e, child: Text(labelBuilder(e))),
               )
               .toList(),
-          onChanged: onChanged,
         ),
       ),
     );

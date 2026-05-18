@@ -29,8 +29,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
         .length;
   }
 
-  int get totalRead => 0;
-
   // ─── Boxes ────────────────────────────────────────────────────────────────
   Box<AnnouncementModel> get _announcementsBox =>
       Hive.box<AnnouncementModel>(_kBoxAnnouncements);
@@ -38,11 +36,8 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   Future<void> init() async {
-    // 1. Load lokal dulu (instan)
     _loadFromLocal();
-    // 2. Drain queue SEBELUM sync — agar data offline tidak tertimpa
     await _drainQueue();
-    // 3. Baru sync dari MongoDB
     await syncFromMongo();
   }
 
@@ -64,7 +59,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       final docs = await MongoDatabase.runSafe(
         () => MongoDatabase.announcementsCollection.find().toList(),
       );
-      // Hanya overwrite Hive jika queue sudah kosong
       if (_queueBox.isEmpty) {
         await _announcementsBox.clear();
         for (final d in docs) {
@@ -82,25 +76,29 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
+  /// [kategoriList] mendukung multi-select kategori.
+  /// [deadline] opsional; digunakan untuk menentukan tingkat kepentingan
+  /// secara otomatis di sisi view, namun disimpan juga ke DB untuk referensi.
   Future<void> createAnnouncement({
     required String judul,
     required String isi,
-    required String kategori,
+    // Ganti 'kategori' tunggal → 'kategoriList' multi
+    required List<String> kategoriList,
     required String target,
     required String tingkatKepentingan,
     String namaPublisher = 'Ibu Admin TU',
     String rolePublisher = 'ADMIN_TU',
     List<Map<String, String>> attachments = const [],
+    DateTime? deadline,
   }) async {
     final now = DateTime.now();
     final newId = ObjectId().toHexString();
 
-    // 1. Simpan ke Hive (langsung tampil di UI)
     final model = AnnouncementModel(
       id: newId,
       judul: judul,
       isi: isi,
-      kategori: [kategori],
+      kategori: kategoriList,
       targetAudience: target,
       idPublisher: ObjectId().toHexString(),
       namaPublisher: namaPublisher,
@@ -113,22 +111,22 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     await _announcementsBox.put(newId, model);
     _loadFromLocal();
 
-    // 2. Tambah ke queue
     await _queueBox.add({
       'operation': 'create',
       'id': newId,
       'judul': judul,
       'isi': isi,
-      'kategori': kategori,
+      // Simpan sebagai List<String> — akan di-encode JSON saat drain
+      'kategoriList': kategoriList,
       'target': target,
       'tingkatKepentingan': tingkatKepentingan,
       'namaPublisher': namaPublisher,
       'rolePublisher': rolePublisher,
       'createdAt': now.toIso8601String(),
+      'deadline': deadline?.toIso8601String(),
       'attachments': attachments,
     });
 
-    // 3. Langsung drain jika online
     await _drainQueue();
   }
 
@@ -148,12 +146,21 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
       try {
         if (op['operation'] == 'create') {
+          // Ambil kategori sebagai List<String>
+          List<String> kategoriList = [];
+          if (op['kategoriList'] is List) {
+            kategoriList = List<String>.from(op['kategoriList']);
+          } else if (op['kategori'] != null) {
+            // Backward-compat: queue lama pakai field 'kategori' tunggal
+            kategoriList = [op['kategori'].toString()];
+          }
+
           await MongoDatabase.runSafe(
             () => MongoDatabase.announcementsCollection.insertOne({
               '_id': ObjectId.fromHexString(op['id']),
               'judul': op['judul'],
               'isi': op['isi'],
-              'kategori': [op['kategori']],
+              'kategori': kategoriList,
               'target_audience': op['target'],
               'id_publisher': ObjectId(),
               'nama_publisher': op['namaPublisher'],
@@ -162,6 +169,9 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
               'created_at': DateTime.parse(op['createdAt']),
               'updated_at': DateTime.parse(op['createdAt']),
               'attachments': op['attachments'] ?? [],
+              // Simpan deadline jika ada
+              if (op['deadline'] != null)
+                'deadline': DateTime.parse(op['deadline']),
             }),
           );
 
