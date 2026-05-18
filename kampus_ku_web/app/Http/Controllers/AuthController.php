@@ -6,8 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
+// use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+
 
 class AuthController extends Controller
 {
@@ -38,7 +40,11 @@ class AuthController extends Controller
             } elseif ($user->role === 'TIM_PENJADWALAN') {
                 return redirect('/penjadwalan/dashboard');
             } elseif ($user->role === 'ADMIN_TU') {
+<<<<<<< HEAD
                 return redirect('/jurusan/admin/dashboard');
+=======
+                return redirect('/jurusan/announcements');
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
             }
 
             // Cegah role lain login via web admin

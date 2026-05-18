@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../viewmodels/task_form_viewmodel.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TaskFormPage extends StatefulWidget {
   final TaskModel? taskToEdit;
@@ -29,17 +30,14 @@ class _TaskFormPageState extends State<TaskFormPage> {
     _viewModel = TaskFormViewModel();
     _viewModel.initializeForEdit(widget.taskToEdit);
 
-    // Load mata kuliah untuk dosen ini
     final user = context.read<LoginViewModel>().user;
-    print('\n📄 [TaskFormPage] initState - User ID: ${user?.id}');
-    print('📄 [TaskFormPage] Edit mode: ${widget.taskToEdit != null}');
-    if (widget.taskToEdit != null) {
-      print(
-        '📄 [TaskFormPage] Editing task: ${widget.taskToEdit!.namaTugas}, idUser: ${widget.taskToEdit!.idUser}',
-      );
-    }
     if (user != null) {
-      _viewModel.loadMataKuliah(user.idJurusan, user.idProdi);
+      String cleanId = user.id
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+
+      // Mengirimkan parameter taskToEdit agar form bisa auto-select dropdown saat mode edit
+      _viewModel.loadPengajaran(cleanId, taskToEdit: widget.taskToEdit);
     }
   }
 
@@ -160,10 +158,6 @@ class _TaskFormPageState extends State<TaskFormPage> {
   @override
   Widget build(BuildContext context) {
     final bool isEditMode = widget.taskToEdit != null;
-    bool isMatkulExist = _viewModel.matkulList.any(
-      (matkul) => matkul.namaMk == _viewModel.selectedMatkul,
-    );
-
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Scaffold(
@@ -225,23 +219,136 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 ),
                 const SizedBox(height: 20),
 
+                // =========================================================================
+                // DROPDOWN 1: PILIH MATA KULIAH
+                // =========================================================================
                 Consumer<TaskFormViewModel>(
-                  builder: (context, viewModel, _) => DropdownButton<String>(
-                    // Jika ada, gunakan nilainya. Jika tidak ada (atau sedang loading), gunakan null
-                    value: isMatkulExist ? _viewModel.selectedMatkul : null,
-                    hint: const Text("Pilih Mata Kuliah"),
-                    items: _viewModel.matkulList.map((matkul) {
-                      return DropdownMenuItem<String>(
-                        value: matkul.namaMk,
-                        child: Text(matkul.namaMk),
+                  builder: (context, viewModel, _) {
+                    if (viewModel.isLoadingPengajaran) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: secondaryBlue,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              "Memuat data pengajaran...",
+                              style: TextStyle(color: secondaryBlue),
+                            ),
+                          ],
+                        ),
                       );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _viewModel.selectedMatkul = newValue;
-                      });
-                    },
-                  ),
+                    }
+
+                    return InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: "Mata Kuliah",
+                        prefixIcon: const Icon(
+                          Icons.book,
+                          color: secondaryBlue,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: viewModel.selectedMatkulDisplay,
+                          hint: Text(
+                            viewModel.uniqueMatkulList.isEmpty
+                                ? "Belum ada kelas yang Anda ajar"
+                                : "Pilih Mata Kuliah",
+                          ),
+                          items: viewModel.uniqueMatkulList.map((matkulString) {
+                            return DropdownMenuItem<String>(
+                              value: matkulString,
+                              child: Text(
+                                matkulString,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: viewModel.uniqueMatkulList.isEmpty
+                              ? null
+                              : (String? newValue) {
+                                  viewModel.selectMatkul(newValue);
+                                },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // =========================================================================
+                // DROPDOWN 2: PILIH TARGET KELAS (AKAN AKTIF JIKA DROPDOWN 1 SUDAH DIPILIH)
+                // =========================================================================
+                Consumer<TaskFormViewModel>(
+                  builder: (context, viewModel, _) {
+                    final bool isMatkulSelected =
+                        viewModel.selectedMatkulDisplay != null;
+
+                    return InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: "Target Kelas (Bisa pilih lebih dari 1)",
+                        prefixIcon: Icon(
+                          Icons.class_outlined,
+                          color: isMatkulSelected ? secondaryBlue : Colors.grey,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: !isMatkulSelected,
+                        fillColor: isMatkulSelected
+                            ? Colors.transparent
+                            : Colors.grey.shade100,
+                      ),
+                      child: !isMatkulSelected
+                          ? const Text(
+                              "Pilih mata kuliah terlebih dahulu",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
+                            )
+                          : Wrap(
+                              spacing: 8.0, // Jarak antar tombol ke samping
+                              runSpacing: 4.0, // Jarak antar tombol ke bawah
+                              children: viewModel.availableKelasList.map((
+                                kelas,
+                              ) {
+                                final isSelected = viewModel.selectedTargetKelas
+                                    .contains(kelas);
+                                return FilterChip(
+                                  label: Text(kelas),
+                                  selected: isSelected,
+                                  onSelected: (_) {
+                                    viewModel.toggleKelas(kelas);
+                                  },
+                                  selectedColor: secondaryBlue,
+                                  checkmarkColor: Colors.white,
+                                  backgroundColor: Colors.grey.shade200,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : primaryBlue,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -384,6 +491,39 @@ class _TaskFormPageState extends State<TaskFormPage> {
                               elevation: 1,
                               child: ListTile(
                                 dense: true,
+                                // =======================================================
+                                // FUNGSI BARU: ON TAP UNTUK PREVIEW / DOWNLOAD
+                                // =======================================================
+                                onTap: () async {
+                                  final uriString = attachment['uri'] ?? '';
+                                  if (uriString.isEmpty) return;
+
+                                  // Cek apakah ini link web / file dari server (http/https)
+                                  if (uriString.startsWith('http')) {
+                                    final Uri url = Uri.parse(uriString);
+                                    if (await canLaunchUrl(url)) {
+                                      // Buka di browser bawaan HP
+                                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                                    } else {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("Tidak dapat membuka tautan ini.")),
+                                      );
+                                    }
+                                  } else {
+                                    // Jika ini file lokal yang baru saja dipilih (belum di-upload)
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini."),
+                                        duration: Duration(seconds: 3),
+                                        backgroundColor: secondaryBlue,
+                                      ),
+                                    );
+                                  }
+                                },
+                                // =======================================================
+                                
                                 leading: Icon(
                                   attachment['type'] == 'file'
                                       ? Icons.insert_drive_file
@@ -400,9 +540,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 subtitle: Text(
-                                  attachment['type'] == 'file'
-                                      ? 'File'
-                                      : 'Link',
+                                  attachment['type'] == 'file' ? 'File' : 'Link',
                                   style: const TextStyle(fontSize: 11),
                                 ),
                                 trailing: SizedBox(
@@ -413,8 +551,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                       color: Colors.red,
                                       size: 18,
                                     ),
-                                    onPressed: () =>
-                                        viewModel.removeAttachment(index),
+                                    onPressed: () => viewModel.removeAttachment(index),
                                     padding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -451,8 +588,11 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 ),
               ),
               onPressed: () async {
+                // UBAH BAGIAN INI MENJADI .isNotEmpty
                 if (_viewModel.namaTugasController.text.isNotEmpty &&
-                    _viewModel.selectedDeadline != null) {
+                    _viewModel.selectedDeadline != null &&
+                    _viewModel.selectedTargetKelas.isNotEmpty) { 
+                  
                   final userId = context.read<LoginViewModel>().user?.id ?? "";
 
                   bool success;
@@ -487,7 +627,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text("Nama Tugas & Deadline wajib diisi!"),
+                      content: Text(
+                        "Nama Tugas, Mata Kuliah, Kelas, & Deadline wajib diisi!",
+                      ),
                     ),
                   );
                 }

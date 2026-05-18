@@ -7,66 +7,155 @@ import 'dart:io' show Platform;
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../data/models/task_model.dart';
-import '../../../../data/models/mata_kuliah_model.dart';
+import '../../../../data/models/pengajaran_model.dart';
+import '../../../../data/repositories/pengajaran_repository.dart';
 import '../../../../data/services/task_service.dart';
-import '../../../../data/services/mata_kuliah_service.dart';
-import '../../../../data/services/fcm_sender_service.dart';
 
 class TaskFormViewModel extends ChangeNotifier {
   final TaskService _taskService = TaskService();
-  final MataKuliahService _mataKuliahService = MataKuliahService();
+  final PengajaranRepository _pengajaranRepo = PengajaranRepository();
 
-  // Form controllers
   final TextEditingController namaTugasController = TextEditingController();
   final TextEditingController deskripsiController = TextEditingController();
-  String? selectedMatkul;
+
+  String? selectedMatkulDisplay;
+  List<String> selectedTargetKelas = [];
+
+  List<PengajaranModel> listPengajaran = [];
+  List<String> uniqueMatkulList = [];
+  List<String> availableKelasList = [];
+
   DateTime? selectedDeadline;
   List<Map<String, String>> lampiran = [];
+  bool isLoadingPengajaran = false;
 
-  // Mata kuliah options
-  List<MataKuliahModel> matkulList = [];
-  bool isLoadingMatkul = false;
-
-  // Initialize form for editing
   void initializeForEdit(TaskModel? task) {
     if (task != null) {
       namaTugasController.text = task.namaTugas;
       deskripsiController.text = task.deskripsi ?? '';
-      selectedMatkul = task.namaMkSnapshot;
       selectedDeadline = task.deadline;
       lampiran = task.lampiran ?? [];
     }
   }
 
-  // Load mata kuliah dari database
-  Future<void> loadMataKuliah(String? idJurusan, String? idProdi) async {
-    isLoadingMatkul = true;
+  Future<void> loadPengajaran(String idDosen, {TaskModel? taskToEdit}) async {
+    isLoadingPengajaran = true;
     notifyListeners();
 
     try {
-      if (idJurusan != null && idJurusan.isNotEmpty) {
-        matkulList = await _mataKuliahService.getMataKuliahByJurusan(idJurusan);
-      } else if (idProdi != null && idProdi.isNotEmpty) {
-        matkulList = await _mataKuliahService.getMataKuliahByProdi(idProdi);
-      } else {
-        matkulList = await _mataKuliahService.getAllMataKuliah();
-      }
+      listPengajaran = _pengajaranRepo.getLocalPengajaran(idDosen);
+      _generateUniqueMatkul();
+      if (taskToEdit != null) _initDropdownsForEdit(taskToEdit);
+      notifyListeners();
+
+      await _pengajaranRepo.syncPengajaran(idDosen);
+
+      listPengajaran = _pengajaranRepo.getLocalPengajaran(idDosen);
+      _generateUniqueMatkul();
+      if (taskToEdit != null) _initDropdownsForEdit(taskToEdit);
     } catch (e) {
-      print('Error loading mata kuliah: $e');
-      matkulList = [];
+      print('Error loading pengajaran: $e');
     }
 
-    isLoadingMatkul = false;
+    isLoadingPengajaran = false;
     notifyListeners();
   }
 
-  // Add attachment
+  void _generateUniqueMatkul() {
+    uniqueMatkulList = listPengajaran
+        .map((p) => "${p.kodeMk} - ${p.namaMk}")
+        .toSet()
+        .toList();
+  }
+
+  // ====================================================================
+  // PERBAIKAN: MEMBACA SEMUA TUGAS KELOMPOK UNTUK CENTANG BIRU
+  // ====================================================================
+  void _initDropdownsForEdit(TaskModel task) {
+    try {
+      final matched = listPengajaran.firstWhere((p) => p.id == task.idMk);
+      selectedMatkulDisplay = "${matched.kodeMk} - ${matched.namaMk}";
+      _updateAvailableKelas();
+      
+      // Cari SEMUA tugas yang tergabung dalam 1 grup (nama & deadline sama)
+      final taskBox = Hive.box<TaskModel>('tasks');
+      final listTugasSejenis = taskBox.values.where((t) => 
+        t.namaTugas == task.namaTugas && 
+        t.deadline.isAtSameMomentAs(task.deadline) &&
+        t.idMk == task.idMk
+      );
+
+      List<String> semuaKelasTercentang = [];
+      
+      for (var t in listTugasSejenis) {
+        if (t.namaMkSnapshot != null && t.namaMkSnapshot!.contains('(')) {
+          String kelas = t.namaMkSnapshot!.split('(').last.replaceAll(')', '').trim();
+          if (availableKelasList.contains(kelas) && !semuaKelasTercentang.contains(kelas)) {
+            semuaKelasTercentang.add(kelas);
+          }
+        }
+      }
+
+      // Masukkan ke List State UI agar menyala biru di form!
+      selectedTargetKelas = semuaKelasTercentang;
+    } catch (_) {}
+  }
+
+  void selectMatkul(String? matkulDisplay) {
+    selectedMatkulDisplay = matkulDisplay;
+    selectedTargetKelas = [];
+    _updateAvailableKelas();
+    notifyListeners();
+  }
+
+  void _updateAvailableKelas() {
+    if (selectedMatkulDisplay == null) {
+      availableKelasList = [];
+    } else {
+      try {
+        final matchedDocs = listPengajaran.where(
+          (p) => "${p.kodeMk} - ${p.namaMk}" == selectedMatkulDisplay,
+        );
+
+        Set<String> combinedKelas = {};
+        for (var doc in matchedDocs) {
+          combinedKelas.addAll(doc.targetKelas);
+        }
+        availableKelasList = combinedKelas.toList();
+      } catch (e) {
+        availableKelasList = [];
+      }
+    }
+  }
+
+  void toggleKelas(String kelas) {
+    if (selectedTargetKelas.contains(kelas)) {
+      selectedTargetKelas.remove(kelas); 
+    } else {
+      selectedTargetKelas.add(kelas); 
+    }
+    notifyListeners();
+  }
+
+  PengajaranModel? _getMatchedPengajaran() {
+    if (selectedMatkulDisplay == null) return null;
+    try {
+      return listPengajaran.firstWhere(
+        (p) => "${p.kodeMk} - ${p.namaMk}" == selectedMatkulDisplay,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ====================================================================
+  // LAMPIRAN & UPLOAD
+  // ====================================================================
   void addAttachment(String type, String title, String uri) {
     lampiran.add({'type': type, 'title': title, 'uri': uri});
     notifyListeners();
   }
 
-  // Remove attachment
   void removeAttachment(int index) {
     lampiran.removeAt(index);
     notifyListeners();
@@ -74,19 +163,12 @@ class TaskFormViewModel extends ChangeNotifier {
 
   Future<PlatformFile?> pickFile() async {
     try {
-      // 1. CEK DAN MINTA IZIN AKSES STORAGE / MEDIA
       if (Platform.isAndroid || Platform.isIOS) {
-        // Izin untuk Android 12 ke bawah
         var storageStatus = await Permission.storage.status;
-        if (!storageStatus.isGranted) {
-          await Permission.storage.request();
-        }
+        if (!storageStatus.isGranted) await Permission.storage.request();
 
-        // Izin untuk Android 13 ke atas (menggunakan media photos/videos)
         var photosStatus = await Permission.photos.status;
-        if (!photosStatus.isGranted) {
-          await Permission.photos.request();
-        }
+        if (!photosStatus.isGranted) await Permission.photos.request();
       }
 
       // 2. BUKA SISTEM FILE MANAGER BAWAAN HP
@@ -94,136 +176,158 @@ class TaskFormViewModel extends ChangeNotifier {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
-        // withData di-set false agar aplikasi tidak kehabisan RAM saat memilih file besar
         withData: false,
       );
-
-      if (result != null) {
-        return result.files.single;
-      }
+      if (result != null) return result.files.single;
     } catch (e) {
       print('Error picking file: $e');
     }
     return null;
   }
 
-  // Create task for students
-  Future<bool> createTaskForStudents(String dosenId) async {
-    print(
-      '\n🔵 [TaskFormVM] createTaskForStudents called with dosenId: $dosenId',
-    );
+  Future<bool> createTaskForStudents(String userId) async {
+    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
-    if (namaTugasController.text.isEmpty || selectedDeadline == null) {
-      print('❌ [TaskFormVM] Validation failed - empty name or no deadline');
-      return false;
+    final matched = _getMatchedPengajaran();
+    if (matched == null) return false;
+
+    final String cleanUserId = userId.replaceAll('ObjectId("', '').replaceAll('")', '');
+    bool allSuccess = true;
+
+    for (String kelas in selectedTargetKelas) {
+      final String newTaskId = ObjectId().toHexString();
+      final newTask = TaskModel(
+        id: newTaskId,
+        idUser: cleanUserId,
+        namaTugas: namaTugasController.text,
+        deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
+        idMk: matched.id,
+        namaMkSnapshot: "${matched.kodeMk} - ${matched.namaMk} ($kelas)",
+        deadline: selectedDeadline!,
+        status: 'BELUM',
+        isSynced: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        lampiran: lampiran.isNotEmpty ? lampiran : null,
+      );
+
+      try {
+        final taskBox = Hive.box<TaskModel>('tasks');
+        await taskBox.put(newTaskId, newTask);
+        _backgroundSync(newTask, isCreate: true);
+      } catch (e) {
+        allSuccess = false;
+      }
     }
+    notifyListeners();
+    return allSuccess;
+  }
 
-    final newId = ObjectId().toHexString();
-    print('📝 [TaskFormVM] New task ID: $newId');
+  // ====================================================================
+  // PERBAIKAN: EDIT TUGAS DENGAN LOGIKA TAMBAH/HAPUS CENTANG
+  // ====================================================================
+  Future<bool> updateTaskForStudents(TaskModel taskLama) async {
+    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
-    final newTask = TaskModel(
-      id: newId,
-      idUser: dosenId,
-      namaTugas: namaTugasController.text,
-      deskripsi: deskripsiController.text.isNotEmpty
-          ? deskripsiController.text
-          : null,
-      idMk: null,
-      namaMkSnapshot: selectedMatkul,
-      deadline: selectedDeadline!,
-      status: 'BELUM',
-      isSynced: false,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      lampiran: lampiran.isNotEmpty ? lampiran : null,
-    );
+    final matched = _getMatchedPengajaran();
+    if (matched == null) return false;
 
-    print(
-      '📦 [TaskFormVM] Task to save: ${newTask.namaTugas} for user: ${newTask.idUser}',
-    );
-
-    // Save to local Hive first
     try {
-      final taskBox = await Hive.openBox<TaskModel>('tasks');
-      await taskBox.put(newId, newTask);
-      print('✅ [TaskFormVM] Task saved to Hive - box size: ${taskBox.length}');
+      final taskBox = Hive.box<TaskModel>('tasks');
+
+      // 1. Kumpulkan semua tugas lama di grup ini
+      final listTugasSejenis = taskBox.values.where((t) =>
+          t.namaTugas == taskLama.namaTugas &&
+          t.deadline.isAtSameMomentAs(taskLama.deadline) &&
+          t.idMk == taskLama.idMk).toList();
+
+      Map<String, TaskModel> existingTasksByClass = {};
+      for (var t in listTugasSejenis) {
+        if (t.namaMkSnapshot != null && t.namaMkSnapshot!.contains('(')) {
+          String kelas = t.namaMkSnapshot!.split('(').last.replaceAll(')', '').trim();
+          existingTasksByClass[kelas] = t;
+        }
+      }
+
+      // 2. Cek setiap kelas yang DI-CENTANG oleh Dosen
+      for (String kelas in selectedTargetKelas) {
+        if (existingTasksByClass.containsKey(kelas)) {
+          // A. Jika kelas sudah ada, UPDATE TUGASNYA
+          TaskModel tToUpdate = existingTasksByClass[kelas]!;
+          tToUpdate.namaTugas = namaTugasController.text;
+          tToUpdate.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
+          tToUpdate.idMk = matched.id;
+          tToUpdate.namaMkSnapshot = "${matched.kodeMk} - ${matched.namaMk} ($kelas)";
+          tToUpdate.deadline = selectedDeadline!;
+          tToUpdate.lampiran = lampiran.isNotEmpty ? lampiran : null;
+          tToUpdate.updatedAt = DateTime.now();
+          tToUpdate.isSynced = false;
+
+          await tToUpdate.save();
+          _backgroundSync(tToUpdate, isCreate: false);
+
+          existingTasksByClass.remove(kelas); // Buang dari daftar pengecekan
+        } else {
+          // B. Jika Dosen mencentang kelas BARU, BUAT TUGAS BARU untuk kelas tersebut
+          final String newTaskId = ObjectId().toHexString();
+          final newTask = TaskModel(
+            id: newTaskId,
+            idUser: taskLama.idUser,
+            namaTugas: namaTugasController.text,
+            deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
+            idMk: matched.id,
+            namaMkSnapshot: "${matched.kodeMk} - ${matched.namaMk} ($kelas)",
+            deadline: selectedDeadline!,
+            status: 'BELUM',
+            isSynced: false,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            lampiran: lampiran.isNotEmpty ? lampiran : null,
+          );
+          await taskBox.put(newTaskId, newTask);
+          _backgroundSync(newTask, isCreate: true);
+        }
+      }
+
+      // 3. Hapus sisa tugas lama jika Dosen HILANGKAN CENTANG kelas tersebut
+      for (var tToDelete in existingTasksByClass.values) {
+        await taskBox.delete(tToDelete.id);
+        _taskService.deleteTask(tToDelete.id); // Hapus juga dari database server!
+      }
+
+      notifyListeners();
+      return true;
     } catch (e) {
-      print('❌ [TaskFormVM] Error saving to Hive: $e');
+      print("❌ Error Update: $e");
       return false;
     }
-
-    // Sync to MongoDB if online
-    final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(
-      ConnectivityResult.none,
-    );
-
-    if (!isOffline) {
-      bool success = await _taskService.createTask(newTask);
-      if (success) {
-        newTask.isSynced = true;
-        final taskBox = await Hive.openBox<TaskModel>('tasks');
-        await taskBox.put(newId, newTask);
-        print('✅ [TaskFormVM] Task synced to MongoDB');
-
-        await FcmSenderService.sendNotificationToTarget(
-          judul: "Tugas Baru: ${newTask.namaMkSnapshot ?? 'Umum'}",
-          isi: newTask.namaTugas,
-          module: 'task', // <--- Set module sebagai 'task'
-          targetAudience: 'mahasiswa', // <--- Tembak ke mahasiswa
-        );
-
-        return true;
-      }
-    } else {
-      print('🔌 [TaskFormVM] Offline mode - task saved locally only');
-    }
-
-    return true;
   }
 
-  // Update task for students
-  Future<bool> updateTaskForStudents(TaskModel task) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null) {
-      return false;
-    }
+  Future<void> _backgroundSync(TaskModel task, {required bool isCreate}) async {
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      bool isOnline = !(connectivityResult as List).contains(ConnectivityResult.none);
 
-    task.namaTugas = namaTugasController.text;
-    task.deskripsi = deskripsiController.text.isNotEmpty
-        ? deskripsiController.text
-        : null;
-    task.namaMkSnapshot = selectedMatkul;
-    task.deadline = selectedDeadline!;
-    task.lampiran = lampiran.isNotEmpty ? lampiran : null;
-    task.updatedAt = DateTime.now();
-
-    // Save to local Hive first
-    final taskBox = await Hive.openBox<TaskModel>('tasks');
-    await taskBox.put(task.id, task);
-
-    // Sync to MongoDB if online
-    final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(
-      ConnectivityResult.none,
-    );
-
-    if (!isOffline) {
-      bool success = await _taskService.updateTask(task);
-      if (success) {
-        task.isSynced = true;
-        await taskBox.put(task.id, task); // Update synced status
-        return true;
+      if (isOnline) {
+        bool cloudSuccess = isCreate
+            ? await _taskService.createTask(task)
+            : await _taskService.updateTask(task);
+        if (cloudSuccess) {
+          task.isSynced = true;
+          await task.save();
+        }
       }
+    } catch (e) {
+      print("☁️ Background Sync Error: $e");
     }
-
-    return true; // Return true since saved locally
   }
 
-  // Clear form
   void clearForm() {
     namaTugasController.clear();
     deskripsiController.clear();
-    selectedMatkul = null;
+    selectedMatkulDisplay = null;
+    selectedTargetKelas = [];
+    availableKelasList = [];
     selectedDeadline = null;
     lampiran.clear();
     notifyListeners();
