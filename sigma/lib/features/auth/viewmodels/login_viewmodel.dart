@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
 import 'package:sigma/data/models/user_model.dart';
+import 'package:sigma/data/services/notification_service.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepo;
@@ -23,6 +24,10 @@ class LoginViewModel extends ChangeNotifier {
 
       // Simpan hasil login ke dalam state _user
       _user = result;
+
+      if (result != null) {
+        await NotificationService.subscribeToRole(result.role);
+      }
       
       _isLoading = false;
       notifyListeners();
@@ -42,7 +47,10 @@ class LoginViewModel extends ChangeNotifier {
     final result = await _authRepo.checkAutoLogin();
     if (result != null) {
       _user = result;
+      await NotificationService.subscribeToRole(result.role);
     }
+
+    
 
     _isLoading = false;
     notifyListeners();

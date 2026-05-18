@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
@@ -6,12 +7,23 @@ import 'package:provider/provider.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/data/services/announcement_service.dart';
 import 'package:sigma/data/services/bookmark_service.dart';
+import 'package:sigma/data/services/notification_service.dart';
 
 class AnnouncementViewModel extends ChangeNotifier {
   final AnnouncementService service;
   final BookmarkService _bookmarkService = BookmarkService();
+  StreamSubscription? _notifSubscription;
 
-  // State untuk daftar pengumuman
+  String currentUserRole = 'SEMUA';
+
+  void setUserRole(String role) {
+    final newRole = role.toUpperCase();
+    if (currentUserRole != newRole) {
+      currentUserRole = newRole;
+      _loadFromLocal();
+    }
+  }
+
   // State untuk daftar pengumuman
   List<AnnouncementModel> announcements = [];
   bool isLoading = false;
@@ -32,6 +44,13 @@ class AnnouncementViewModel extends ChangeNotifier {
       'bookmarks',
     ); // Buka box bookmark
     syncAnnouncements();
+
+    _notifSubscription = NotificationService.onNewNotification.stream.listen((_) {
+      debugPrint("🔄 Mendapat Sinyal FCM! Menarik data pengumuman terbaru...");
+      
+      // Saat ada notif masuk, panggil lagi fungsi ini secara diam-diam
+      syncAnnouncements(); 
+    });
   }
 
   // ==========================================
@@ -102,6 +121,25 @@ class AnnouncementViewModel extends ChangeNotifier {
     final box = Hive.box<AnnouncementModel>('announcements');
     List<AnnouncementModel> all = box.values.toList();
 
+    all = all.where((a) {
+      // Gunakan trim() untuk membersihkan spasi tidak sengaja
+      final target = a.targetAudience.trim().toUpperCase();
+      final myRole = currentUserRole.trim().toUpperCase();
+
+      // 1. Pengumuman global tampil untuk semua
+      if (target == 'SEMUA' || target == 'PRODI_SEMUA') return true;
+
+      // 2. Filter spesifik berdasarkan role
+      if (myRole == 'MAHASISWA') {
+        return target == 'MAHASISWA' || target == 'PRODI_MAHASISWA';
+      } else if (myRole == 'DOSEN') {
+        return target == 'DOSEN' || target == 'PRODI_DOSEN';
+      }
+
+      // 3. Jika Admin TU yang melihat, tampilkan semua
+      return true;
+    }).toList();
+
     all.sort((a, b) {
       int weightA = _getPriorityWeight(a.tingkatKepentingan);
       int weightB = _getPriorityWeight(b.tingkatKepentingan);
@@ -116,21 +154,21 @@ class AnnouncementViewModel extends ChangeNotifier {
     // LOGIKA FILTER DIPERBAIKI DI SINI
     if (selectedFilter == 'SEMUA') {
       announcements = all;
-    } 
-    else if (selectedFilter == 'Informasi Umum') {
+    } else if (selectedFilter == 'Informasi Umum') {
       // Filter khusus Dosen: Target audience tertentu ATAU tag kategori manual
       announcements = all.where((a) {
-        return a.targetAudience == 'SEMUA' || 
-               a.targetAudience == 'SEMUA_DOSEN' || 
-               a.targetAudience == 'JURUSAN' ||
-               a.kategori.map((k) => k.toUpperCase()).contains('INFORMASI UMUM');
+        return a.targetAudience == 'SEMUA' ||
+            a.targetAudience == 'SEMUA_DOSEN' ||
+            a.targetAudience == 'JURUSAN' ||
+            a.kategori.map((k) => k.toUpperCase()).contains('INFORMASI UMUM');
       }).toList();
-    } 
-    else {
+    } else {
       // Filter dinamis untuk kategori lainnya (Mahasiswa maupun Dosen)
       announcements = all.where((a) {
         // Mengubah tag kategori menjadi uppercase untuk dicocokkan (case-insensitive)
-        return a.kategori.map((k) => k.toUpperCase()).contains(selectedFilter.toUpperCase());
+        return a.kategori
+            .map((k) => k.toUpperCase())
+            .contains(selectedFilter.toUpperCase());
       }).toList();
     }
     notifyListeners();
@@ -281,5 +319,11 @@ class AnnouncementViewModel extends ChangeNotifier {
     } catch (e) {
       print("ERROR SINKRONISASI BOOKMARK: $e");
     }
+  }
+
+  @override
+  void dispose() {
+    _notifSubscription?.cancel(); // Matikan pendengar saat ViewModel dihancurkan
+    super.dispose();
   }
 }

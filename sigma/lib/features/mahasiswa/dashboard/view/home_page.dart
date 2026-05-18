@@ -230,6 +230,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
 
   // ================= HOME / PENGUMUMAN =================
   Widget _home(AnnouncementViewModel viewModel) {
+    final user = context.read<LoginViewModel>().user;
+    viewModel.setUserRole(user?.role ?? 'MAHASISWA');
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       children: [

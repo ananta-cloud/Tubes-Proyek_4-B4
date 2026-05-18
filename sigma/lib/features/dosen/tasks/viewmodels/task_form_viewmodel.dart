@@ -10,6 +10,7 @@ import '../../../../data/models/task_model.dart';
 import '../../../../data/models/mata_kuliah_model.dart';
 import '../../../../data/services/task_service.dart';
 import '../../../../data/services/mata_kuliah_service.dart';
+import '../../../../data/services/fcm_sender_service.dart';
 
 class TaskFormViewModel extends ChangeNotifier {
   final TaskService _taskService = TaskService();
@@ -164,6 +165,14 @@ class TaskFormViewModel extends ChangeNotifier {
         final taskBox = await Hive.openBox<TaskModel>('tasks');
         await taskBox.put(newId, newTask);
         print('✅ [TaskFormVM] Task synced to MongoDB');
+
+        await FcmSenderService.sendNotificationToTarget(
+          judul: "Tugas Baru: ${newTask.namaMkSnapshot ?? 'Umum'}",
+          isi: newTask.namaTugas,
+          module: 'task', // <--- Set module sebagai 'task'
+          targetAudience: 'mahasiswa', // <--- Tembak ke mahasiswa
+        );
+
         return true;
       }
     } else {

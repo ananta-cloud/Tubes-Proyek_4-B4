@@ -165,15 +165,17 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             }),
           );
 
-          await FcmSenderService.sendNotificationToAll(
+          await FcmSenderService.sendNotificationToTarget(
             judul: op['judul'],
             isi: op['isi'],
+            module: 'pengumuman',
+            targetAudience: op['target'],
           );
         }
         await _queueBox.delete(key);
-        debugPrint('✅ Announcement queue item $key synced');
+        debugPrint('Announcement queue item $key synced');
       } catch (e) {
-        debugPrint('❌ AdminAnnouncementViewModel._drainQueue key=$key: $e');
+        debugPrint('AdminAnnouncementViewModel._drainQueue key=$key: $e');
         break;
       }
     }
