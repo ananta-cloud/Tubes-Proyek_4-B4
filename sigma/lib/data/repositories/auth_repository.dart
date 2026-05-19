@@ -65,12 +65,17 @@ class AuthRepository {
       await _storage.write(key: "user_role", value: user["role"]);
       await _storage.write(key: "user_email", value: user["email"]);
 
+      if (user["kelas"] != null) {
+        await _storage.write(key: "user_kelas", value: user["kelas"]);
+      }
+
       return UserModel(
         id: user["_id"].oid,
         nama: user["nama"],
         email: user["email"],
         role: user["role"] ?? "MAHASISWA",
         idJurusan: user["id_jurusan"]?.toString(),
+        kelas: user["kelas"],
       );
     } catch (e) {
       debugPrint("LOGIN ERROR: $e");
@@ -116,8 +121,16 @@ class AuthRepository {
       final nama = await _storage.read(key: "user_nama") ?? "Mahasiswa";
       final role = await _storage.read(key: "user_role") ?? "MAHASISWA";
       final email = await _storage.read(key: "user_email") ?? "";
+      final kelas = await _storage.read(key: "user_kelas");
 
-      return UserModel(id: userId, nama: nama, email: email, role: role);
+      return UserModel(
+        id: userId, 
+        nama: nama, 
+        email: email, 
+        role: role, 
+        kelas: kelas,
+      );
+
     } catch (e) {
       print("AUTO-LOGIN ERROR: $e");
       return null;
@@ -130,6 +143,7 @@ class AuthRepository {
     await _storage.delete(key: "user_nama");
     await _storage.delete(key: "user_role");
     await _storage.delete(key: "user_email");
+    await _storage.delete(key: "user_kelas");
 
     // Bersihkan data Hive
     await Hive.box<ScheduleLocalModel>('schedules').clear();

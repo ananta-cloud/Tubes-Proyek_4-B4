@@ -30,7 +30,7 @@ import 'data/repositories/auth_repository.dart';
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
 import 'features/dosen/schedules/viewmodels/schedule_controller.dart';
-import 'features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
+import 'features/mahasiswa/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart';
 import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_viewmodel.dart';

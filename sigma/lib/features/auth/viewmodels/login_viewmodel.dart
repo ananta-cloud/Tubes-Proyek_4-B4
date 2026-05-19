@@ -27,6 +27,9 @@ class LoginViewModel extends ChangeNotifier {
 
     try {
       final result = await _authRepo.login(email, password);
+      print(
+        "🎯 [DEBUG LOGIN] Berhasil Login! Nama: ${result?.nama}, Kelas: ${result?.kelas}",
+      );
 
       // Simpan hasil login ke dalam state _user
       _user = result;
@@ -55,8 +58,6 @@ class LoginViewModel extends ChangeNotifier {
       _user = result;
       await NotificationService.subscribeToRole(result.role);
     }
-
-    
 
     _isLoading = false;
     notifyListeners();
