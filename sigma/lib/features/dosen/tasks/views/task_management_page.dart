@@ -131,16 +131,23 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
       if (pendingTasks.isEmpty) return;
 
-      for (var task in pendingTasks) {
-        bool success = await _taskService.updateTask(task);
-        if (!success) {
-          success = await _taskService.createTask(task);
-        }
-        if (success) {
-          task.isSynced = true;
-          await task.save();
-        }
-      }
+      print(
+        "☁️ Mengunggah ${pendingTasks.length} tugas offline secara paralel...",
+      );
+
+      // Menggunakan Future.wait agar semua request API berjalan BERSAMAAN (Paralel)
+      await Future.wait(
+        pendingTasks.map((task) async {
+          bool success = await _taskService.updateTask(task);
+          if (!success) {
+            success = await _taskService.createTask(task);
+          }
+          if (success) {
+            task.isSynced = true;
+            await task.save();
+          }
+        }),
+      );
     } catch (e) {
       print("❌ Gagal upload tugas offline: $e");
     }
@@ -150,41 +157,54 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     try {
       final user = context.read<LoginViewModel>().user;
       if (user == null) return;
-      String cleanId = user.id
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+      String cleanId = user.id.replaceAll('ObjectId("', '').replaceAll('")', '');
 
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOffline = (connectivityResult as List).contains(
-        ConnectivityResult.none,
-      );
+      bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
       if (isOffline) return;
 
+      // 1. Upload semua data lokal yang pending secara paralel
       await _uploadPendingTasks();
-      final List<Map<String, dynamic>> cloudTasks = await _taskService
-          .getTasksByUser(cleanId);
 
+      // 2. Tarik data terbaru dari Cloud
+      final List<Map<String, dynamic>> cloudTasks = await _taskService.getTasksByUser(cleanId);
+
+      // 3. Siapkan Keranjang (Map/List) untuk Bulk Insert & Delete
+      final Map<String, TaskModel> tasksToPut = {};
+      final Set<String> cloudIds = {};
+      final List<String> keysToDelete = [];
+
+      // Kelompokkan data yang perlu ditambahkan/diperbarui
       for (var data in cloudTasks) {
         final taskFromServer = TaskModel.fromMongo(data);
-        final localTask = _taskBox.get(taskFromServer.id);
+        cloudIds.add(taskFromServer.id);
 
+        final localTask = _taskBox.get(taskFromServer.id);
         if (localTask == null || localTask.isSynced == true) {
-          await _taskBox.put(taskFromServer.id, taskFromServer);
+          tasksToPut[taskFromServer.id] = taskFromServer;
         }
       }
 
-      final cloudIds = cloudTasks.map((t) => (t['_id']).toHexString()).toSet();
+      // Kelompokkan data lokal yang sudah tidak ada di server
       final localKeys = _taskBox.keys.cast<String>().toList();
-
       for (var key in localKeys) {
         final taskInHive = _taskBox.get(key);
-        if (taskInHive != null &&
-            taskInHive.isSynced &&
-            !cloudIds.contains(key)) {
-          await _taskBox.delete(key);
+        if (taskInHive != null && taskInHive.isSynced && !cloudIds.contains(key)) {
+          keysToDelete.add(key);
         }
       }
+
+      // 4. EKSEKUSI MASSAL KE HIVE (Kecepatan meningkat drastis!)
+      if (tasksToPut.isNotEmpty) {
+        await _taskBox.putAll(tasksToPut); // Menyimpan ratusan data sekaligus
+      }
+      
+      if (keysToDelete.isNotEmpty) {
+        await _taskBox.deleteAll(keysToDelete); // Menghapus banyak data sekaligus
+      }
+
+      // Perbarui UI
       if (mounted) setState(() {});
     } catch (e) {
       print("❌ Gagal Sinkronisasi: $e");
@@ -320,27 +340,32 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
                 label: Text(
-                  'Semua', 
+                  'Semua',
                   style: TextStyle(
-                    fontSize: 13, 
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     // Teks putih jika kosong (default), biru jika sedang pilih matkul
-                    color: _selectedFilterMatkul.isEmpty ? Colors.white : secondaryBlue 
-                  )
+                    color: _selectedFilterMatkul.isEmpty
+                        ? Colors.white
+                        : secondaryBlue,
+                  ),
                 ),
                 // Aktif jika List filter kosong
-                selected: _selectedFilterMatkul.isEmpty, 
+                selected: _selectedFilterMatkul.isEmpty,
                 // Jika "Semua" diklik, bersihkan semua centang matkul
-                onSelected: (_) => setState(() => _selectedFilterMatkul.clear()),
+                onSelected: (_) =>
+                    setState(() => _selectedFilterMatkul.clear()),
                 backgroundColor: Colors.white,
                 selectedColor: secondaryBlue,
                 showCheckmark: false,
                 side: BorderSide(
-                  color: _selectedFilterMatkul.isEmpty ? secondaryBlue : Colors.grey.shade300
+                  color: _selectedFilterMatkul.isEmpty
+                      ? secondaryBlue
+                      : Colors.grey.shade300,
                 ),
               ),
             ),
-            
+
             // 2. TOMBOL MATA KULIAH LAINNYA
             ...displayMatkul.map((matkul) {
               final isSelected = _selectedFilterMatkul.contains(matkul);
