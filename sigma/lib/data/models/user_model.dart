@@ -1,55 +1,54 @@
+import 'mahasiswa_model.dart';
+
 class UserModel {
   final String id;
   final String nama;
   final String email;
-  final String role;
-  final String? idJurusan;
-  final String? idProdi;
-  final String? kodeDosen; 
-  final String? kelas;
-  final String? angkatan; 
+  final String role;  
   final String? deviceToken;
+  final MahasiswaModel? profilMahasiswa;
 
   UserModel({
     required this.id,
     required this.nama,
     required this.email,
     required this.role,
-    this.idJurusan,
-    this.idProdi,
-    this.kodeDosen,
-    this.kelas,
-    this.angkatan,
     this.deviceToken,
+    this.profilMahasiswa,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+
+    final String currentRole = json['role'] ?? '';
+    final dynamic profilData = json['profil'];
+
     return UserModel(
       id: json['id'] ?? json['_id']?.toString() ?? '',
       nama: json['nama'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? '',
-      idJurusan: json['id_jurusan']?.toString(),
-      idProdi: json['id_prodi']?.toString(),
-      kodeDosen: json['kode_dosen'],
-      kelas: json['kelas'],
-      angkatan: json['angkatan'],
       deviceToken: json['device_token'],
+      profilMahasiswa: (currentRole == 'MAHASISWA' && profilData != null) 
+          ? MahasiswaModel.fromJson(profilData) 
+          : null,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'nama': nama,
-    'email': email,
-    'role': role,
-    'id_jurusan': idJurusan,
-    'id_prodi': idProdi,
-    'kode_dosen': kodeDosen,
-    'kelas': kelas,
-    'angkatan': angkatan,
-    'device_token': deviceToken,
-  };
+  Map<String, dynamic> toJson() {
+
+    dynamic profilJson;
+    if (role == 'MAHASISWA') profilJson = profilMahasiswa?.toJson();
+    // else if (role == 'DOSEN') profilJson = profilDosen?.toJson();
+
+    return {
+      'id': id,
+      'nama': nama,
+      'email': email,
+      'role': role,
+      'device_token': deviceToken,
+      'profil': profilJson,
+    };
+  }
 
   // Helper role checks
   bool get isMahasiswa => role == 'MAHASISWA';

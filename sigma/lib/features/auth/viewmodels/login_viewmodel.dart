@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/services/notification_service.dart';
-import 'package:sigma/data/models/user_model.dart'; // Tambahkan import UserModel Anda
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepo;
@@ -21,15 +20,10 @@ class LoginViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Trik Wajib: Beri jeda 100ms agar UI sempat menggambar indikator loading
-    // sebelum HP bekerja keras menyambungkan diri ke MongoDB Atlas
     await Future.delayed(const Duration(milliseconds: 100));
 
     try {
       final result = await _authRepo.login(email, password);
-      print(
-        "🎯 [DEBUG LOGIN] Berhasil Login! Nama: ${result?.nama}, Kelas: ${result?.kelas}",
-      );
 
       // Simpan hasil login ke dalam state _user
       _user = result;

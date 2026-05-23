@@ -8,6 +8,8 @@ class MongoDatabase {
   static late DbCollection usersCollection;
   static late DbCollection schedulesCollection;
   static late DbCollection mataKuliahCollection;
+  static late DbCollection mahasiswaCollection;
+  static late DbCollection kelasCollection;
 
   // Flag untuk menandai apakah aplikasi dalam mode offline
   static bool isOffline = true;
@@ -49,12 +51,14 @@ class MongoDatabase {
       usersCollection = db.collection('users');
       schedulesCollection = db.collection('schedules');
       mataKuliahCollection = db.collection('mata_kuliah');
+      mahasiswaCollection = db.collection('mahasiswa');
+      kelasCollection = db.collection('kelas');
 
       isOffline = false;
-      print("✅ Berhasil terkoneksi ke MongoDB!");
+      print("Berhasil terkoneksi ke MongoDB!");
     } catch (e) {
       isOffline = true;
-      print("❌ Gagal koneksi ke MongoDB: $e");
+      print("Gagal koneksi ke MongoDB: $e");
       rethrow;
     }
   }

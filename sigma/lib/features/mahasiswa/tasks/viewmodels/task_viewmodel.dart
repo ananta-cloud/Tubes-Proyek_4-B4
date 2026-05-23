@@ -27,12 +27,11 @@ class TaskViewModel extends ChangeNotifier {
     if (isOffline) return;
 
     try {
+      final String idKelasMahasiswa = user.profilMahasiswa?.idKelas ?? '';
 
-      print("🧑‍🎓 [TaskViewModel] Cek Kelas User di HP: '${user.kelas}'");
-
-      // Panggil fungsi baru dari TaskService (Kirim ID dan Kelas Mahasiswa)
+      // Panggil fungsi baru dari TaskService (Kirim ID User dan ID Kelas Mahasiswa)
       final List<Map<String, dynamic>> mongoTasks = await _taskService
-          .getTasksForMahasiswa(user.id, user.kelas);
+          .getTasksForMahasiswa(user.id, idKelasMahasiswa);
 
       print("🔄 [TaskViewModel] Total tugas yang berhasil ditarik: ${mongoTasks.length}");
 
@@ -42,8 +41,6 @@ class TaskViewModel extends ChangeNotifier {
         final task = TaskModel.fromMongo(item);
         mongoIds.add(task.id);
 
-        // 🔥 PERLINDUNGAN STATUS:
-        // Jika ini tugas dari dosen, kita pertahankan status Selesai/Belum dari memori HP mahasiswa
         if (!task.isPersonal) {
           final localTask = _taskBox.get(task.id);
           if (localTask != null) {
@@ -63,7 +60,7 @@ class TaskViewModel extends ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      print("🔥 ERROR SINKRONISASI TUGAS: $e");
+      print("ERROR SINKRONISASI TUGAS: $e");
     }
   }
 
@@ -81,8 +78,8 @@ class TaskViewModel extends ChangeNotifier {
       idUser: userId,
       namaTugas: namaTugas,
       deskripsi: null, 
-      idMk: null, // Null menandakan ini Tugas Personal!
-      namaMkSnapshot: matkul, // Kita gunakan ini sebagai label
+      idMk: null,
+      namaMkSnapshot: matkul,
       deadline: deadline,
       status: 'BELUM',
       isSynced: false,
@@ -110,14 +107,11 @@ class TaskViewModel extends ChangeNotifier {
   Future<void> toggleStatus(TaskModel task) async {
     final newStatus = task.status == 'BELUM' ? 'SELESAI' : 'BELUM';
 
-    // ⚡ UPDATE LOKAL DI HP MAHASISWA (Berlaku untuk semua tugas)
     task.status = newStatus;
     task.updatedAt = DateTime.now();
     await task.save();
     notifyListeners();
 
-    // ☁️ UPDATE KE MONGODB (HANYA UNTUK TUGAS PERSONAL)
-    // Agar status tugas dosen tidak ikut tercentang "Selesai" di HP teman sekelas
     if (task.isPersonal) {
       final connectivityResult = await Connectivity().checkConnectivity();
       bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
@@ -130,16 +124,13 @@ class TaskViewModel extends ChangeNotifier {
 
   // 4. HAPUS TUGAS PERSONAL
   Future<void> deleteTask(TaskModel task) async {
-    // 🛡️ KEAMANAN: Pastikan yang dihapus BUKAN tugas dari dosen
     if (!task.isPersonal) return;
 
-    final taskId = task.id; // Simpan ID sebelum dihapus dari lokal
+    final taskId = task.id;
 
-    // ⚡ HAPUS DARI LOKAL
     await task.delete();
     notifyListeners();
 
-    // ☁️ HAPUS DARI MONGODB
     final connectivityResult = await Connectivity().checkConnectivity();
     bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
@@ -155,7 +146,7 @@ class TaskViewModel extends ChangeNotifier {
     String? matkul,
     required DateTime deadline,
   }) async {
-    if (!task.isPersonal) return; // Hanya boleh edit tugas personal
+    if (!task.isPersonal) return;
 
     // Update Lokal
     task.namaTugas = namaTugas;
