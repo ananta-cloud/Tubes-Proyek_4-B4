@@ -1,51 +1,91 @@
 import 'dart:io';
 import 'package:excel/excel.dart' as excel_pkg;
+import 'package:flutter/foundation.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center;
 
+import '../../../../../core/network/mongo_database.dart';
 import '../models/schedule_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ScheduleExcelParser
-//  Dipanggil dari ImportSchedulePage lewat: ScheduleExcelParser.parse(path)
+//
+//  Kolom yang dibaca dari Excel:
+//    HARI, JAM KE, WAKTU, KODE MK, TE/PR, KODE DOSEN, RUANGAN, KELAS
+//
+//  Kolom NAMA MK dan NAMA DOSEN diabaikan sepenuhnya meski ada di file.
+//  Nama MK dan nama dosen HANYA diambil dari MongoDB (collection mata_kuliah
+//  dan dosen) berdasarkan kode yang ditemukan.
 // ─────────────────────────────────────────────────────────────────────────────
 class ScheduleExcelParser {
   ScheduleExcelParser._();
 
-  // ── Public entry point ────────────────────────────────────────────────────
   static Future<List<ScheduleModel>> parse(String filePath) async {
+    final rawRows = await _readExcel(filePath);
+
+    if (rawRows.isEmpty) {
+      throw Exception(
+        'Tidak ada data yang berhasil diparsing. '
+        'Pastikan format kolom sesuai: HARI, JAM KE, KODE MK, '
+        'KODE DOSEN, RUANGAN, KELAS.',
+      );
+    }
+
+    // Kumpulkan semua kode unik untuk batch lookup
+    final kodeMkSet = rawRows
+        .map((r) => r.kodeMk)
+        .where((k) => k.isNotEmpty)
+        .toSet();
+    final kodeDosenSet = <String>{};
+    for (final r in rawRows) {
+      for (final k in r.kodeDosen.split(';')) {
+        final t = k.trim();
+        if (t.isNotEmpty) kodeDosenSet.add(t);
+      }
+    }
+
+    // Batch lookup ke MongoDB
+    final namaMkMap = await _lookupNamaMk(kodeMkSet);
+    final namaDosenMap = await _lookupNamaDosen(kodeDosenSet);
+
+    return _mergeRows(rawRows, namaMkMap, namaDosenMap);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Step 1 — Baca Excel, hanya ambil kolom yang dibutuhkan
+  //  NAMA MK dan NAMA DOSEN tidak dibaca sama sekali
+  // ─────────────────────────────────────────────────────────────────────────
+  static Future<List<_RawRow>> _readExcel(String filePath) async {
     final bytes = await File(filePath).readAsBytes();
     final excelFile = excel_pkg.Excel.decodeBytes(bytes);
-
     final rawRows = <_RawRow>[];
+
     String semester = 'GENAP';
     String tahunAkademik = '2025/2026';
 
     for (final sheetName in excelFile.tables.keys) {
       final sheet = excelFile.tables[sheetName];
       if (sheet == null) continue;
-
       final rows = sheet.rows;
       if (rows.isEmpty) continue;
 
-      // ── Cari baris header & info semester/tahun ──────────────────────────
+      // Cari header row + info semester/tahun
       int headerRowIndex = -1;
       for (int i = 0; i < rows.length && i < 20; i++) {
         final rowText = rows[i]
             .map((c) => c?.value?.toString().toUpperCase() ?? '')
             .join(' ');
-
         if (rowText.contains('HARI') && rowText.contains('KELAS')) {
           headerRowIndex = i;
           break;
         }
         if (rowText.contains('GENAP')) semester = 'GENAP';
         if (rowText.contains('GANJIL')) semester = 'GANJIL';
-        final tahunMatch = RegExp(r'(\d{4}/\d{4})').firstMatch(rowText);
-        if (tahunMatch != null) tahunAkademik = tahunMatch.group(1)!;
+        final m = RegExp(r'(\d{4}/\d{4})').firstMatch(rowText);
+        if (m != null) tahunAkademik = m.group(1)!;
       }
       if (headerRowIndex == -1) continue;
 
-      // ── Petakan nama kolom → index ────────────────────────────────────────
+      // Petakan nama kolom → index
       final headerRow = rows[headerRowIndex];
       final colMap = <String, int>{};
       for (int j = 0; j < headerRow.length; j++) {
@@ -53,20 +93,18 @@ class ScheduleExcelParser {
         if (val.isNotEmpty) colMap[val] = j;
       }
 
+      // Kolom yang dibaca — NAMA MK & NAMA DOSEN tidak ada di sini
       final colHari = _findCol(colMap, ['HARI']);
       final colJamKe = _findCol(colMap, ['JAM KE', 'JAM_KE', 'JAMKE']);
       final colWaktu = _findCol(colMap, ['WAKTU']);
       final colKodeMk = _findCol(colMap, ['KODE MK', 'KODE_MK', 'KODEMK']);
-      final colNamaMk = _findCol(colMap, ['NAMA MK', 'NAMA_MK', 'NAMAMK']);
       final colTePr = _findCol(colMap, ['TE/PR', 'TEPR', 'TE_PR']);
       final colKodeDosen = _findCol(colMap, ['KODE DOSEN', 'KODE_DOSEN']);
-      final colNamaDosen = _findCol(colMap, ['NAMA DOSEN', 'NAMA_DOSEN']);
       final colRuangan = _findCol(colMap, ['RUANGAN']);
       final colKelas = _findCol(colMap, ['KELAS']);
 
-      if (colHari == null || colKelas == null) continue;
+      if (colHari == null || colKelas == null || colKodeMk == null) continue;
 
-      // ── Parse baris data ──────────────────────────────────────────────────
       String lastHari = '';
       String lastKelas = '';
 
@@ -89,18 +127,15 @@ class ScheduleExcelParser {
         if (kelas.isNotEmpty) lastKelas = kelas;
 
         final kodeMk = cell(colKodeMk);
-        final namaMk = cell(colNamaMk);
 
-        // Skip baris kosong / istirahat
-        if (kodeMk.isEmpty && namaMk.isEmpty) continue;
-        if (namaMk.toUpperCase().contains('ISTIRAHAT')) continue;
+        // Skip baris tanpa kode MK (termasuk istirahat)
+        if (kodeMk.isEmpty) continue;
         if (effectiveHari.isEmpty || effectiveKelas.isEmpty) continue;
 
-        // ── Resolusi waktu ────────────────────────────────────────────────
+        // Resolusi waktu
         final jamKe = int.tryParse(cell(colJamKe)) ?? 0;
         String jamMulai = '';
         String jamSelesai = '';
-
         final waktu = cell(colWaktu);
         if (waktu.contains('-')) {
           final parts = waktu.split('-');
@@ -110,7 +145,6 @@ class ScheduleExcelParser {
           jamMulai = _jamMulaiMap[jamKe] ?? '';
           jamSelesai = _jamSelesaiMap[jamKe] ?? '';
         }
-
         if (jamMulai.isEmpty) continue;
 
         rawRows.add(
@@ -121,10 +155,8 @@ class ScheduleExcelParser {
             jamMulai: jamMulai,
             jamSelesai: jamSelesai,
             kodeMk: kodeMk,
-            namaMk: namaMk.isNotEmpty ? namaMk : '-',
             tePr: cell(colTePr),
             kodeDosen: cell(colKodeDosen),
-            namaDosen: cell(colNamaDosen).isNotEmpty ? cell(colNamaDosen) : '-',
             ruangan: cell(colRuangan),
             semester: semester,
             tahunAkademik: tahunAkademik,
@@ -133,36 +165,104 @@ class ScheduleExcelParser {
       }
     }
 
-    if (rawRows.isEmpty) {
-      throw Exception(
-        'Tidak ada data yang berhasil diparsing. '
-        'Pastikan format kolom sesuai: HARI, KODE MK, NAMA MK, '
-        'KODE DOSEN, NAMA DOSEN, RUANGAN, KELAS.',
-      );
-    }
-
-    return _mergeRows(rawRows);
+    return rawRows;
   }
 
-  // ── Merge: gabungkan baris berurutan menjadi 1 jadwal ────────────────────
-  //
-  //  Dua baris dianggap "sambungan" jika:
-  //    1. _mergeKey sama (hari, kelas, kodeMk, kodeDosen, tePr, ruangan)
-  //    2. jamKe baru > jamKe terakhir
-  //    3. Selisih jamKe ≤ 2 (toleransi 1 slot istirahat yang sudah di-skip)
-  //
-  static List<ScheduleModel> _mergeRows(List<_RawRow> rawRows) {
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Step 2a — Lookup nama MK dari collection `mata_kuliah`
+  // ─────────────────────────────────────────────────────────────────────────
+  static Future<Map<String, String>> _lookupNamaMk(Set<String> kodes) async {
+    final result = <String, String>{};
+    if (kodes.isEmpty) return result;
+
+    try {
+      final docs = await MongoDatabase.runSafe(
+        () => MongoDatabase.db.collection('mata_kuliah').find(<String, dynamic>{
+          'kode_mk': {'\$in': kodes.toList()},
+        }).toList(),
+      );
+      for (final d in docs) {
+        final kode = d['kode_mk']?.toString() ?? '';
+        final nama =
+            d['nama_mk']?.toString() ?? d['nama_matkul']?.toString() ?? '';
+        if (kode.isNotEmpty) result[kode] = nama;
+      }
+    } catch (e) {
+      debugPrint('⚠️ _lookupNamaMk: $e');
+    }
+
+    return result;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Step 2b — Lookup nama dosen dari collection `dosen`
+  // ─────────────────────────────────────────────────────────────────────────
+  static Future<Map<String, String>> _lookupNamaDosen(Set<String> kodes) async {
+    final result = <String, String>{};
+    if (kodes.isEmpty) return result;
+
+    try {
+      final docs = await MongoDatabase.runSafe(
+        () => MongoDatabase.db.collection('dosen').find(<String, dynamic>{
+          'kode_dosen': {'\$in': kodes.toList()},
+        }).toList(),
+      );
+      for (final d in docs) {
+        final kode = d['kode_dosen']?.toString() ?? '';
+        final nama = d['nama_dosen']?.toString() ?? '';
+        if (kode.isNotEmpty) result[kode] = nama;
+      }
+    } catch (e) {
+      debugPrint('⚠️ _lookupNamaDosen: $e');
+    }
+
+    return result;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Step 3 — Merge baris berurutan → 1 ScheduleModel
+  // ─────────────────────────────────────────────────────────────────────────
+  static List<ScheduleModel> _mergeRows(
+    List<_RawRow> rawRows,
+    Map<String, String> namaMkMap,
+    Map<String, String> namaDosenMap,
+  ) {
     final results = <ScheduleModel>[];
     _RawRow? current;
     int currentLastJamKe = 0;
 
     void flush() {
       if (current == null) return;
+
+      // Nama MK dari MongoDB, fallback ke kode jika tidak ditemukan
+      final namaMk = (namaMkMap[current!.kodeMk]?.isNotEmpty == true)
+          ? namaMkMap[current!.kodeMk]!
+          : current!.kodeMk;
+
+      // Nama dosen dari MongoDB (bisa multi kode "KO073N;KO063N")
+      final kodeList = current!.kodeDosen
+          .split(';')
+          .map((k) => k.trim())
+          .where((k) => k.isNotEmpty)
+          .toList();
+
+      final String namaDosen;
+      if (kodeList.isEmpty) {
+        namaDosen = '-';
+      } else {
+        namaDosen = kodeList
+            .map(
+              (k) =>
+                  (namaDosenMap[k]?.isNotEmpty == true) ? namaDosenMap[k]! : k,
+            ) // fallback ke kode jika nama tidak ditemukan
+            .join(';');
+      }
+
       results.add(
         ScheduleModel(
           id: ObjectId().oid,
-          namaMatkul: current!.namaMk,
-          namaDosen: current!.namaDosen,
+          namaMatkul: namaMk,
+          namaDosen: namaDosen,
           hari: current!.hari,
           jamMulai: current!.jamMulai,
           jamSelesai: current!.jamSelesai,
@@ -178,6 +278,7 @@ class ScheduleExcelParser {
           jamKe: current!.jamKe,
         ),
       );
+
       current = null;
       currentLastJamKe = 0;
     }
@@ -194,7 +295,6 @@ class ScheduleExcelParser {
           row.jamKe > currentLastJamKe && (row.jamKe - currentLastJamKe) <= 2;
 
       if (isSameSlot && isNext) {
-        // Perpanjang jamSelesai ke jam akhir baris ini
         current = current!.copyWith(jamSelesai: row.jamSelesai);
         currentLastJamKe = row.jamKe;
       } else {
@@ -203,7 +303,7 @@ class ScheduleExcelParser {
         currentLastJamKe = row.jamKe;
       }
     }
-    flush(); // flush entry terakhir
+    flush();
 
     return results;
   }
@@ -219,7 +319,6 @@ class ScheduleExcelParser {
     return null;
   }
 
-  // ── Lookup tabel jam ──────────────────────────────────────────────────────
   static const Map<int, String> _jamMulaiMap = {
     1: '07:00',
     2: '07:50',
@@ -251,7 +350,7 @@ class ScheduleExcelParser {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  _RawRow — model internal, hanya dipakai dalam parser ini
+//  _RawRow — model internal, tanpa field nama MK/dosen
 // ─────────────────────────────────────────────────────────────────────────────
 class _RawRow {
   final String hari;
@@ -260,10 +359,8 @@ class _RawRow {
   final String jamMulai;
   final String jamSelesai;
   final String kodeMk;
-  final String namaMk;
   final String tePr;
   final String kodeDosen;
-  final String namaDosen;
   final String ruangan;
   final String semester;
   final String tahunAkademik;
@@ -275,16 +372,13 @@ class _RawRow {
     required this.jamMulai,
     required this.jamSelesai,
     required this.kodeMk,
-    required this.namaMk,
     required this.tePr,
     required this.kodeDosen,
-    required this.namaDosen,
     required this.ruangan,
     required this.semester,
     required this.tahunAkademik,
   });
 
-  // copyWith hanya untuk field yang perlu diubah saat merge
   _RawRow copyWith({String? jamSelesai}) => _RawRow(
     hari: hari,
     kelas: kelas,
@@ -292,10 +386,8 @@ class _RawRow {
     jamMulai: jamMulai,
     jamSelesai: jamSelesai ?? this.jamSelesai,
     kodeMk: kodeMk,
-    namaMk: namaMk,
     tePr: tePr,
     kodeDosen: kodeDosen,
-    namaDosen: namaDosen,
     ruangan: ruangan,
     semester: semester,
     tahunAkademik: tahunAkademik,
