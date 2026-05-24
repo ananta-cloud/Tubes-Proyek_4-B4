@@ -33,13 +33,14 @@ class ScheduleModelAdapter extends TypeAdapter<ScheduleModel> {
       semester: fields[13] as String,
       tahunAkademik: fields[14] as String,
       jamKe: fields[15] as int,
+      needsEnrichment: fields[16] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, ScheduleModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class ScheduleModelAdapter extends TypeAdapter<ScheduleModel> {
       ..writeByte(14)
       ..write(obj.tahunAkademik)
       ..writeByte(15)
-      ..write(obj.jamKe);
+      ..write(obj.jamKe)
+      ..writeByte(16)
+      ..write(obj.needsEnrichment);
   }
 
   @override

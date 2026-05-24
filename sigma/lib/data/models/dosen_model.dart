@@ -3,20 +3,6 @@ import 'package:mongo_dart/mongo_dart.dart' hide Box;
 
 part 'dosen_model.g.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  DosenModel
-//
-//  Sesuai struktur collection `dosen` di MongoDB:
-//  {
-//    "_id"        : ObjectId("..."),
-//    "user_id"    : ObjectId("..."),   ← referensi ke collection users
-//    "kode_dosen" : "KO009N",
-//    "nama_dosen" : "Santi Sundari, S.T., M.T.",
-//    "id_jurusan" : ObjectId("..."),
-//    "created_at" : ISODate("..."),
-//    "updated_at" : ISODate("...")
-//  }
-// ─────────────────────────────────────────────────────────────────────────────
 @HiveType(typeId: 7) // sesuaikan jika typeId ini sudah dipakai model lain
 class DosenModel extends HiveObject {
   @HiveField(0)
