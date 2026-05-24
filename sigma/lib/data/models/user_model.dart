@@ -5,10 +5,7 @@ class UserModel {
   final String role;
   final String? idJurusan;
   final String? idProdi;
-  final String? kodeDosen; 
   final String? kelas;
-  final String? angkatan; 
-  final String? deviceToken;
 
   UserModel({
     required this.id,
@@ -17,10 +14,7 @@ class UserModel {
     required this.role,
     this.idJurusan,
     this.idProdi,
-    this.kodeDosen,
     this.kelas,
-    this.angkatan,
-    this.deviceToken,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -29,12 +23,6 @@ class UserModel {
       nama: json['nama'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? '',
-      idJurusan: json['id_jurusan']?.toString(),
-      idProdi: json['id_prodi']?.toString(),
-      kodeDosen: json['kode_dosen'],
-      kelas: json['kelas'],
-      angkatan: json['angkatan'],
-      deviceToken: json['device_token'],
     );
   }
 
@@ -43,12 +31,6 @@ class UserModel {
     'nama': nama,
     'email': email,
     'role': role,
-    'id_jurusan': idJurusan,
-    'id_prodi': idProdi,
-    'kode_dosen': kodeDosen,
-    'kelas': kelas,
-    'angkatan': angkatan,
-    'device_token': deviceToken,
   };
 
   // Helper role checks

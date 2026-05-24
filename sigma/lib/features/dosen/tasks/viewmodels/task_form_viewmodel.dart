@@ -7,6 +7,7 @@ import 'dart:io' show Platform;
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../data/models/task_model.dart';
+import '../../../../data/models/user_model.dart';
 import '../../../../data/models/pengajaran_model.dart';
 import '../../../../data/repositories/pengajaran_repository.dart';
 import '../../../../data/services/task_service.dart';
@@ -182,15 +183,19 @@ class TaskFormViewModel extends ChangeNotifier {
     return null;
   }
 
-  Future<bool> createTaskForStudents(String userId) async {
+  // =========================================================================
+  // FUNGSI CREATE (UPDATE: Menyimpan targetKelas & namaDosen)
+  // =========================================================================
+  Future<bool> createTaskForStudents(UserModel currentUser) async {
     if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
 
-    final String cleanUserId = userId.replaceAll('ObjectId("', '').replaceAll('")', '');
+    final String cleanUserId = currentUser.id.replaceAll('ObjectId("', '').replaceAll('")', '');
     bool allSuccess = true;
 
+    // LOOPING untuk setiap kelas
     for (String kelas in selectedTargetKelas) {
       final String newTaskId = ObjectId().toHexString();
       final newTask = TaskModel(
@@ -206,6 +211,8 @@ class TaskFormViewModel extends ChangeNotifier {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         lampiran: lampiran.isNotEmpty ? lampiran : null,
+        kelas: kelas,
+        namaDosen: currentUser.nama,
       );
 
       try {
@@ -213,6 +220,7 @@ class TaskFormViewModel extends ChangeNotifier {
         await taskBox.put(newTaskId, newTask);
         _backgroundSync(newTask, isCreate: true);
       } catch (e) {
+        print("❌ Error Create: $e");
         allSuccess = false;
       }
     }
@@ -220,10 +228,10 @@ class TaskFormViewModel extends ChangeNotifier {
     return allSuccess;
   }
 
-  // ====================================================================
-  // PERBAIKAN: EDIT TUGAS DENGAN LOGIKA TAMBAH/HAPUS CENTANG
-  // ====================================================================
-  Future<bool> updateTaskForStudents(TaskModel taskLama) async {
+  // =========================================================================
+  // FUNGSI EDIT (UPDATE: Menyimpan targetKelas & namaDosen)
+  // =========================================================================
+  Future<bool> updateTaskForStudents(TaskModel taskLama, UserModel currentUser) async {
     if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
     final matched = _getMatchedPengajaran();
@@ -232,7 +240,6 @@ class TaskFormViewModel extends ChangeNotifier {
     try {
       final taskBox = Hive.box<TaskModel>('tasks');
 
-      // 1. Kumpulkan semua tugas lama di grup ini
       final listTugasSejenis = taskBox.values.where((t) =>
           t.namaTugas == taskLama.namaTugas &&
           t.deadline.isAtSameMomentAs(taskLama.deadline) &&
@@ -240,16 +247,14 @@ class TaskFormViewModel extends ChangeNotifier {
 
       Map<String, TaskModel> existingTasksByClass = {};
       for (var t in listTugasSejenis) {
-        if (t.namaMkSnapshot != null && t.namaMkSnapshot!.contains('(')) {
-          String kelas = t.namaMkSnapshot!.split('(').last.replaceAll(')', '').trim();
-          existingTasksByClass[kelas] = t;
+        if (t.kelas != null) { // Gunakan field kelas yang baru
+          existingTasksByClass[t.kelas!] = t;
         }
       }
 
-      // 2. Cek setiap kelas yang DI-CENTANG oleh Dosen
       for (String kelas in selectedTargetKelas) {
         if (existingTasksByClass.containsKey(kelas)) {
-          // A. Jika kelas sudah ada, UPDATE TUGASNYA
+          // A. UPDATE TUGAS YANG SUDAH ADA
           TaskModel tToUpdate = existingTasksByClass[kelas]!;
           tToUpdate.namaTugas = namaTugasController.text;
           tToUpdate.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
@@ -259,13 +264,15 @@ class TaskFormViewModel extends ChangeNotifier {
           tToUpdate.lampiran = lampiran.isNotEmpty ? lampiran : null;
           tToUpdate.updatedAt = DateTime.now();
           tToUpdate.isSynced = false;
+          
+          tToUpdate.kelas = kelas;
+          tToUpdate.namaDosen = currentUser.nama;
 
           await tToUpdate.save();
           _backgroundSync(tToUpdate, isCreate: false);
-
-          existingTasksByClass.remove(kelas); // Buang dari daftar pengecekan
+          existingTasksByClass.remove(kelas); 
         } else {
-          // B. Jika Dosen mencentang kelas BARU, BUAT TUGAS BARU untuk kelas tersebut
+          // B. BUAT TUGAS BARU JIKA DOSEN MENCENTANG KELAS TAMBAHAN
           final String newTaskId = ObjectId().toHexString();
           final newTask = TaskModel(
             id: newTaskId,
@@ -280,16 +287,18 @@ class TaskFormViewModel extends ChangeNotifier {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             lampiran: lampiran.isNotEmpty ? lampiran : null,
+            kelas: kelas,
+            namaDosen: currentUser.nama,
           );
           await taskBox.put(newTaskId, newTask);
           _backgroundSync(newTask, isCreate: true);
         }
       }
 
-      // 3. Hapus sisa tugas lama jika Dosen HILANGKAN CENTANG kelas tersebut
+      // Hapus sisa tugas jika Dosen menghilangkan centang
       for (var tToDelete in existingTasksByClass.values) {
         await taskBox.delete(tToDelete.id);
-        _taskService.deleteTask(tToDelete.id); // Hapus juga dari database server!
+        _taskService.deleteTask(tToDelete.id); 
       }
 
       notifyListeners();

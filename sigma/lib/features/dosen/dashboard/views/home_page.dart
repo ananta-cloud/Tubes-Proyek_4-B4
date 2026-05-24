@@ -284,14 +284,14 @@ class _HomePageDsnState extends State<HomePageDsn> {
       'Pengajaran',
       'Penelitian',
       'Pengabdian',
-      'Informasi Umum'
+      'Informasi Umum',
     ];
 
     // Jangan tampilkan jika targetnya Semua Mahasiswa atau Prodi Mahasiswa
     final filteredAnnouncementsForDosen = viewModel.announcements.where((data) {
-      return data.targetAudience != 'SEMUA_MAHASISWA' && 
-             data.targetAudience != 'PRODI_MAHASISWA' &&
-             data.targetAudience != 'MAHASISWA'; 
+      return data.targetAudience != 'SEMUA_MAHASISWA' &&
+          data.targetAudience != 'PRODI_MAHASISWA' &&
+          data.targetAudience != 'MAHASISWA';
     }).toList();
 
     // --- BUNGKUS DENGAN REFRESH INDICATOR ---
@@ -307,9 +307,23 @@ class _HomePageDsnState extends State<HomePageDsn> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         children: [
-          Text("Jadwal mengajar hari ini", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkText)),
+          Text(
+            "Jadwal mengajar hari ini",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: darkText,
+            ),
+          ),
           const SizedBox(height: 25),
-          Text("Pengumuman Terbaru", style: TextStyle(fontWeight: FontWeight.bold, color: darkText, fontSize: 16)),
+          Text(
+            "Pengumuman Terbaru",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: darkText,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 10),
 
           // Filter Horizontal Khusus Dosen
@@ -318,8 +332,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
             child: Row(
               children: dosenFilters.map((filter) {
                 final filterKey = filter == 'Semua' ? '' : filter;
-                final isActive = viewModel.selectedFilter == filterKey || 
-                                 (filter == 'Semua' && viewModel.selectedFilter == 'SEMUA');
+                final isActive =
+                    viewModel.selectedFilter == filterKey ||
+                    (filter == 'Semua' && viewModel.selectedFilter == 'SEMUA');
                 return GestureDetector(
                   onTap: () => viewModel.setFilter(filterKey),
                   child: _chip(filter, isActive),
@@ -331,16 +346,26 @@ class _HomePageDsnState extends State<HomePageDsn> {
 
           // Render Pengumuman
           if (viewModel.isLoading && filteredAnnouncementsForDosen.isEmpty)
-            const Padding(padding: EdgeInsets.only(top: 30), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.only(top: 30),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (filteredAnnouncementsForDosen.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 30),
-              child: Center(child: Text("Tidak ada pengumuman.", style: TextStyle(color: Colors.grey.shade600))),
+              child: Center(
+                child: Text(
+                  "Tidak ada pengumuman.",
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
             )
           else
-            ...filteredAnnouncementsForDosen.map((data) => _announcement(data)).toList(),
+            ...filteredAnnouncementsForDosen
+                .map((data) => _announcement(data))
+                .toList(),
 
-          const SizedBox(height: 80), 
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -563,25 +588,34 @@ class _HomePageDsnState extends State<HomePageDsn> {
     final oldPasswordCtrl = TextEditingController();
     final newPasswordCtrl = TextEditingController();
     final confirmPasswordCtrl = TextEditingController();
-    
+
     bool obscureOld = true;
     bool obscureNew = true;
     bool obscureConfirm = true;
-    
+
     // 1. Tambahkan state untuk mendeteksi proses loading
-    bool isSubmitting = false; 
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
       // 2. Kunci dialog agar tidak bisa ditutup dengan menyentuh area luar
-      barrierDismissible: false, 
+      barrierDismissible: false,
       // 3. Gunakan nama 'dialogContext' agar tidak tertukar dengan context halaman utama
-      builder: (dialogContext) { 
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text("Ganti Password", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryBlue)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                "Ganti Password",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: primaryBlue,
+                ),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -593,9 +627,16 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       decoration: InputDecoration(
                         labelText: "Password Lama",
                         suffixIcon: IconButton(
-                          icon: Icon(obscureOld ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
-                          onPressed: () => setState(() => obscureOld = !obscureOld),
-                        )
+                          icon: Icon(
+                            obscureOld
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => obscureOld = !obscureOld),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -606,9 +647,16 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       decoration: InputDecoration(
                         labelText: "Password Baru",
                         suffixIcon: IconButton(
-                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
-                          onPressed: () => setState(() => obscureNew = !obscureNew),
-                        )
+                          icon: Icon(
+                            obscureNew
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => obscureNew = !obscureNew),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -619,9 +667,16 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       decoration: InputDecoration(
                         labelText: "Konfirmasi Password Baru",
                         suffixIcon: IconButton(
-                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
-                          onPressed: () => setState(() => obscureConfirm = !obscureConfirm),
-                        )
+                          icon: Icon(
+                            obscureConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => obscureConfirm = !obscureConfirm),
+                        ),
                       ),
                     ),
                     // Indikator Loading berputar
@@ -636,75 +691,114 @@ class _HomePageDsnState extends State<HomePageDsn> {
               actions: [
                 TextButton(
                   // Nonaktifkan tombol batal saat loading
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: const Text("Batal"),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentOrange,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   // Nonaktifkan tombol simpan saat loading untuk mencegah klik berkali-kali
-                  onPressed: isSubmitting ? null : () async {
-                    if (oldPasswordCtrl.text.isEmpty || newPasswordCtrl.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Semua kolom harus diisi!"), backgroundColor: Colors.red));
-                      return;
-                    }
-                    if (newPasswordCtrl.text != confirmPasswordCtrl.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Konfirmasi password baru tidak cocok!"), backgroundColor: Colors.red));
-                      return;
-                    }
-                    if (newPasswordCtrl.text.length < 6) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Password baru minimal 6 karakter!"), backgroundColor: Colors.red));
-                      return;
-                    }
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (oldPasswordCtrl.text.isEmpty ||
+                              newPasswordCtrl.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Semua kolom harus diisi!"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          if (newPasswordCtrl.text !=
+                              confirmPasswordCtrl.text) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Konfirmasi password baru tidak cocok!",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          if (newPasswordCtrl.text.length < 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Password baru minimal 6 karakter!",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
 
-                    // Mulai animasi loading
-                    setState(() => isSubmitting = true);
+                          // Mulai animasi loading
+                          setState(() => isSubmitting = true);
 
-                    try {
-                      // Gunakan file auth_repository Anda yang sudah diupdate
-                      final authRepo = AuthRepository(); 
-                      final user = context.read<LoginViewModel>().user;
+                          try {
+                            // Gunakan file auth_repository Anda yang sudah diupdate
+                            final authRepo = AuthRepository();
+                            final user = context.read<LoginViewModel>().user;
 
-                      if (user?.id != null) {
-                        bool success = await authRepo.changePassword(
-                          user!.id, 
-                          oldPasswordCtrl.text, 
-                          newPasswordCtrl.text
-                        );
+                            if (user?.id != null) {
+                              bool success = await authRepo.changePassword(
+                                user!.id,
+                                oldPasswordCtrl.text,
+                                newPasswordCtrl.text,
+                              );
 
-                        // 4. Pastikan context masih aktif sebelum melakukan aksi UI
-                        if (!context.mounted) return;
+                              // 4. Pastikan context masih aktif sebelum melakukan aksi UI
+                              if (!context.mounted) return;
 
-                        if (success) {
-                          Navigator.pop(dialogContext); // Gunakan dialogContext untuk menutup secara spesifik
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("✅ Password berhasil diperbarui!"), 
-                              backgroundColor: Colors.green
-                            ),
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      // Matikan loading jika gagal agar user bisa mencoba lagi
-                      setState(() => isSubmitting = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("❌ Gagal: ${e.toString().replaceAll('Exception: ', '')}"), 
-                          backgroundColor: Colors.red
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(isSubmitting ? "Menyimpan..." : "Simpan", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              if (success) {
+                                Navigator.pop(
+                                  dialogContext,
+                                ); // Gunakan dialogContext untuk menutup secara spesifik
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "✅ Password berhasil diperbarui!",
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            // Matikan loading jika gagal agar user bisa mencoba lagi
+                            setState(() => isSubmitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "❌ Gagal: ${e.toString().replaceAll('Exception: ', '')}",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: Text(
+                    isSubmitting ? "Menyimpan..." : "Simpan",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 

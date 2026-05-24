@@ -588,49 +588,39 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 ),
               ),
               onPressed: () async {
-                // UBAH BAGIAN INI MENJADI .isNotEmpty
                 if (_viewModel.namaTugasController.text.isNotEmpty &&
                     _viewModel.selectedDeadline != null &&
-                    _viewModel.selectedTargetKelas.isNotEmpty) { 
+                    _viewModel.selectedTargetKelas.isNotEmpty) {
                   
-                  final userId = context.read<LoginViewModel>().user?.id ?? "";
+                  // KITA AMBIL SELURUH OBJEK USER LENGKAP
+                  final currentUser = context.read<LoginViewModel>().user;
+                  if (currentUser == null) return;
 
                   bool success;
                   if (isEditMode) {
+                    // Kirim taskLama dan currentUser
                     success = await _viewModel.updateTaskForStudents(
                       widget.taskToEdit!,
+                      currentUser,
                     );
                   } else {
-                    success = await _viewModel.createTaskForStudents(userId);
+                    // Kirim currentUser
+                    success = await _viewModel.createTaskForStudents(currentUser);
                   }
 
                   if (success) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isEditMode
-                              ? "Tugas berhasil diperbarui!"
-                              : "Tugas berhasil dibuat!",
-                        ),
-                      ),
+                      SnackBar(content: Text(isEditMode ? "Tugas berhasil diperbarui!" : "Tugas berhasil dibuat!")),
                     );
                     Navigator.pop(context);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Gagal menyimpan tugas. Periksa koneksi internet.",
-                        ),
-                      ),
+                      const SnackBar(content: Text("Gagal menyimpan tugas. Periksa koneksi internet.")),
                     );
                   }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Nama Tugas, Mata Kuliah, Kelas, & Deadline wajib diisi!",
-                      ),
-                    ),
+                    const SnackBar(content: Text("Nama Tugas, Mata Kuliah, Kelas, & Deadline wajib diisi!")),
                   );
                 }
               },

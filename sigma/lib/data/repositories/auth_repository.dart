@@ -11,26 +11,30 @@ import 'package:mongo_dart/mongo_dart.dart';
 class AuthRepository {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
+  // Helper untuk membersihkan ObjectId menjadi String
+  String? _extractId(dynamic field) {
+    if (field == null) return null;
+    if (field is ObjectId) return field.toHexString();
+    if (field is Map && field.containsKey('\$oid')) return field['\$oid'];
+    return field.toString().replaceAll('ObjectId("', '').replaceAll('")', '').trim();
+  }
+
   // ===============================================
-  // 1. FUNGSI LOGIN (UPDATE: Simpan Profil ke Lokal)
+  // 1. FUNGSI LOGIN DENGAN PEMISAHAN PROFIL
   // ===============================================
   Future<UserModel?> login(String email, String password) async {
     // 1. CEK INTERNET FISIK HP TERLEBIH DAHULU
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isPhysicalOffline = (connectivityResult as List).contains(
-      ConnectivityResult.none,
-    );
+    bool isPhysicalOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
     if (isPhysicalOffline) {
       debugPrint("LOGIN ERROR: Perangkat tidak terhubung ke internet.");
-      return null; // Tolak login jika memang HP tidak ada koneksi
+      return null;
     }
 
-    // 2. JIKA HP ONLINE TAPI MONGODB TERPUTUS, PAKSA SAMBUNG ULANG!
+    // 2. KONEKSI MONGODB
     if (MongoDatabase.isOffline) {
-      debugPrint(
-        "🔄 Koneksi terputus. Mencoba menyambungkan kembali ke MongoDB...",
-      );
+      debugPrint("🔄 Mencoba menyambungkan kembali ke MongoDB...");
       try {
         await MongoDatabase.connect();
       } catch (e) {
@@ -39,53 +43,67 @@ class AuthRepository {
       }
     }
 
-    // ==========================================
-    // Sisa kode login Anda tetap sama seperti sebelumnya
-    // ==========================================
     try {
-      final user = await MongoDatabase.usersCollection.findOne({
-        "email": email,
-      });
-
-      debugPrint("USER FOUND: $user");
-
+      // 3. CARI USER DI KOLEKSI 'users' (Hanya Otentikasi)
+      final user = await MongoDatabase.usersCollection.findOne({"email": email});
       if (user == null) return null;
 
-      //  2. AMBIL HASH PASSWORD
       final hashedPassword = user["password"];
-
-      //  3. COMPARE PASSWORD
       final isValid = BCrypt.checkpw(password, hashedPassword);
-
       if (!isValid) return null;
 
-      //  4. BERSIHKAN ID SEBELUM DISIMPAN
-      String cleanId = user["_id"] is ObjectId
-          ? (user["_id"] as ObjectId).toHexString()
-          : user["_id"]
-                .toString()
-                .replaceAll('ObjectId("', '')
-                .replaceAll('")', '');
+      // 4. PARSING DATA DASAR
+      String cleanId = _extractId(user["_id"]) ?? "";
+      String role = user["role"]?.toString() ?? "MAHASISWA";
+      
+      String namaPengguna = "Pengguna";
+      String? idJurusan;
+      String? idProdi;
+      String? targetKelas;
 
-      // Buat objek user
+      // 5. AMBIL DATA PROFIL BERDASARKAN ROLE
+      if (role == 'DOSEN') {
+        final dosenDoc = await MongoDatabase.db.collection('dosen').findOne({'user_id': user["_id"]});
+        if (dosenDoc != null) {
+          namaPengguna = dosenDoc['nama_dosen'] ?? "Dosen";
+          idJurusan = _extractId(dosenDoc['id_jurusan']);
+        }
+      } 
+      else if (role == 'MAHASISWA') {
+        final mhsDoc = await MongoDatabase.db.collection('mahasiswa').findOne({'user_id': user["_id"]});
+        if (mhsDoc != null) {
+          namaPengguna = mhsDoc['nama'] ?? "Mahasiswa";
+          idProdi = _extractId(mhsDoc['id_prodi']);
+          targetKelas = _extractId(mhsDoc['id_kelas']); 
+        }
+      } 
+      else if (role == 'ADMIN_TU') {
+        namaPengguna = user["nama"] ?? "Admin TU";
+        idJurusan = _extractId(user["id_jurusan"]);
+      }
+
+      // 6. BENTUK MODEL USER LENGKAP
       final loggedInUser = UserModel(
         id: cleanId,
-        nama: user["nama"] ?? "User",
+        nama: namaPengguna,
         email: user["email"],
-        role: user["role"] ?? "MAHASISWA",
-        idJurusan: user["id_jurusan"]?.toString(),
+        role: role,
+        idJurusan: idJurusan,
+        idProdi: idProdi,
+        kelas: targetKelas,
       );
 
-      //  5. SIMPAN KE STORAGE LOKAL (UNTUK OFFLINE)
+      // 7. SIMPAN KE STORAGE LOKAL (UNTUK OFFLINE & CHECK STATUS)
       await _storage.write(key: "user_id", value: cleanId);
 
-      // Simpan data lengkap sebagai JSON String agar profil bisa di-load offline
       final userDataString = jsonEncode({
         "id": loggedInUser.id,
         "nama": loggedInUser.nama,
         "email": loggedInUser.email,
         "role": loggedInUser.role,
         "id_jurusan": loggedInUser.idJurusan,
+        "id_prodi": loggedInUser.idProdi,
+        "id_kelas": loggedInUser.idKelas,
       });
       await _storage.write(key: "user_data", value: userDataString);
 
@@ -97,15 +115,13 @@ class AuthRepository {
   }
 
   // ===============================================
-  // 2. FUNGSI CEK STATUS LOGIN (UNTUK BYPASS LOGIN)
+  // 2. FUNGSI CEK STATUS LOGIN (AUTO LOGIN)
   // ===============================================
   Future<UserModel?> checkLoginStatus() async {
     try {
-      // Membaca data user yang tersimpan di HP
       final userDataString = await _storage.read(key: "user_data");
 
       if (userDataString != null && userDataString.isNotEmpty) {
-        // Decode JSON kembali menjadi UserModel
         final Map<String, dynamic> userMap = jsonDecode(userDataString);
         return UserModel(
           id: userMap["id"],
@@ -113,24 +129,24 @@ class AuthRepository {
           email: userMap["email"],
           role: userMap["role"],
           idJurusan: userMap["id_jurusan"],
+          idProdi: userMap["id_prodi"],
+          kelas: userMap["target_kelas"],
         );
       }
     } catch (e) {
       debugPrint("AUTO LOGIN ERROR: $e");
     }
-    return null; // Mengembalikan null jika belum login
+    return null;
   }
 
   // ===============================================
-  // 3. FUNGSI LOGOUT (UPDATE: Hapus user_data)
+  // 3. FUNGSI LOGOUT
   // ===============================================
   Future<void> logout() async {
     try {
       await _storage.delete(key: "token");
       await _storage.delete(key: "user_id");
-      await _storage.delete(
-        key: "user_data",
-      ); // Tambahan: Hapus memori user offline
+      await _storage.delete(key: "user_data");
     } catch (e) {
       debugPrint("LOGOUT STORAGE ERROR: $e");
     }
@@ -148,7 +164,7 @@ class AuthRepository {
   }
 
   // ===============================================
-  // 4. FUNGSI GANTI PASSWORD
+  // 4. FUNGSI GANTI PASSWORD (Hanya merubah di koleksi Users)
   // ===============================================
   Future<bool> changePassword(
     String userId,
@@ -156,34 +172,21 @@ class AuthRepository {
     String newPassword,
   ) async {
     try {
-      // Bersihkan string userId dari format bawaan mongo_dart ObjectId("...")
-      // agar menyisakan 24 karakter hex murni.
-      String cleanUserId = userId
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+      String cleanUserId = userId.replaceAll('ObjectId("', '').replaceAll('")', '');
 
-      // 1. Cari user di MongoDB berdasarkan ID yang sudah dibersihkan
       final user = await MongoDatabase.usersCollection.findOne({
         "_id": ObjectId.fromHexString(cleanUserId),
       });
 
       if (user == null) return false;
 
-      // 2. Verifikasi apakah password lama benar
       final currentHashedPassword = user["password"];
-      final isOldPasswordCorrect = BCrypt.checkpw(
-        oldPassword,
-        currentHashedPassword,
-      );
+      final isOldPasswordCorrect = BCrypt.checkpw(oldPassword, currentHashedPassword);
 
-      if (!isOldPasswordCorrect) {
-        throw Exception("Password lama salah");
-      }
+      if (!isOldPasswordCorrect) throw Exception("Password lama salah");
 
-      // 3. Hash password baru sebelum disimpan
       final newHashedPassword = BCrypt.hashpw(newPassword, BCrypt.gensalt());
 
-      // 4. Update ke MongoDB menggunakan ID yang sudah dibersihkan
       final result = await MongoDatabase.usersCollection.updateOne(
         where.id(ObjectId.fromHexString(cleanUserId)),
         modify

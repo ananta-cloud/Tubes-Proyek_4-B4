@@ -6,7 +6,7 @@ part 'pengajaran_model.g.dart';
 @HiveType(typeId: 4)
 class PengajaranModel extends HiveObject {
   @HiveField(0)
-  final String id; 
+  final String id;
 
   @HiveField(1)
   final String idDosen;
@@ -18,7 +18,7 @@ class PengajaranModel extends HiveObject {
   final String namaMk;
 
   @HiveField(4)
-  final String kodeMk; 
+  final String kodeMk;
 
   @HiveField(5)
   final List<String> targetKelas;
@@ -37,19 +37,23 @@ class PengajaranModel extends HiveObject {
       if (field == null) return '';
       if (field is ObjectId) return field.toHexString();
       if (field is Map && field.containsKey('\$oid')) return field['\$oid'];
-      return field.toString().replaceAll('ObjectId("', '').replaceAll('")', '').trim();
+      return field
+          .toString()
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '')
+          .trim();
     }
 
-    List<String> parsedKelas = [];
+    // 🔥 LOGIKA PARSING ARRAY OF OBJECTID
+    List<String> parsedKelasIds = [];
     var targetData = json['target_kelas'];
 
     try {
       if (targetData is List) {
-        // Jika dari Atlas sudah berupa Array: ["2A-D3", "2B-D3"]
-        parsedKelas = targetData.map((e) => e.toString()).toList();
-      } else if (targetData != null && targetData.toString().isNotEmpty) {
-        // Jika di Atlas lupa diubah dan masih String biasa: "2B-D3"
-        parsedKelas = [targetData.toString()];
+        // Looping isi array dan ekstrak OID-nya satu per satu
+        parsedKelasIds = targetData.map((e) => extractId(e)).toList();
+      } else if (targetData != null) {
+        parsedKelasIds = [extractId(targetData)];
       }
     } catch (e) {
       print("⚠️ Gagal parsing kelas: $e");
@@ -61,7 +65,8 @@ class PengajaranModel extends HiveObject {
       idMk: extractId(json['id_mk']),
       namaMk: json['nama_mk']?.toString() ?? '',
       kodeMk: json['kode_mk']?.toString() ?? '',
-      targetKelas: parsedKelas,
+      targetKelas:
+          parsedKelasIds, // Sekarang ini berisi List ID Kelas, bukan nama kelas!
     );
   }
 }

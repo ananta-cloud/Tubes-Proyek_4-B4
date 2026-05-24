@@ -41,6 +41,12 @@ class TaskModel extends HiveObject {
   @HiveField(11)
   List<Map<String, String>>? lampiran;
 
+  @HiveField(12) 
+  String? kelas; 
+
+  @HiveField(13)
+  String? namaDosen;
+
   TaskModel({
     required this.id,
     required this.idUser,
@@ -54,6 +60,8 @@ class TaskModel extends HiveObject {
     required this.createdAt,
     required this.updatedAt,
     this.lampiran,
+    this.kelas,
+    this.namaDosen,
   });
 
   // Jika idMk kosong/null, otomatis dianggap sebagai Tugas Personal.
@@ -78,6 +86,8 @@ class TaskModel extends HiveObject {
       lampiran: map['lampiran'] != null
           ? (map['lampiran'] as List).map((e) => Map<String, String>.from(e as Map)).toList()
           : null,
+      kelas: map['kelas'],
+      namaDosen: map['nama_dosen'],
     );
   }
 
@@ -96,6 +106,8 @@ class TaskModel extends HiveObject {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'lampiran': lampiran,
+      'kelas': kelas,
+      'nama_dosen': namaDosen,
     };
   }
 }
