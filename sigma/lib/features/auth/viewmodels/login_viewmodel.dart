@@ -29,7 +29,9 @@ class LoginViewModel extends ChangeNotifier {
       _user = result;
 
       if (result != null) {
-        await NotificationService.subscribeToRole(result.role);
+        NotificationService.subscribeToRole(result.role).catchError((e) {
+          debugPrint("FCM Subscribe gagal (diabaikan): $e");
+        });
       }
 
       _isLoading = false;
@@ -50,7 +52,9 @@ class LoginViewModel extends ChangeNotifier {
     final result = await _authRepo.checkAutoLogin();
     if (result != null) {
       _user = result;
-      await NotificationService.subscribeToRole(result.role);
+      NotificationService.subscribeToRole(result.role).catchError((e) {
+        debugPrint("FCM Tertunda karena offline: $e");
+      });
     }
 
     _isLoading = false;

@@ -83,38 +83,38 @@ class AnnouncementViewModel extends ChangeNotifier {
   }
 
   Future<void> syncAnnouncements() async {
-    isLoading = true;
-    notifyListeners();
+    // 1. TAMPILKAN DATA LOKAL DULU (Offline-First)
+    _loadFromLocal(); 
 
     final connectivityResult = await Connectivity().checkConnectivity();
-    final box = Hive.box<AnnouncementModel>('announcements');
+    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
-    bool isOffline = (connectivityResult as List).contains(
-      ConnectivityResult.none,
-    );
+    // Jika offline, berhenti di sini. Mahasiswa tetap bisa baca pengumuman lokal.
+    if (isOffline) return; 
 
-    if (isOffline) {
-      _loadFromLocal();
-      isLoading = false;
-      notifyListeners();
-      return;
-    }
-
+    // 2. Ambil data baru dari MongoDB di belakang layar (Silent Sync)
     try {
-      final List<Map<String, dynamic>> list = await service.getAnnouncements();
+      // PERBAIKAN: Gunakan 'service' bawaan kelas ini
+      final announcementsList = await service.getAnnouncements();
+
+      // PERBAIKAN: Deklarasikan box secara eksplisit
+      final box = Hive.box<AnnouncementModel>('announcements');
+      
+      // Update penyimpanan lokal
       await box.clear();
-      for (var item in list) {
+      for (var item in announcementsList) {
         final announcement = AnnouncementModel.fromMongo(item);
         await box.put(announcement.id, announcement);
       }
-      _loadFromLocal();
-    } catch (e) {
-      print("ERROR SINKRONISASI PENGUMUMAN: $e");
-      _loadFromLocal();
-    }
 
-    isLoading = false;
-    notifyListeners();
+      // Panggil juga antrean offline jika ada sinyal
+      syncOfflineActions();
+
+      // Muat ulang layar secara halus dengan data yang baru datang
+      _loadFromLocal(); 
+    } catch (e) {
+      print("🔥 ERROR SINKRONISASI PENGUMUMAN: $e");
+    }
   }
 
   void _loadFromLocal() {
@@ -184,83 +184,61 @@ class AnnouncementViewModel extends ChangeNotifier {
   }
 
   // Menambah / menghapus bookmark (Lokal + Cloud)
-  Future<void> toggleBookmark(
-    AnnouncementModel announcement,
-    BuildContext context,
-  ) async {
+  Future<void> toggleBookmark(AnnouncementModel announcement, BuildContext context) async {
     final authVm = context.read<LoginViewModel>();
     final currentUserId = authVm.user?.id;
 
-    if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sesi login tidak valid. Silakan login ulang.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    if (currentUserId == null) return; // Cegah jika belum login
+
+    // 1. OPTIMISTIC UI: Langsung ubah di lokal!
+    final isBookmarked = _bookmarkBox.containsKey(announcement.id);
+    
+    if (isBookmarked) {
+      await _bookmarkBox.delete(announcement.id);
+    } else {
+      // 🔥 PERBAIKAN: Gandakan (Clone) objek sebelum dimasukkan ke Box lain
+      // Kita manfaatkan toJson dan fromJson yang sudah kita buat sebelumnya
+      final announcementClone = AnnouncementModel.fromJson(announcement.toJson());
+      
+      await _bookmarkBox.put(announcement.id, announcementClone);
     }
+    notifyListeners(); // Refresh layar seketika!
 
-    final isSaved = _bookmarkBox.containsKey(announcement.id);
-
+    // 2. Cek Koneksi Internet
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(
-      ConnectivityResult.none,
-    );
+    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
     if (isOffline) {
+      // 3. Masukkan ke Antrean jika Offline
+      final queueBox = Hive.box('student_action_queue');
+      await queueBox.add({
+        'action': isBookmarked ? 'remove_bookmark' : 'add_bookmark',
+        'user_id': currentUserId,
+        'announcement': announcement.toJson(), 
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal: Periksa koneksi internet Anda.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Offline: Bookmark disimpan sementara.')),
       );
       return;
     }
 
-    if (isSaved) {
-      _bookmarkBox.delete(announcement.id);
-
-      await _bookmarkService.removeBookmark(currentUserId, announcement.id);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dihapus dari Bookmark'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      final clonedData = AnnouncementModel(
-        id: announcement.id,
-        judul: announcement.judul,
-        isi: announcement.isi,
-        targetAudience: announcement.targetAudience,
-        idPublisher: announcement.idPublisher,
-        namaPublisher: announcement.namaPublisher,
-        rolePublisher: announcement.rolePublisher,
-        idProdi: announcement.idProdi,
-        idJurusan: announcement.idJurusan,
-        targetAngkatan: announcement.targetAngkatan,
-        kategori: announcement.kategori,
-        tingkatKepentingan: announcement.tingkatKepentingan,
-        createdAt: announcement.createdAt,
-        updatedAt: announcement.updatedAt,
-      );
-
-      _bookmarkBox.put(announcement.id, clonedData);
-
-      await _bookmarkService.saveBookmark(currentUserId, announcement);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Disimpan ke Bookmark'),
-          backgroundColor: Color(0xFFFF7A36),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    // 4. Jika Online, kirim langsung ke MongoDB
+    try {
+      if (isBookmarked) {
+        await _bookmarkService.removeBookmark(currentUserId, announcement.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bookmark dihapus')),
+        );
+      } else {
+        await _bookmarkService.saveBookmark(currentUserId, announcement);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bookmark berhasil disimpan!')),
+        );
+      }
+    } catch (e) {
+      print("Bookmark Error: $e");
     }
-
-    notifyListeners();
   }
 
   // Helper Format Teks
@@ -318,6 +296,45 @@ class AnnouncementViewModel extends ChangeNotifier {
       print("SUKSES MENARIK ${mongoBookmarks.length} BOOKMARK DARI CLOUD!");
     } catch (e) {
       print("ERROR SINKRONISASI BOOKMARK: $e");
+    }
+  }
+
+  // Fungsi ini dipanggil saat HP kembali Online
+  Future<void> syncOfflineActions() async {
+    final queueBox = Hive.box('student_action_queue');
+    if (queueBox.isEmpty) return; 
+
+    print("🔄 Menjalankan sinkronisasi aksi offline mahasiswa (Bookmark)...");
+
+    final keys = queueBox.keys.toList();
+    for (var key in keys) {
+      final item = queueBox.get(key);
+      if (item == null) continue; // Keamanan tambahan
+
+      final action = item['action'];
+      
+      if (action == 'add_bookmark' || action == 'remove_bookmark') {
+        final userId = item['user_id'];
+        final annData = item['announcement'];
+
+        // Pastikan annData tidak Null sebelum diubah jadi JSON
+        if (annData != null) {
+          final announcement = AnnouncementModel.fromJson(Map<String, dynamic>.from(annData));
+
+          try {
+            if (action == 'add_bookmark') {
+              await _bookmarkService.saveBookmark(userId, announcement);
+            } else if (action == 'remove_bookmark') {
+              await _bookmarkService.removeBookmark(userId, announcement.id);
+            }
+            
+            // Hapus dari antrean hanya jika berhasil
+            await queueBox.delete(key); 
+          } catch (e) {
+            print("Gagal sync antrean bookmark: $e");
+          }
+        }
+      }
     }
   }
 

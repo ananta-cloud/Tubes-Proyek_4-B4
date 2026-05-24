@@ -15,7 +15,6 @@ class ImportSchedulePage extends StatefulWidget {
 }
 
 class _ImportSchedulePageState extends State<ImportSchedulePage> {
-  // ── State ─────────────────────────────────────────────────────────────────
   bool _isParsing = false;
   String? _fileName;
   String? _parseError;
@@ -43,7 +42,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     });
 
     try {
-      // ✅ Semua logic parsing ada di ScheduleExcelParser
       final parsed = await ScheduleExcelParser.parse(file.path!);
 
       final summary = <String, int>{};
@@ -191,6 +189,8 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: SigmaColors.navy.withValues(alpha: 0.12)),
       ),
+      // ✅ NAMA MK dan NAMA DOSEN dihapus dari daftar
+      // Nama akan diambil otomatis dari MongoDB berdasarkan kode
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -217,22 +217,10 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
           _InfoChip('JAM KE'),
           _InfoChip('WAKTU'),
           _InfoChip('KODE MK'),
-          _InfoChip('NAMA MK'),
           _InfoChip('TE/PR'),
           _InfoChip('KODE DOSEN'),
-          _InfoChip('NAMA DOSEN'),
           _InfoChip('RUANGAN'),
           _InfoChip('KELAS'),
-          SizedBox(height: 6),
-          Text(
-            'Baris berurutan dengan matkul & dosen yang sama '
-            'akan digabung otomatis menjadi 1 jadwal.',
-            style: TextStyle(
-              color: SigmaColors.textSub,
-              fontSize: 11,
-              height: 1.5,
-            ),
-          ),
         ],
       ),
     );
@@ -266,7 +254,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
             const SizedBox(height: 8),
             Text(
               _isParsing
-                  ? 'Memproses...'
+                  ? 'Memproses & lookup data...'
                   : hasData
                   ? _fileName ?? 'File dipilih'
                   : 'Pilih File Excel',
@@ -276,6 +264,14 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (_isParsing)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  'Mengambil nama MK & dosen dari database...',
+                  style: TextStyle(color: SigmaColors.textSub, fontSize: 11),
+                ),
+              ),
             if (hasData)
               const Padding(
                 padding: EdgeInsets.only(top: 4),
@@ -411,11 +407,13 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
+            // ✅ Tabel preview tetap menampilkan nama MK & dosen
+            // yang sudah di-resolve dari MongoDB oleh parser
             headingRowColor: WidgetStateProperty.all(
               SigmaColors.navy.withValues(alpha: 0.06),
             ),
             dataRowMinHeight: 36,
-            dataRowMaxHeight: 48,
+            dataRowMaxHeight: 52,
             columnSpacing: 16,
             headingTextStyle: const TextStyle(
               color: SigmaColors.navy,
@@ -428,12 +426,13 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
             ),
             columns: const [
               DataColumn(label: Text('Kelas')),
+              DataColumn(label: Text('Kode MK')),
+              DataColumn(label: Text('Nama MK')),
+              DataColumn(label: Text('Kode Dosen')),
+              DataColumn(label: Text('Nama Dosen')),
               DataColumn(label: Text('Hari')),
               DataColumn(label: Text('Jam Mulai')),
               DataColumn(label: Text('Jam Selesai')),
-              DataColumn(label: Text('Kode MK')),
-              DataColumn(label: Text('Nama MK')),
-              DataColumn(label: Text('Dosen')),
               DataColumn(label: Text('Ruangan')),
               DataColumn(label: Text('TE/PR')),
             ],
@@ -441,9 +440,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
               return DataRow(
                 cells: [
                   DataCell(Text(s.kelas)),
-                  DataCell(Text(s.hari)),
-                  DataCell(Text(s.jamMulai)),
-                  DataCell(Text(s.jamSelesai)),
                   DataCell(Text(s.kodeMk)),
                   DataCell(
                     SizedBox(
@@ -456,10 +452,25 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                   ),
                   DataCell(
                     SizedBox(
-                      width: 130,
-                      child: Text(s.namaDosen, overflow: TextOverflow.ellipsis),
+                      width: 110,
+                      child: Text(
+                        s.kodeDosen.replaceAll(';', '\n'),
+                        style: const TextStyle(fontSize: 10),
+                      ),
                     ),
                   ),
+                  DataCell(
+                    SizedBox(
+                      width: 130,
+                      child: Text(
+                        s.namaDosen.replaceAll(';', '\n'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  DataCell(Text(s.hari)),
+                  DataCell(Text(s.jamMulai)),
+                  DataCell(Text(s.jamSelesai)),
                   DataCell(Text(s.ruangan)),
                   DataCell(Text(s.tePr)),
                 ],
@@ -554,7 +565,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  _InfoChip — widget kecil untuk daftar format kolom
+//  _InfoChip
 // ─────────────────────────────────────────────────────────────────────────────
 class _InfoChip extends StatelessWidget {
   const _InfoChip(this.label);

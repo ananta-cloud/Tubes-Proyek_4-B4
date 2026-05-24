@@ -24,19 +24,19 @@ class TaskViewModel extends ChangeNotifier {
     final connectivityResult = await Connectivity().checkConnectivity();
     bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
-    if (isOffline) return;
+    // 🔥 PENTING: Eksekusi antrean offline terlebih dahulu jika ada sinyal!
+    if (!isOffline) {
+      await syncOfflineTaskActions();
+    } else {
+      return; // Jika offline, berhenti di sini (tampilkan data lokal)
+    }
 
     try {
       final String idKelasMahasiswa = user.profilMahasiswa?.idKelas ?? '';
-
-      // Panggil fungsi baru dari TaskService (Kirim ID User dan ID Kelas Mahasiswa)
       final List<Map<String, dynamic>> mongoTasks = await _taskService
           .getTasksForMahasiswa(user.id, idKelasMahasiswa);
 
-      print("🔄 [TaskViewModel] Total tugas yang berhasil ditarik: ${mongoTasks.length}");
-
       List<String> mongoIds = [];
-
       for (var item in mongoTasks) {
         final task = TaskModel.fromMongo(item);
         mongoIds.add(task.id);
@@ -50,7 +50,6 @@ class TaskViewModel extends ChangeNotifier {
         await _taskBox.put(task.id, task);
       }
 
-      // Hapus tugas di memori lokal yang sudah dihapus oleh Dosen dari Cloud
       final localIds = _taskBox.keys.cast<String>().toList();
       for (var id in localIds) {
         if (!mongoIds.contains(id)) {
@@ -107,17 +106,34 @@ class TaskViewModel extends ChangeNotifier {
   Future<void> toggleStatus(TaskModel task) async {
     final newStatus = task.status == 'BELUM' ? 'SELESAI' : 'BELUM';
 
+    // ⚡ Optimistic UI: Langsung ubah di layar
     task.status = newStatus;
     task.updatedAt = DateTime.now();
     await task.save();
     notifyListeners();
 
+    // ☁️ Update ke MongoDB (Hanya tugas personal)
     if (task.isPersonal) {
       final connectivityResult = await Connectivity().checkConnectivity();
       bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
-      if (!isOffline) {
+      if (isOffline) {
+        // 🔥 Jika Offline, masukkan ke Antrean!
+        final queueBox = Hive.box('student_action_queue');
+        await queueBox.add({
+          'action': 'update_task_status',
+          'task_id': task.id,
+          'status': newStatus,
+        });
+        print("Tugas tersimpan di antrean offline.");
+        return;
+      }
+
+      // Jika Online, eksekusi langsung
+      try {
         await _taskService.updateTaskStatus(task.id, newStatus);
+      } catch (e) {
+        print("Gagal update status tugas: $e");
       }
     }
   }
@@ -166,6 +182,28 @@ class TaskViewModel extends ChangeNotifier {
       if (success) {
         task.isSynced = true;
         await task.save();
+      }
+    }
+  }
+
+  Future<void> syncOfflineTaskActions() async {
+    final queueBox = Hive.box('student_action_queue');
+    if (queueBox.isEmpty) return;
+
+    print("🔄 Menjalankan sinkronisasi aksi TUGAS offline...");
+
+    final keys = queueBox.keys.toList();
+    for (var key in keys) {
+      final item = queueBox.get(key);
+      
+      // Ambil aksi yang khusus untuk Tugas
+      if (item['action'] == 'update_task_status') {
+        try {
+          await _taskService.updateTaskStatus(item['task_id'], item['status']);
+          await queueBox.delete(key); // Hapus dari antrean jika sukses
+        } catch (e) {
+          print("Gagal sync antrean tugas: $e");
+        }
       }
     }
   }

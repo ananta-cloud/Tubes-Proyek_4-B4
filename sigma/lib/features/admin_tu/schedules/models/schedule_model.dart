@@ -54,6 +54,12 @@ class ScheduleModel {
   @HiveField(15)
   final int jamKe; // jam ke berapa (1-12)
 
+  // Field baru — ditandai true oleh parser saat diimport offline.
+  // ViewModel akan patch nama MK & dosen yang benar setelah koneksi pulih.
+  // Default false agar data Hive lama tidak terpengaruh.
+  @HiveField(16)
+  final bool needsEnrichment;
+
   ScheduleModel({
     required this.id,
     required this.namaMatkul,
@@ -71,6 +77,7 @@ class ScheduleModel {
     this.semester = '',
     this.tahunAkademik = '',
     this.jamKe = 0,
+    this.needsEnrichment = false,
   });
 
   factory ScheduleModel.fromMongo(Map<String, dynamic> map) {
@@ -117,6 +124,9 @@ class ScheduleModel {
       jamKe: (map['jam_ke_mulai'] is int)
           ? map['jam_ke_mulai']
           : int.tryParse(map['jam_ke_mulai']?.toString() ?? '0') ?? 0,
+      // Data dari Mongo sudah punya nama lengkap — tidak perlu enrich.
+      // Kecuali ada flag needs_enrichment tersimpan di dokumen itu sendiri.
+      needsEnrichment: map['needs_enrichment'] == true,
     );
   }
 
@@ -136,5 +146,46 @@ class ScheduleModel {
     'semester': semester,
     'tahun_akademik': tahunAkademik,
     'jam_ke_mulai': jamKe,
+    // Simpan flag ke Mongo agar enrichPendingSchedules bisa filter dari server
+    'needs_enrichment': needsEnrichment,
   };
+
+  // copyWith — dibutuhkan oleh enrichPendingSchedules di ViewModel
+  ScheduleModel copyWith({
+    String? id,
+    String? namaMatkul,
+    String? namaDosen,
+    String? hari,
+    String? jamMulai,
+    String? jamSelesai,
+    String? ruangan,
+    String? status,
+    DateTime? createdAt,
+    String? kelas,
+    String? kodeMk,
+    String? kodeDosen,
+    String? tePr,
+    String? semester,
+    String? tahunAkademik,
+    int? jamKe,
+    bool? needsEnrichment,
+  }) => ScheduleModel(
+    id: id ?? this.id,
+    namaMatkul: namaMatkul ?? this.namaMatkul,
+    namaDosen: namaDosen ?? this.namaDosen,
+    hari: hari ?? this.hari,
+    jamMulai: jamMulai ?? this.jamMulai,
+    jamSelesai: jamSelesai ?? this.jamSelesai,
+    ruangan: ruangan ?? this.ruangan,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    kelas: kelas ?? this.kelas,
+    kodeMk: kodeMk ?? this.kodeMk,
+    kodeDosen: kodeDosen ?? this.kodeDosen,
+    tePr: tePr ?? this.tePr,
+    semester: semester ?? this.semester,
+    tahunAkademik: tahunAkademik ?? this.tahunAkademik,
+    jamKe: jamKe ?? this.jamKe,
+    needsEnrichment: needsEnrichment ?? this.needsEnrichment,
+  );
 }

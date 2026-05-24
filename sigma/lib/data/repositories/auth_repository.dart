@@ -89,12 +89,28 @@ class AuthRepository {
         modelMahasiswa = MahasiswaModel.fromJson(profilLengkap);
       }
 
-      // 5. Kembalikan UserModel dengan struktur yang baru
+      final String safeId = (user["_id"] is ObjectId) ? (user["_id"] as ObjectId).toHexString() : user["_id"].toString();
+      final String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama";
+      final String safeEmail = user["email"]?.toString() ?? "";
+      final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
+
+      // 5. Simpan ke Secure Storage untuk Offline/Auto-Login dengan variabel yang sudah aman
+      await _storage.write(key: "user_id", value: safeId);
+      await _storage.write(key: "user_nama", value: safeNama);
+      await _storage.write(key: "user_role", value: safeRole);
+      await _storage.write(key: "user_email", value: safeEmail);
+      
+      // Simpan Map Profil sebagai JSON String
+      if (modelMahasiswa != null) {
+        await _storage.write(key: "user_profil", value: jsonEncode(modelMahasiswa.toJson()));
+      }
+
+      // 6. Kembalikan UserModel dengan variabel yang dijamin bukan Null
       return UserModel(
-        id: user["_id"].oid,
-        nama: user["nama"],
-        email: user["email"],
-        role: user["role"] ?? "MAHASISWA",
+        id: safeId,
+        nama: safeNama,
+        email: safeEmail,
+        role: safeRole,
         profilMahasiswa: modelMahasiswa,
       );
     } catch (e) {
