@@ -25,6 +25,7 @@ import 'features/admin_tu/schedules/models/schedule_model.dart';
 import 'data/services/schedule_service.dart';
 import 'data/services/announcement_service.dart';
 import 'data/repositories/auth_repository.dart';
+import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
@@ -40,7 +41,6 @@ import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_vi
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load Env
   await dotenv.load(fileName: ".env");
   await initializeDateFormatting('id_ID', null);
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
@@ -67,24 +67,26 @@ void main() async {
   }
 
   // ── Open Boxes ─────────────────────────────────────────────────────────────
-  // Shared / Mahasiswa
   await Hive.openBox<ScheduleLocalModel>('schedules');
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
 
-  // Admin TU — Pengumuman
   await Hive.openBox<AnnouncementModel>('admin_announcements');
   await Hive.openBox<Map>('announcement_queue');
 
-  // Admin TU — Matkul
   await Hive.openBox<MatkulModel>('admin_matkul');
   await Hive.openBox<Map>('matkul_queue');
   await Hive.openBox('admin_prodi');
 
-  // Admin TU — Jadwal
   await Hive.openBox<ScheduleModel>('admin_schedules');
   await Hive.openBox<Map>('schedule_queue');
+
+  // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
+  await DosenCacheService.openBox();
+
+  // Isi cache dosen dari MongoDB (best-effort — tidak fatal jika offline)
+  await DosenCacheService.warmUp();
 
   runApp(
     MultiProvider(
@@ -123,7 +125,6 @@ class MyApp extends StatelessWidget {
 }
 
 // ── Connectivity Listener ──────────────────────────────────────────────────────
-// Widget ini wrap seluruh app dan otomatis drain queue saat koneksi kembali
 class _ConnectivityListener extends StatefulWidget {
   final Widget child;
   const _ConnectivityListener({required this.child});
@@ -142,7 +143,6 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
       final isOffline = (result as List).contains(ConnectivityResult.none);
 
       if (_wasOffline && !isOffline) {
-        // Baru saja kembali online — drain semua queue
         debugPrint('🌐 Koneksi kembali online, memulai sync...');
         _syncAll();
       }
@@ -152,10 +152,10 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
 
   Future<void> _syncAll() async {
     if (!mounted) return;
-    // Reconnect MongoDB jika perlu
     await MongoDatabase.ensureConnected();
 
-    // Drain queue semua fitur Admin TU
+    await DosenCacheService.warmUp();
+
     await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
     await context.read<AdminMatkulViewModel>().onConnectionRestored();
     await context.read<AdminScheduleViewModel>().onConnectionRestored();

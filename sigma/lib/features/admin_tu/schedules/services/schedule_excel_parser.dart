@@ -1,18 +1,29 @@
 import 'dart:io';
 import 'package:excel/excel.dart' as excel_pkg;
 import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center;
 
 import '../../../../../core/network/mongo_database.dart';
 import '../models/schedule_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Nama box Hive yang dipakai untuk lookup offline
+//    'admin_matkul' → Box<MatkulModel>  (sudah ada di main.dart)
+//    'dosen_cache'  → Box<Map>          (cache sederhana kode→nama, lihat
+//                                        DosenCacheService di bawah)
+// ─────────────────────────────────────────────────────────────────────────────
+const _kBoxMatkul = 'admin_matkul';
+const _kBoxDosenCache = 'dosen_cache';
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  ScheduleExcelParser
 //
-//  Kolom yang dibaca dari Excel:
-//    HARI, JAM KE, WAKTU, KODE MK, TE/PR, KODE DOSEN, RUANGAN, KELAS
-//
-//  NAMA MK dan NAMA DOSEN diabaikan sepenuhnya — diambil dari MongoDB.
+//  Strategi lookup nama (offline-first):
+//    1. Cari di Hive lokal dulu  → tidak butuh internet sama sekali
+//    2. Kode yang tidak ketemu & online → query MongoDB
+//    3. Masih tidak ketemu       → kode sebagai placeholder,
+//                                  needsEnrichment = true
 // ─────────────────────────────────────────────────────────────────────────────
 class ScheduleExcelParser {
   ScheduleExcelParser._();
@@ -28,7 +39,6 @@ class ScheduleExcelParser {
       );
     }
 
-    // Kumpulkan semua kode unik untuk batch lookup
     final kodeMkSet = rawRows
         .map((r) => r.kodeMk)
         .where((k) => k.isNotEmpty)
@@ -42,15 +52,29 @@ class ScheduleExcelParser {
       }
     }
 
-    // Batch lookup ke MongoDB — pakai collection yang sudah terdaftar
     final namaMkMap = await _lookupNamaMk(kodeMkSet);
     final namaDosenMap = await _lookupNamaDosen(kodeDosenSet);
 
-    return _mergeRows(rawRows, namaMkMap, namaDosenMap);
+    final missedMk = kodeMkSet.where((k) => !namaMkMap.containsKey(k)).toSet();
+    final missedDosen = kodeDosenSet
+        .where((k) => !namaDosenMap.containsKey(k))
+        .toSet();
+    final needsEnrich = missedMk.isNotEmpty || missedDosen.isNotEmpty;
+
+    if (needsEnrich) {
+      debugPrint(
+        '⚠️ Beberapa kode tidak ditemukan:\n'
+        '   MK: $missedMk\n'
+        '   Dosen: $missedDosen\n'
+        '   → Akan di-enrich saat online.',
+      );
+    }
+
+    return _mergeRows(rawRows, namaMkMap, namaDosenMap, needsEnrich);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Step 1 — Baca Excel
+  //  Step 1 — Baca Excel (tidak berubah dari versi sebelumnya)
   // ─────────────────────────────────────────────────────────────────────────
   static Future<List<_RawRow>> _readExcel(String filePath) async {
     final bytes = await File(filePath).readAsBytes();
@@ -66,7 +90,6 @@ class ScheduleExcelParser {
       final rows = sheet.rows;
       if (rows.isEmpty) continue;
 
-      // Cari header row + info semester/tahun
       int headerRowIndex = -1;
       for (int i = 0; i < rows.length && i < 20; i++) {
         final rowText = rows[i]
@@ -83,7 +106,6 @@ class ScheduleExcelParser {
       }
       if (headerRowIndex == -1) continue;
 
-      // Petakan nama kolom → index
       final headerRow = rows[headerRowIndex];
       final colMap = <String, int>{};
       for (int j = 0; j < headerRow.length; j++) {
@@ -91,7 +113,6 @@ class ScheduleExcelParser {
         if (val.isNotEmpty) colMap[val] = j;
       }
 
-      // Kolom yang dibaca — NAMA MK & NAMA DOSEN tidak ada di sini
       final colHari = _findCol(colMap, ['HARI']);
       final colJamKe = _findCol(colMap, ['JAM KE', 'JAM_KE', 'JAMKE']);
       final colWaktu = _findCol(colMap, ['WAKTU']);
@@ -125,12 +146,9 @@ class ScheduleExcelParser {
         if (kelas.isNotEmpty) lastKelas = kelas;
 
         final kodeMk = cell(colKodeMk);
-
-        // Skip baris tanpa kode MK (termasuk istirahat)
         if (kodeMk.isEmpty) continue;
         if (effectiveHari.isEmpty || effectiveKelas.isEmpty) continue;
 
-        // Resolusi waktu
         final jamKe = int.tryParse(cell(colJamKe)) ?? 0;
         String jamMulai = '';
         String jamSelesai = '';
@@ -167,57 +185,104 @@ class ScheduleExcelParser {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Step 2a — Lookup nama MK dari mataKuliahCollection
+  //  Step 2a — Lookup nama MK
+  //
+  //  Hive: box 'admin_matkul' → MatkulModel
+  //        field: kodeMk (String), namaMatkul (String)
+  //  Fallback: MongoDB mataKuliahCollection
   // ─────────────────────────────────────────────────────────────────────────
   static Future<Map<String, String>> _lookupNamaMk(Set<String> kodes) async {
     final result = <String, String>{};
     if (kodes.isEmpty) return result;
 
+    // ── 1. Hive lokal (admin_matkul) ────────────────────────────────────
     try {
-      // ✅ Pakai MongoDatabase.mataKuliahCollection yang sudah terdaftar
-      final docs = await MongoDatabase.runSafe(
-        () => MongoDatabase.mataKuliahCollection.find(<String, dynamic>{
-          'kode_mk': {'\$in': kodes.toList()},
-        }).toList(),
-      );
-      for (final d in docs) {
-        final kode = d['kode_mk']?.toString() ?? '';
-        final nama =
-            d['nama_mk']?.toString() ?? d['nama_matkul']?.toString() ?? '';
-        if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
+      if (Hive.isBoxOpen(_kBoxMatkul)) {
+        final box = Hive.box(_kBoxMatkul);
+        for (final v in box.values) {
+          // MatkulModel: field kodeMk & namaMatkul
+          final dynamic m = v;
+          final kode = (m.kodeMk as String?) ?? '';
+          final nama = (m.namaMatkul as String?) ?? '';
+          if (kode.isNotEmpty && nama.isNotEmpty && kodes.contains(kode)) {
+            result[kode] = nama;
+          }
+        }
+        debugPrint('📦 Hive MK: ${result.length}/${kodes.length} ditemukan');
       }
-      debugPrint(
-        '✅ Lookup mata kuliah: ${result.length}/${kodes.length} ditemukan',
-      );
     } catch (e) {
-      debugPrint('⚠️ _lookupNamaMk gagal: $e');
+      debugPrint('⚠️ Hive lookup MK: $e');
+    }
+
+    // ── 2. MongoDB untuk yang masih kosong ───────────────────────────────
+    final missing = kodes.where((k) => !result.containsKey(k)).toSet();
+    if (missing.isNotEmpty) {
+      try {
+        final docs = await MongoDatabase.runSafe(
+          () => MongoDatabase.mataKuliahCollection.find(<String, dynamic>{
+            'kode_mk': {'\$in': missing.toList()},
+          }).toList(),
+        );
+        for (final d in docs) {
+          final kode = d['kode_mk']?.toString() ?? '';
+          final nama = d['nama_mk']?.toString() ?? '';
+          if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
+        }
+        debugPrint('🌐 Mongo MK: ${result.length}/${kodes.length} total');
+      } catch (e) {
+        debugPrint('⚠️ Mongo MK gagal (offline?): $e');
+      }
     }
 
     return result;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Step 2b — Lookup nama dosen dari dosenCollection
+  //  Step 2b — Lookup nama dosen
+  //
+  //  Hive: box 'dosen_cache' → Map {'kode_dosen': '...', 'nama_dosen': '...'}
+  //        Di-populate oleh DosenCacheService.warmUp() saat app online.
+  //  Fallback: MongoDB dosenCollection
   // ─────────────────────────────────────────────────────────────────────────
   static Future<Map<String, String>> _lookupNamaDosen(Set<String> kodes) async {
     final result = <String, String>{};
     if (kodes.isEmpty) return result;
 
+    // ── 1. Hive cache (dosen_cache) ──────────────────────────────────────
     try {
-      // ✅ Pakai MongoDatabase.dosenCollection yang sudah terdaftar
-      final docs = await MongoDatabase.runSafe(
-        () => MongoDatabase.dosenCollection.find(<String, dynamic>{
-          'kode_dosen': {'\$in': kodes.toList()},
-        }).toList(),
-      );
-      for (final d in docs) {
-        final kode = d['kode_dosen']?.toString() ?? '';
-        final nama = d['nama_dosen']?.toString() ?? '';
-        if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
+      if (Hive.isBoxOpen(_kBoxDosenCache)) {
+        final box = Hive.box<Map>(_kBoxDosenCache);
+        for (final kode in kodes) {
+          final raw = box.get(kode); // key = kode_dosen
+          if (raw != null) {
+            final nama = raw['nama_dosen']?.toString() ?? '';
+            if (nama.isNotEmpty) result[kode] = nama;
+          }
+        }
+        debugPrint('📦 Hive dosen: ${result.length}/${kodes.length} ditemukan');
       }
-      debugPrint('✅ Lookup dosen: ${result.length}/${kodes.length} ditemukan');
     } catch (e) {
-      debugPrint('⚠️ _lookupNamaDosen gagal: $e');
+      debugPrint('⚠️ Hive lookup dosen: $e');
+    }
+
+    // ── 2. MongoDB untuk yang masih kosong ───────────────────────────────
+    final missing = kodes.where((k) => !result.containsKey(k)).toSet();
+    if (missing.isNotEmpty) {
+      try {
+        final docs = await MongoDatabase.runSafe(
+          () => MongoDatabase.dosenCollection.find(<String, dynamic>{
+            'kode_dosen': {'\$in': missing.toList()},
+          }).toList(),
+        );
+        for (final d in docs) {
+          final kode = d['kode_dosen']?.toString() ?? '';
+          final nama = d['nama_dosen']?.toString() ?? '';
+          if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
+        }
+        debugPrint('🌐 Mongo dosen: ${result.length}/${kodes.length} total');
+      } catch (e) {
+        debugPrint('⚠️ Mongo dosen gagal (offline?): $e');
+      }
     }
 
     return result;
@@ -230,6 +295,7 @@ class ScheduleExcelParser {
     List<_RawRow> rawRows,
     Map<String, String> namaMkMap,
     Map<String, String> namaDosenMap,
+    bool needsEnrich,
   ) {
     final results = <ScheduleModel>[];
     _RawRow? current;
@@ -238,10 +304,8 @@ class ScheduleExcelParser {
     void flush() {
       if (current == null) return;
 
-      // Nama MK dari MongoDB, fallback ke kode jika tidak ditemukan
       final namaMk = namaMkMap[current!.kodeMk] ?? current!.kodeMk;
 
-      // Nama dosen dari MongoDB (bisa multi kode "KO073N;KO063N")
       final kodeList = current!.kodeDosen
           .split(';')
           .map((k) => k.trim())
@@ -252,9 +316,15 @@ class ScheduleExcelParser {
           ? '-'
           : kodeList.map((k) => namaDosenMap[k] ?? k).join(';');
 
+      // needsEnrichment = true hanya jika nama masih berupa kode
+      final bool enrichmentNeeded =
+          needsEnrich &&
+          (namaMk == current!.kodeMk ||
+              kodeList.any((k) => namaDosen.split(';').contains(k)));
+
       results.add(
         ScheduleModel(
-          id: ObjectId().oid,
+          id: ObjectId().toHexString(),
           namaMatkul: namaMk,
           namaDosen: namaDosen,
           hari: current!.hari,
@@ -270,6 +340,7 @@ class ScheduleExcelParser {
           semester: current!.semester,
           tahunAkademik: current!.tahunAkademik,
           jamKe: current!.jamKe,
+          needsEnrichment: enrichmentNeeded,
         ),
       );
 
@@ -344,7 +415,7 @@ class ScheduleExcelParser {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  _RawRow — model internal, tanpa field nama MK/dosen
+//  _RawRow
 // ─────────────────────────────────────────────────────────────────────────────
 class _RawRow {
   final String hari;

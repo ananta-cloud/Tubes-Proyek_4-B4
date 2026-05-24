@@ -9,14 +9,7 @@ import '../models/schedule_model.dart';
 const _kBoxSchedules = 'admin_schedules';
 const _kBoxQueue = 'schedule_queue';
 
-// ── Status sinkronisasi — ditampilkan sebagai indikator di UI ────────────────
-enum SyncStatus {
-  idle, // tidak ada pending queue
-  pending, // ada jadwal di queue, belum tersync ke MongoDB
-  syncing, // sedang proses sync ke MongoDB
-  synced, // baru saja berhasil sync (tampilkan sebentar lalu kembali idle)
-  failed, // sync gagal
-}
+enum SyncStatus { idle, pending, syncing, synced, failed }
 
 class AdminScheduleViewModel extends ChangeNotifier {
   List<ScheduleModel> _schedules = [];
@@ -26,12 +19,20 @@ class AdminScheduleViewModel extends ChangeNotifier {
   String _importStatus = '';
   SyncStatus _syncStatus = SyncStatus.idle;
 
+  // Set ID jadwal yang masih pending (belum masuk MongoDB)
+  Set<String> _pendingIds = {};
+
   List<ScheduleModel> get schedules => _schedules;
   bool get isLoading => _isLoading;
   bool get isImporting => _isImporting;
   String get importStatus => _importStatus;
   SyncStatus get syncStatus => _syncStatus;
-  int get pendingQueueCount => _queueBox.length;
+  Set<String> get pendingIds => _pendingIds;
+
+  // Jumlah jadwal (bukan item queue) yang masih pending
+  int get pendingScheduleCount => _pendingIds.length;
+
+  bool isSchedulePending(String id) => _pendingIds.contains(id);
 
   // ── Boxes ──────────────────────────────────────────────────────────────────
   Box<ScheduleModel> get _schedulesBox =>
@@ -42,7 +43,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
   Future<void> fetchSchedules() async {
     if (_isSyncInProgress) return;
     _loadFromLocal();
-    _updateSyncStatus(); // update status dari queue saat ini
+    _rebuildPendingIds();
     await _drainQueue();
     await _syncFromMongo();
   }
@@ -57,14 +58,25 @@ class AdminScheduleViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Update sync status berdasarkan isi queue ───────────────────────────────
-  void _updateSyncStatus() {
-    if (_syncStatus == SyncStatus.syncing) return; // jangan override saat sync
-    final newStatus = _queueBox.isEmpty ? SyncStatus.idle : SyncStatus.pending;
-    if (_syncStatus != newStatus) {
-      _syncStatus = newStatus;
-      notifyListeners();
+  // ── Rebuild set ID yang masih pending dari isi queue ───────────────────────
+  void _rebuildPendingIds() {
+    final ids = <String>{};
+    for (final key in _queueBox.keys) {
+      final raw = _queueBox.get(key);
+      if (raw == null) continue;
+      final op = Map<String, dynamic>.from(raw);
+      if (op['operation'] == 'import_batch') {
+        final opIds = List<String>.from(op['ids'] ?? []);
+        ids.addAll(opIds);
+      }
     }
+    _pendingIds = ids;
+
+    final newStatus = ids.isEmpty ? SyncStatus.idle : SyncStatus.pending;
+    if (_syncStatus != SyncStatus.syncing && _syncStatus != newStatus) {
+      _syncStatus = newStatus;
+    }
+    notifyListeners();
   }
 
   // ── Sync dari MongoDB → Hive ───────────────────────────────────────────────
@@ -87,7 +99,6 @@ class AdminScheduleViewModel extends ChangeNotifier {
           final m = ScheduleModel.fromMongo(d);
           newEntries[m.id] = m;
         }
-
         final oldKeys = _schedulesBox.keys.cast<String>().toList();
         for (final k in oldKeys) {
           if (!newEntries.containsKey(k)) await _schedulesBox.delete(k);
@@ -131,14 +142,13 @@ class AdminScheduleViewModel extends ChangeNotifier {
       }).toList();
       for (final k in keysToDelete) await _schedulesBox.delete(k);
 
-      // 2. Hapus jadwal lama dari MongoDB (jika online)
+      // 2. Hapus jadwal lama dari MongoDB jika online
       final isOnline = await _checkOnline();
       if (isOnline) {
         for (final kelasKey in kelasKeys) {
           final parts = kelasKey.split('|');
           _importStatus = 'Menghapus jadwal lama ${parts[2]} dari server...';
           notifyListeners();
-
           await MongoDatabase.runSafe(
             () => MongoDatabase.schedulesCollection.deleteMany(
               where
@@ -159,7 +169,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
       await _schedulesBox.putAll(newEntries);
       _loadFromLocal();
 
-      // 4. Simpan ke MongoDB atau masukkan queue
+      // 4. Simpan ke MongoDB atau queue
       if (isOnline) {
         _importStatus = 'Menyimpan ${parsed.length} jadwal ke server...';
         notifyListeners();
@@ -178,19 +188,22 @@ class AdminScheduleViewModel extends ChangeNotifier {
           () => MongoDatabase.schedulesCollection.insertMany(mongoDocs),
         );
 
-        // Berhasil sync — tampilkan status "synced" sebentar
+        // Berhasil online — tidak ada pending
+        _pendingIds = {};
         _syncStatus = SyncStatus.synced;
         notifyListeners();
         await Future.delayed(const Duration(seconds: 3));
         _syncStatus = SyncStatus.idle;
         notifyListeners();
       } else {
-        // Offline — masukkan ke queue, status jadi pending
+        // Offline — masukkan ke queue dengan semua ID jadwal
         await _queueBox.add({
           'operation': 'import_batch',
           'ids': parsed.map((s) => s.id).toList(),
           'kelas_keys': kelasKeys.toList(),
         });
+        // Tandai semua ID sebagai pending
+        _pendingIds = parsed.map((s) => s.id).toSet();
         _syncStatus = SyncStatus.pending;
         notifyListeners();
       }
@@ -218,6 +231,9 @@ class AdminScheduleViewModel extends ChangeNotifier {
 
     final keys = _queueBox.keys.toList();
     bool allSuccess = true;
+
+    // ✅ Kumpulkan ID semua jadwal yang berhasil di-drain untuk di-enrich
+    final enrichIds = <String>[];
 
     for (final key in keys) {
       final raw = _queueBox.get(key);
@@ -264,6 +280,9 @@ class AdminScheduleViewModel extends ChangeNotifier {
               () => MongoDatabase.schedulesCollection.insertMany(mongoDocs),
             );
           }
+
+          // ✅ Tandai ID ini untuk enrichment nama MK & dosen
+          enrichIds.addAll(ids);
         }
 
         await _queueBox.delete(key);
@@ -275,16 +294,157 @@ class AdminScheduleViewModel extends ChangeNotifier {
       }
     }
 
-    // Update status berdasarkan hasil drain
     if (allSuccess && _queueBox.isEmpty) {
+      // Semua berhasil — kosongkan pending IDs
+      _pendingIds = {};
       _syncStatus = SyncStatus.synced;
       notifyListeners();
+
+      // ✅ Enrich nama MK & dosen yang masih berupa kode (diimport saat offline)
+      if (enrichIds.isNotEmpty) {
+        await enrichPendingSchedules(enrichIds);
+      }
+
       await Future.delayed(const Duration(seconds: 3));
       _syncStatus = SyncStatus.idle;
     } else {
+      _rebuildPendingIds();
       _syncStatus = allSuccess ? SyncStatus.idle : SyncStatus.failed;
     }
     notifyListeners();
+  }
+
+  // ── Enrich nama MK & dosen untuk jadwal yang diimport saat offline ─────────
+  //
+  //  Dipanggil setelah _drainQueue berhasil. Jadwal yang diimport offline
+  //  memiliki nama = kode (placeholder). Method ini lookup nama aslinya
+  //  dari MongoDB dan update Hive + Mongo.
+  // ──────────────────────────────────────────────────────────────────────────
+  Future<void> enrichPendingSchedules(List<String> ids) async {
+    if (ids.isEmpty) return;
+    if (!await _checkOnline()) return;
+
+    debugPrint('🔄 Enriching ${ids.length} jadwal (patch nama MK & dosen)...');
+
+    // Kumpulkan semua kode unik dari jadwal yang perlu di-enrich
+    final kodeMkSet = <String>{};
+    final kodeDosenSet = <String>{};
+
+    for (final id in ids) {
+      final s = _schedulesBox.get(id);
+      if (s == null) continue;
+      // Hanya enrich jika memang butuh (flag dari parser) atau nama = kode
+      if (!s.needsEnrichment && s.namaMatkul != s.kodeMk) continue;
+      if (s.kodeMk.isNotEmpty) kodeMkSet.add(s.kodeMk);
+      for (final k in s.kodeDosen.split(';')) {
+        final t = k.trim();
+        if (t.isNotEmpty) kodeDosenSet.add(t);
+      }
+    }
+
+    if (kodeMkSet.isEmpty && kodeDosenSet.isEmpty) {
+      debugPrint('ℹ️ Tidak ada jadwal yang perlu di-enrich.');
+      return;
+    }
+
+    // Batch lookup ke MongoDB
+    final namaMkMap = <String, String>{};
+    final namaDosenMap = <String, String>{};
+
+    try {
+      if (kodeMkSet.isNotEmpty) {
+        final mkDocs = await MongoDatabase.runSafe(
+          () => MongoDatabase.mataKuliahCollection.find(<String, dynamic>{
+            'kode_mk': {'\$in': kodeMkSet.toList()},
+          }).toList(),
+        );
+        for (final d in mkDocs) {
+          final kode = d['kode_mk']?.toString() ?? '';
+          final nama =
+              d['nama_mk']?.toString() ?? d['nama_matkul']?.toString() ?? '';
+          if (kode.isNotEmpty && nama.isNotEmpty) namaMkMap[kode] = nama;
+        }
+        debugPrint(
+          '✅ Enrich lookup MK: ${namaMkMap.length}/${kodeMkSet.length} ditemukan',
+        );
+      }
+
+      if (kodeDosenSet.isNotEmpty) {
+        final dosenDocs = await MongoDatabase.runSafe(
+          () => MongoDatabase.dosenCollection.find(<String, dynamic>{
+            'kode_dosen': {'\$in': kodeDosenSet.toList()},
+          }).toList(),
+        );
+        for (final d in dosenDocs) {
+          final kode = d['kode_dosen']?.toString() ?? '';
+          final nama = d['nama_dosen']?.toString() ?? '';
+          if (kode.isNotEmpty && nama.isNotEmpty) namaDosenMap[kode] = nama;
+        }
+        debugPrint(
+          '✅ Enrich lookup dosen: ${namaDosenMap.length}/${kodeDosenSet.length} ditemukan',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ enrichPendingSchedules lookup gagal: $e');
+      return;
+    }
+
+    // Update Hive + Mongo untuk setiap jadwal yang nama-nya berhasil di-resolve
+    int enrichedCount = 0;
+    for (final id in ids) {
+      final s = _schedulesBox.get(id);
+      if (s == null) continue;
+
+      final newNamaMk = namaMkMap[s.kodeMk];
+
+      final kodeList = s.kodeDosen
+          .split(';')
+          .map((k) => k.trim())
+          .where((k) => k.isNotEmpty)
+          .toList();
+      final newNamaDosen = kodeList.isEmpty
+          ? null
+          : kodeList.map((k) => namaDosenMap[k] ?? k).join(';');
+
+      // Hanya update jika ada perubahan nyata
+      final mkChanged = newNamaMk != null && newNamaMk != s.namaMatkul;
+      final dosenChanged = newNamaDosen != null && newNamaDosen != s.namaDosen;
+
+      if (!mkChanged && !dosenChanged) continue;
+
+      final updated = s.copyWith(
+        namaMatkul: mkChanged ? newNamaMk : s.namaMatkul,
+        namaDosen: dosenChanged ? newNamaDosen : s.namaDosen,
+        needsEnrichment: false,
+      );
+
+      // Update Hive
+      await _schedulesBox.put(id, updated);
+
+      // Patch Mongo (best-effort — tidak fatal jika gagal)
+      try {
+        await MongoDatabase.runSafe(
+          () => MongoDatabase.schedulesCollection.updateOne(
+            where.eq('_id', ObjectId.parse(id)),
+            modify
+                .set('nama_matkul', updated.namaMatkul)
+                .set('nama_dosen', updated.namaDosen)
+                .set('needs_enrichment', false)
+                .set('updated_at', DateTime.now()),
+          ),
+        );
+        enrichedCount++;
+      } catch (e) {
+        debugPrint('⚠️ Patch Mongo untuk id=$id gagal: $e');
+      }
+    }
+
+    debugPrint('✅ Enrichment selesai: $enrichedCount jadwal diperbarui.');
+
+    if (enrichedCount > 0) {
+      _loadFromLocal();
+      notifyListeners();
+    }
   }
 
   // ── Connection restored ────────────────────────────────────────────────────
