@@ -5,8 +5,10 @@ class UserModel {
   final String role;
   final String? idJurusan;
   final String? idProdi;
-  final String? kodeDosen;
+  final String? kodeDosen; 
   final String? kelas;
+  final String? angkatan; 
+  final String? deviceToken;
 
   UserModel({
     required this.id,
@@ -17,21 +19,42 @@ class UserModel {
     this.idProdi,
     this.kodeDosen,
     this.kelas,
+    this.angkatan,
+    this.deviceToken,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json["_id"]
-          .toString()
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', ''),
-      nama: json["nama"] ?? "",
-      email: json["email"],
-      role: json["role"] ?? "",
-      idJurusan: json["id_jurusan"]?.toString(),
-      idProdi: json["id_prodi"]?.toString(),
-      kodeDosen: json["kode_dosen"],
-      kelas: json["kelas"],
+      id: json['id'] ?? json['_id']?.toString() ?? '',
+      nama: json['nama'] ?? '',
+      email: json['email'] ?? '',
+      role: json['role'] ?? '',
+      idJurusan: json['id_jurusan']?.toString(),
+      idProdi: json['id_prodi']?.toString(),
+      kodeDosen: json['kode_dosen'],
+      kelas: json['kelas'],
+      angkatan: json['angkatan'],
+      deviceToken: json['device_token'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'nama': nama,
+    'email': email,
+    'role': role,
+    'id_jurusan': idJurusan,
+    'id_prodi': idProdi,
+    'kode_dosen': kodeDosen,
+    'kelas': kelas,
+    'angkatan': angkatan,
+    'device_token': deviceToken,
+  };
+
+  // Helper role checks
+  bool get isMahasiswa => role == 'MAHASISWA';
+  bool get isDosen => role == 'DOSEN';
+  bool get isTimPenjadwalan => role == 'TIM_PENJADWALAN';
+  bool get isAdminTu => role == 'ADMIN_TU';
+  bool get isManajemen => role == 'MANAJEMEN';
 }

@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
 import '../../../../data/models/schedule_local_model.dart';
-import '../../../../data/services/schedule_service.dart';
+import 'package:sigma/data/services/schedule_service.dart';
 
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;
 
-  List<ScheduleLocalModel> schedules = [];
-  bool isLoading = false;
-
   ScheduleController(this.service);
+
+  List<ScheduleLocalModel> schedules = [];
+
+  bool isLoading = false;
+  String? errorMsg;
 
   Future<void> syncSchedules() async {
     isLoading = true;

@@ -1,17 +1,23 @@
 @extends('layouts.app')
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 @section('page_title', 'Status Tracking Jadwal (Prodi Anda)')
 
 @section('content')
     <!-- Alert Jika Terdeteksi Bentrok (Collision Detection) -->
 =======
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
 @section('page_title', 'Status Tracking Jadwal')
 
 @section('content')
 
     {{-- Alert Collision --}}
+<<<<<<< HEAD
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     @if(session('error'))
     <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
         <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
@@ -20,17 +26,24 @@
             <p class="text-xs mt-1 text-red-700">{{ session('error') }}</p>
             @if(session('conflict_detail'))
 <<<<<<< HEAD
+<<<<<<< HEAD
                 <p class="text-xs mt-1 text-red-600 font-mono">Bentrok dengan: {{ session('conflict_detail')->nama_mk }} ({{ session('conflict_detail')->ruangan }})</p>
 =======
                 <p class="text-xs mt-1 text-red-600 font-mono bg-red-100 px-2 py-1 rounded inline-block">
                     Bentrok dengan: {{ session('conflict_detail')->nama_mk }} ({{ session('conflict_detail')->ruangan }})
                 </p>
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+                <p class="text-xs mt-1 text-red-600 font-mono bg-red-100 px-2 py-1 rounded inline-block">
+                    Bentrok dengan: {{ session('conflict_detail')->nama_mk }} ({{ session('conflict_detail')->ruangan }})
+                </p>
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
             @endif
         </div>
     </div>
     @endif
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     <!-- Dashboard Stats Tracking Jadwal -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -56,6 +69,8 @@
                 <i class="fas fa-plus mr-1"></i> Input Jadwal Baru
             </button>
 =======
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     @if(session('success'))
     <div class="mb-6 bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
         <i class="fas fa-check-circle text-emerald-500 mt-0.5"></i>
@@ -63,7 +78,6 @@
     </div>
     @endif
 
-    {{-- Stats Cards — Final (Tunggu Kajur) dihapus, diganti 2 card saja --}}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-slate-400">
             <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Draft</p>
@@ -95,7 +109,10 @@
                     <i class="fas fa-plus mr-1"></i> Input Jadwal Baru
                 </a>
             @endif
+<<<<<<< HEAD
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
         </div>
 
         <div class="overflow-x-auto">
@@ -105,25 +122,34 @@
                         <th class="px-6 py-4 text-slate-500 font-bold text-xs uppercase w-1/3">Mata Kuliah & Dosen</th>
                         <th class="px-6 py-4 text-slate-500 font-bold text-xs uppercase w-1/4">Waktu & Ruangan</th>
 <<<<<<< HEAD
+<<<<<<< HEAD
                         <th class="px-6 py-4 text-slate-500 font-bold text-xs uppercase w-1/4">Status</th>
 =======
                         <th class="px-6 py-4 text-slate-500 font-bold text-xs uppercase">Status</th>
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+                        <th class="px-6 py-4 text-slate-500 font-bold text-xs uppercase">Status</th>
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                         <th class="px-6 py-4 text-slate-500 font-bold text-xs uppercase text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($schedules ?? [] as $jadwal)
 <<<<<<< HEAD
+<<<<<<< HEAD
                     <tr class="hover:bg-slate-50">
 =======
                     <tr class="hover:bg-slate-50 transition">
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+                    <tr class="hover:bg-slate-50 transition">
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                         <td class="px-6 py-4">
                             <p class="font-bold text-slate-800">{{ $jadwal->nama_mk }}</p>
                             <p class="text-xs text-slate-500">{{ $jadwal->nama_dosen }}</p>
                         </td>
                         <td class="px-6 py-4">
+<<<<<<< HEAD
 <<<<<<< HEAD
                             <p class="font-medium text-slate-800">{{ $jadwal->hari }}, {{ Carbon\Carbon::parse($jadwal->jam_mulai)->format('H:i') }}</p>
                             <p class="text-xs text-slate-500">{{ $jadwal->ruangan }}</p>
@@ -157,6 +183,8 @@
                                 <span class="text-xs text-emerald-600"><i class="fas fa-check-circle"></i> Live di Mhs</span>
                             @endif
 =======
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                             <p class="font-medium text-slate-800">
                                 {{ $jadwal->hari }}, {{ \Carbon\Carbon::parse($jadwal->jam_mulai)->format('H:i') }}–{{ \Carbon\Carbon::parse($jadwal->jam_selesai)->format('H:i') }}
                             </p>
@@ -206,11 +234,15 @@
 
                             @endif
 
+<<<<<<< HEAD
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                         </td>
                     </tr>
                     @empty
                     <tr>
+<<<<<<< HEAD
 <<<<<<< HEAD
                         <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">Belum ada data jadwal perkuliahan.</td>
 =======
@@ -218,6 +250,11 @@
                             Belum ada data jadwal perkuliahan.
                         </td>
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+                        <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
+                            Belum ada data jadwal perkuliahan.
+                        </td>
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                     </tr>
                     @endforelse
                 </tbody>
@@ -226,16 +263,22 @@
     </div>
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     <!-- Modal Publikasi (Wajib Isi Pesan Pengantar) -->
 =======
     {{-- Modal Publikasi — hanya relevan untuk ADMIN_TU --}}
     @if(auth()->user()->role == 'ADMIN_TU')
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+    {{-- Modal Publikasi — hanya relevan untuk ADMIN_TU --}}
+    @if(auth()->user()->role == 'ADMIN_TU')
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     <div id="modal-publish" class="fixed inset-0 bg-slate-900/50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl max-w-md w-full m-4 overflow-hidden">
             <form id="form-publish" method="POST" action="">
                 @csrf @method('PATCH')
                 <div class="p-6">
+<<<<<<< HEAD
 <<<<<<< HEAD
                     <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-4">
                         <i class="fas fa-paper-plane"></i>
@@ -249,6 +292,8 @@
                         <button type="button" onclick="document.getElementById('modal-publish').classList.add('hidden')" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
                         <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-indigo-700">Kirim & Publikasi</button>
 =======
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                     <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl mb-4">
                         <i class="fas fa-paper-plane"></i>
                     </div>
@@ -272,7 +317,10 @@
                                 class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-emerald-700 transition">
                             <i class="fas fa-paper-plane mr-1"></i> Kirim & Publikasi
                         </button>
+<<<<<<< HEAD
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                     </div>
                 </div>
             </form>
@@ -282,17 +330,24 @@
     <script>
         function bukaModalPublish(id) {
 <<<<<<< HEAD
+<<<<<<< HEAD
             document.getElementById('form-publish').action = '/jurusan/schedules/' + id + '/publish';
             document.getElementById('modal-publish').classList.remove('hidden');
         }
     </script>
 @endsection
 =======
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
             document.getElementById('form-publish').action = '{{ url("/jurusan/schedules") }}/' + id + '/publish';
             document.getElementById('modal-publish').classList.remove('hidden');
         }
     </script>
     @endif
 
+<<<<<<< HEAD
 @endsection
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+@endsection
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce

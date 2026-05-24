@@ -31,7 +31,7 @@ class AnnouncementViewModel extends ChangeNotifier {
   final List<String> filters = [
     'SEMUA',
     'PENGABDIAN',
-    'PENDIDIKAN',
+    'PENGAJARAN',
     'PENELITIAN',
     'UMUM',
   ];

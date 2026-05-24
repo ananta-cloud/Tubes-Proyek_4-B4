@@ -50,6 +50,12 @@
                 <i class="fas fa-calendar-alt w-5 text-center"></i> Kelola Jadwal
             </a>
 
+            <a href="{{ route('penjadwalan.revisi.index') }}"
+            class="w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition
+                    {{ request()->routeIs('penjadwalan.revisi.*') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
+                <i class="fas fa-calendar-check w-5 text-center"></i> Periode Revisi
+            </a>
+            
             <a href="{{ route('penjadwalan.requests.index') }}"
                class="w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition
                       {{ request()->routeIs('penjadwalan.requests.*') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
@@ -67,10 +73,14 @@
 
             {{-- ======================== --}}
 <<<<<<< HEAD
+<<<<<<< HEAD
             {{-- MENU ADMIN TU / KAJUR   --}}
 =======
             {{-- MENU ADMIN TU --}}
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+            {{-- MENU ADMIN TU --}}
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
             {{-- ======================== --}}
             @elseif(auth()->user()->role != 'MANAJEMEN')
 
@@ -98,6 +108,7 @@
             @else
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             <a href="{{ url('/manajemen/announcements') }}"
                class="w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition
                       {{ request()->is('manajemen/announcements*') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
@@ -106,6 +117,11 @@
                class="w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition
                       {{ request()->routeIs('manajemen.dashboard') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+            <a href="{{ route('manajemen.dashboard') }}"
+               class="w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition
+                      {{ request()->routeIs('manajemen.dashboard') ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-indigo-800' }}">
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
                 <i class="fas fa-bullhorn w-5 text-center"></i> Pengumuman
                 <span class="ml-auto bg-yellow-400 text-indigo-900 text-[10px] font-bold px-2 py-0.5 rounded-full">Umum</span>
             </a>
@@ -156,7 +172,11 @@
 
 </body>
 <<<<<<< HEAD
+<<<<<<< HEAD
 </html>
 =======
 </html>
 >>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+</html>
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce

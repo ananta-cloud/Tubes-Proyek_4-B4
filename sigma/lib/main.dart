@@ -20,6 +20,7 @@ import 'data/models/announcement_model.dart';
 import 'data/models/task_model.dart';
 import 'features/admin_tu/master_matkul/models/matkul_model.dart';
 import 'features/admin_tu/schedules/models/schedule_model.dart';
+import 'data/models/pengajaran_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
@@ -30,7 +31,7 @@ import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
 import 'features/dosen/schedules/viewmodels/schedule_controller.dart';
-import 'features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
+import 'features/mahasiswa/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart';
 import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_viewmodel.dart';
@@ -58,6 +59,9 @@ void main() async {
   if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(MatkulModelAdapter());
   if (!Hive.isAdapterRegistered(5))
     Hive.registerAdapter(ScheduleModelAdapter());
+  if (!Hive.isAdapterRegistered(6)) {
+    Hive.registerAdapter(PengajaranModelAdapter());
+  }
 
   // ── MongoDB ────────────────────────────────────────────────────────────────
   try {
@@ -81,6 +85,7 @@ void main() async {
 
   await Hive.openBox<ScheduleModel>('admin_schedules');
   await Hive.openBox<Map>('schedule_queue');
+  await Hive.openBox<PengajaranModel>('pengajaran');
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();

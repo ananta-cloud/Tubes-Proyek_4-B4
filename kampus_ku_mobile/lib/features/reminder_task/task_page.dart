@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import '../viewmodels/task_viewmodel.dart';
-import '../../../../../data/models/task_model.dart';
-import 'package:provider/provider.dart';
-import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
+import '../../controller/task_controller.dart';
+import '../../data/models/task_model.dart';
 
 class TaskPage extends StatefulWidget {
-  final TaskViewModel controller;
+  final TaskController controller;
   final TaskModel? taskToEdit; // Jika null = Tambah Baru, Jika terisi = Edit
 
   const TaskPage({super.key, required this.controller, this.taskToEdit});
@@ -151,20 +149,16 @@ class _TaskPageState extends State<TaskPage> {
             ),
             onPressed: () {
               if (_namaTugasController.text.isNotEmpty && _selectedDeadline != null) {
-                // Tarik ID User untuk pembuat tugas
-                final userId = context.read<LoginViewModel>().user?.id ?? "";
-
                 if (isEditMode) {
-                  widget.controller.updatePersonalTask(
+                  widget.controller.updateTask(
                     task: widget.taskToEdit!,
-                    namaTugas: _namaTugasController.text, 
+                    nama: _namaTugasController.text, 
                     matkul: _selectedMatkul, 
                     deadline: _selectedDeadline!
                   );
                 } else {
-                  widget.controller.addPersonalTask(
-                    userId: userId,
-                    namaTugas: _namaTugasController.text, 
+                  widget.controller.addTask(
+                    nama: _namaTugasController.text, 
                     matkul: _selectedMatkul, 
                     deadline: _selectedDeadline!
                   );

@@ -7,11 +7,67 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Schedule;
 use App\Models\ScheduleRequests;
 use App\Models\MataKuliah;
-use Carbon\Carbon;
+use MongoDB\BSON\ObjectId;
+use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends Controller
 {
 
+<<<<<<< HEAD
+=======
+    /**
+     * Menampilkan daftar jadwal lengkap beserta fitur filter, search, dan statistik
+     */
+    public function index(Request $request)
+    {
+        $user      = Auth::user();
+        $idJurusan = $user->id_jurusan;
+
+        // 1. Inisialisasi query dasar HANYA untuk jurusan user yang sedang login
+        $query = Schedule::where('id_jurusan', $idJurusan);
+
+        // 2. Fitur Pencarian (Search)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_mk', 'like', "%{$search}%")
+                  ->orWhere('nama_dosen', 'like', "%{$search}%")
+                  ->orWhere('ruangan', 'like', "%{$search}%");
+            });
+        }
+
+        // 3. Fitur Filter (Berdasarkan Hari, Status, Tipe)
+        if ($request->filled('hari'))   $query->where('hari', $request->hari);
+        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('tipe'))   $query->where('tipe', $request->tipe);
+
+        // 4. Eksekusi query dengan sorting agar rapi
+        $schedules = $query->orderBy('hari', 'asc')->orderBy('jam_mulai', 'asc')->get();
+
+        // 5. Hitung statistik untuk Dashboard Tracking
+        $count_draft     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'DRAFT')->count();
+        $count_final     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'FINAL')->count();
+        $count_published = Schedule::where('id_jurusan', $idJurusan)->where('status', 'PUBLISHED')->count();
+        $total           = $count_draft + $count_final + $count_published;
+
+        // 6. Hitung request perubahan jadwal yang berstatus PENDING
+        $scheduleIds      = Schedule::where('id_jurusan', $idJurusan)->pluck('_id')->toArray();
+        $pending_requests = ScheduleRequests::whereIn('id_schedule', $scheduleIds)->where('status', 'PENDING')->count();
+
+        // 7. Kirim data ke view
+        // CATATAN: Pastikan path view ini sesuai dengan struktur folder Anda.
+        // Jika sebelumnya Anda menggunakan 'admin.jadwal.index', silakan ubah string di bawah.
+        return view('penjadwalan.schedules.index', compact(
+            'schedules',
+            'count_draft',
+            'count_final',
+            'count_published',
+            'total',
+            'pending_requests'
+        ));
+    }
+
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     /**
      * Dashboard utama Tim Penjadwalan
      */
@@ -38,55 +94,16 @@ class ScheduleController extends Controller
         ));
     }
 
-    /**
-     * Daftar jadwal lengkap + filter & search
-     */
-    public function index(Request $request)
-    {
-        $user      = Auth::user();
-        $idJurusan = $user->id_jurusan;
-
-        $query = Schedule::where('id_jurusan', $idJurusan);
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nama_mk', 'like', "%{$search}%")
-                  ->orWhere('nama_dosen', 'like', "%{$search}%")
-                  ->orWhere('ruangan', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->filled('hari'))   $query->where('hari', $request->hari);
-        if ($request->filled('status')) $query->where('status', $request->status);
-        if ($request->filled('tipe'))   $query->where('tipe', $request->tipe);
-
-        $schedules = $query->orderBy('hari')->orderBy('jam_mulai')->get();
-
-        $count_draft     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'DRAFT')->count();
-        $count_final     = Schedule::where('id_jurusan', $idJurusan)->where('status', 'FINAL')->count();
-        $count_published = Schedule::where('id_jurusan', $idJurusan)->where('status', 'PUBLISHED')->count();
-        $total           = $count_draft + $count_final + $count_published;
-
-        $scheduleIds      = Schedule::where('id_jurusan', $idJurusan)->pluck('_id')->toArray();
-        $pending_requests = ScheduleRequests::whereIn('id_schedule', $scheduleIds)->where('status', 'PENDING')->count();
-
-        return view('penjadwalan.schedules.index', compact(
-            'schedules', 'count_draft', 'count_final', 'count_published', 'total', 'pending_requests'
-        ));
-    }
 
     /**
      * Form input jadwal baru
      */
-    public function create()
-    {
-        $user = Auth::user();
-
-        $masterMatkul = MataKuliah::where('id_prodi', $user->id_prodi)->get();
-
-        return view('penjadwalan.schedules.create', compact('masterMatkul'));
-    }
+public function create()
+{
+    $user = Auth::user();
+    $masterMatkul = MataKuliah::where('id_jurusan', $user->id_jurusan)->get();
+    return view('penjadwalan.schedules.create', compact('masterMatkul'));
+}
 
     /**
      * Simpan jadwal baru + Collision Detection
@@ -109,13 +126,17 @@ class ScheduleController extends Controller
         $user = Auth::user();
 
         $collision = $this->detectCollision(
-            $request->hari, $request->jam_mulai, $request->jam_selesai,
-            $request->ruangan, $request->nama_dosen, $request->nama_mk, null
+            $request->hari,
+            $request->jam_mulai,
+            $request->jam_selesai,
+            $request->ruangan,
+            $request->nama_dosen,
+            null
         );
 
         if ($collision) {
             return redirect()->back()->withInput()
-                ->with('error', 'Terjadi bentrok jadwal! Silakan periksa detail di bawah.')
+                ->with('error', 'Terjadi bentrok jadwal!')
                 ->with('conflict_detail', $collision);
         }
 
@@ -136,7 +157,7 @@ class ScheduleController extends Controller
         ]);
 
         return redirect()->route('penjadwalan.schedules.index')
-            ->with('success', 'Jadwal berhasil ditambahkan dengan status DRAFT.');
+            ->with('success', 'Jadwal berhasil ditambahkan.');
     }
 
     /**
@@ -358,25 +379,25 @@ class ScheduleController extends Controller
         string $jamSelesai,
         string $ruangan,
         string $namaDosen,
-        string $namaMk,
         ?string $excludeId = null
-    ): ?Schedule {
+    ) {
         $query = Schedule::where('hari', $hari)
-            ->where('status', '!=', 'DRAFT')
             ->where(function ($q) use ($jamMulai, $jamSelesai) {
                 $q->where('jam_mulai', '<', $jamSelesai)
-                  ->where('jam_selesai', '>', $jamMulai);
+                ->where('jam_selesai', '>', $jamMulai);
             })
-            ->where(function ($q) use ($ruangan, $namaDosen, $namaMk) {
+            ->where(function ($q) use ($ruangan, $namaDosen) {
                 $q->where('ruangan', $ruangan)
-                  ->orWhere('nama_dosen', $namaDosen)
-                  ->orWhere('nama_mk', $namaMk);
-            });
+                ->orWhere('nama_dosen', $namaDosen);
+            })
+            ->where('id_jurusan', $user->id_jurusan);
 
         if ($excludeId) {
             $query->where('_id', '!=', $excludeId);
         }
 
-        return $query->first();
+        $conflicts = $query->get();
+
+        return $conflicts->isEmpty() ? null : $conflicts;
     }
 }

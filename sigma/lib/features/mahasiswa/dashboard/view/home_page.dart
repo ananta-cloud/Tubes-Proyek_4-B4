@@ -8,22 +8,20 @@ import '../../../../data/services/notification_service.dart';
 // 1. IMPORT DATA & MODELS
 // ==========================================
 import 'package:sigma/data/models/announcement_model.dart';
-import 'package:sigma/data/models/task_model.dart';
+import 'package:sigma/data/models/schedule_local_model.dart';
 
 // ==========================================
 // 2. IMPORT VIEWMODELS & VIEWS
 // ==========================================
+import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
+import 'package:sigma/features/mahasiswa/tasks/views/student_task_card.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/widgets/announcement_widget.dart';
-import 'package:sigma/features/announcements/views/announcement_detail_page.dart';
-import 'package:sigma/features/mahasiswa/tasks/tasks/viewmodels/task_viewmodel.dart';
-import 'package:sigma/features/mahasiswa/tasks/tasks/views/task_page.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
-import 'package:sigma/data/models/schedule_local_model.dart';
-// Catatan: Jika ScheduleViewModel sudah siap, uncomment ini:
-// import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
+import 'package:sigma/features/mahasiswa/tasks/viewmodels/task_viewmodel.dart';
+
 
 class HomePageMhs extends StatefulWidget {
   const HomePageMhs({super.key});
@@ -53,7 +51,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
       if (userId != null) {
         // 2. Lakukan sinkronisasi Bookmark
         context.read<AnnouncementViewModel>().syncBookmarks(userId);
-        context.read<TaskViewModel>().syncTasks(userId);
+        context.read<TaskViewModel>().syncTasks(context.read<LoginViewModel>().user!);
       }
 
       NotificationService().initNotification();
@@ -674,20 +672,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 color: darkText,
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.add_circle, color: accentOrange, size: 28),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TaskPage(controller: viewModel),
-                  ),
-                );
-              },
-            ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 16),
 
         if (allTasks.isEmpty)
           Container(
@@ -710,110 +697,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           )
         else
-          ...allTasks.map((task) => _taskItem(viewModel, task)).toList(),
+          ...allTasks.map((task) => StudentTaskCard(task: task, viewModel: viewModel)).toList(),
       ],
     );
-  }
-
-  Widget _taskItem(TaskViewModel viewModel, TaskModel task) {
-    bool isTerlambat =
-        task.status == 'TERLAMBAT' ||
-        (task.deadline.isBefore(DateTime.now()) && task.status == 'BELUM');
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    TaskPage(controller: viewModel, taskToEdit: task),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => viewModel.toggleStatus(task),
-                  child: Icon(
-                    task.status == 'SELESAI'
-                        ? Icons.check_circle
-                        : Icons.radio_button_unchecked,
-                    color: task.status == 'SELESAI'
-                        ? Colors.green
-                        : accentOrange,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.namaTugas,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: task.status == 'SELESAI'
-                              ? Colors.grey
-                              : darkText,
-                          decoration: task.status == 'SELESAI'
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                      ),
-                      if (task.namaMkSnapshot != null)
-                        Text(
-                          task.namaMkSnapshot!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      "${task.deadline.day}/${task.deadline.month}/${task.deadline.year}",
-                      style: TextStyle(
-                        color: isTerlambat && task.status != 'SELESAI'
-                            ? Colors.red
-                            : primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    if (!task.isSynced)
-                      const Icon(Icons.cloud_off, size: 12, color: Colors.grey),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  } 
 
   // ================= BOOKMARK =================
   Widget _bookmark() {

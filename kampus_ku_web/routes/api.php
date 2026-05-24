@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScheduleApiController;
 use App\Http\Controllers\AnnouncementAPIController;
 use App\Http\Controllers\MahasiswaApiController;
+use App\Http\Controllers\PeriodeRevisiApiController;
 use App\Http\Controllers\TaskAPIController;
 
 // ============================================================
@@ -45,6 +46,23 @@ Route::middleware('jwt')->group(function () {
         Route::post('/',        [ScheduleApiController::class, 'storeRequest']);
         Route::delete('/{id}',  [ScheduleApiController::class, 'cancelRequest']);
     });
+
+    Route::middleware('jwt:DOSEN')->prefix('periode-revisi')->group(function () {
+ 
+    // PERIODE REVISI — Khusus Dosen
+    // Periode aktif yang relevan untuk dosen yang login
+    Route::get('/',                        [PeriodeRevisiApiController::class, 'index']);
+ 
+    // Semua periode — untuk dosen lihat riwayat deadline
+    // HARUS didefinisikan SEBELUM /{id} agar tidak tertangkap wildcard
+    Route::get('/semua',                   [PeriodeRevisiApiController::class, 'semua']);
+ 
+    // Cek apakah jadwal tertentu masih dalam periode revisi
+    Route::get('/cek-jadwal/{id_jadwal}',  [PeriodeRevisiApiController::class, 'cekJadwal']);
+ 
+    // Detail satu periode
+    Route::get('/{id}',                    [PeriodeRevisiApiController::class, 'show']);
+});
 
     // MAHASISWA — Khusus Mahasiswa
     Route::middleware('jwt:MAHASISWA')->prefix('mahasiswa')->group(function () {
