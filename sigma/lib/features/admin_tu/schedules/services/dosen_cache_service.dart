@@ -50,10 +50,10 @@ class DosenCacheService {
       }
 
       await box.putAll(toSave);
-      debugPrint('✅ DosenCacheService.warmUp: ${toSave.length} dosen di-cache');
+      debugPrint(' DosenCacheService.warmUp: ${toSave.length} dosen di-cache');
     } catch (e) {
       // Offline atau koneksi gagal — cache yang sudah ada tetap terpakai
-      debugPrint('⚠️ DosenCacheService.warmUp gagal (offline?): $e');
+      debugPrint(' DosenCacheService.warmUp gagal (offline?): $e');
     }
   }
 

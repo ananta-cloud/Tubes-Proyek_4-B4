@@ -148,7 +148,7 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
       final isOffline = (result as List).contains(ConnectivityResult.none);
 
       if (_wasOffline && !isOffline) {
-        debugPrint('🌐 Koneksi kembali online, memulai sync...');
+        debugPrint(' Koneksi kembali online, memulai sync...');
         _syncAll();
       }
       _wasOffline = isOffline;

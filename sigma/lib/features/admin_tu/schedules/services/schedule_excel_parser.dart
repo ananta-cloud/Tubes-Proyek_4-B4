@@ -63,7 +63,7 @@ class ScheduleExcelParser {
 
     if (needsEnrich) {
       debugPrint(
-        '⚠️ Beberapa kode tidak ditemukan:\n'
+        '   Beberapa kode tidak ditemukan:\n'
         '   MK: $missedMk\n'
         '   Dosen: $missedDosen\n'
         '   → Akan di-enrich saat online.',
@@ -208,10 +208,10 @@ class ScheduleExcelParser {
             result[kode] = nama;
           }
         }
-        debugPrint('📦 Hive MK: ${result.length}/${kodes.length} ditemukan');
+        debugPrint(' Hive MK: ${result.length}/${kodes.length} ditemukan');
       }
     } catch (e) {
-      debugPrint('⚠️ Hive lookup MK: $e');
+      debugPrint(' Hive lookup MK: $e');
     }
 
     // ── 2. MongoDB untuk yang masih kosong ───────────────────────────────
@@ -228,9 +228,9 @@ class ScheduleExcelParser {
           final nama = d['nama_mk']?.toString() ?? '';
           if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
         }
-        debugPrint('🌐 Mongo MK: ${result.length}/${kodes.length} total');
+        debugPrint(' Mongo MK: ${result.length}/${kodes.length} total');
       } catch (e) {
-        debugPrint('⚠️ Mongo MK gagal (offline?): $e');
+        debugPrint(' Mongo MK gagal (offline?): $e');
       }
     }
 
@@ -259,10 +259,10 @@ class ScheduleExcelParser {
             if (nama.isNotEmpty) result[kode] = nama;
           }
         }
-        debugPrint('📦 Hive dosen: ${result.length}/${kodes.length} ditemukan');
+        debugPrint(' Hive dosen: ${result.length}/${kodes.length} ditemukan');
       }
     } catch (e) {
-      debugPrint('⚠️ Hive lookup dosen: $e');
+      debugPrint(' Hive lookup dosen: $e');
     }
 
     // ── 2. MongoDB untuk yang masih kosong ───────────────────────────────
@@ -279,9 +279,9 @@ class ScheduleExcelParser {
           final nama = d['nama_dosen']?.toString() ?? '';
           if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
         }
-        debugPrint('🌐 Mongo dosen: ${result.length}/${kodes.length} total');
+        debugPrint(' Mongo dosen: ${result.length}/${kodes.length} total');
       } catch (e) {
-        debugPrint('⚠️ Mongo dosen gagal (offline?): $e');
+        debugPrint(' Mongo dosen gagal (offline?): $e');
       }
     }
 
