@@ -3,7 +3,7 @@ import 'package:mongo_dart/mongo_dart.dart';
 
 part 'pengajaran_model.g.dart';
 
-@HiveType(typeId: 4)
+@HiveType(typeId: 6)
 class PengajaranModel extends HiveObject {
   @HiveField(0)
   final String id;

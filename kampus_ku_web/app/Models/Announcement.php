@@ -7,7 +7,11 @@ use MongoDB\Laravel\Eloquent\Model;
 class Announcement extends Model
 {
     protected $connection = 'mongodb';
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
 
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     protected $collection = 'announcements';
 
     public $timestamps = false;
@@ -25,6 +29,20 @@ class Announcement extends Model
         'target_angkatan', // Filter tambahan
         'created_at',
         'updated_at',
+<<<<<<< HEAD
+=======
+
+    protected $collection = 'announcements';
+
+    public $timestamps = false;
+
+    protected $fillable = [
+        'judul', 'isi', 'target_audience', 'id_prodi', 'id_jurusan',
+        'id_publisher', 'nama_publisher', 'role_publisher',
+        'kategori', 'target_angkatan', 'created_at', 'updated_at',
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     ];
 
     // Array penyimpan user_id yang sudah membaca (Read Confirmation)

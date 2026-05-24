@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
 import '../../../../data/models/schedule_local_model.dart';
-import '../../../../data/services/schedule_service.dart';
+import 'package:sigma/data/services/schedule_service.dart';
 
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;
@@ -22,9 +22,7 @@ class ScheduleController extends ChangeNotifier {
 
     try {
       //  Ambil langsung dari Mongo
-      final List<Map<String, dynamic>> list = await service.getSchedules(
-        idJurusan: '12345',
-      );
+      final List<Map<String, dynamic>> list = await service.getSchedules();
 
       print("MONGO DATA: ${list.length}");
 

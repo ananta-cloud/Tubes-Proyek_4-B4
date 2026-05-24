@@ -8,11 +8,9 @@ class MongoDatabase {
   static late DbCollection usersCollection;
   static late DbCollection schedulesCollection;
   static late DbCollection mataKuliahCollection;
+  static late DbCollection dosenCollection;
 
-  // Flag untuk menandai apakah aplikasi dalam mode offline
   static bool isOffline = true;
-
-  // Mutex sederhana untuk mencegah concurrent requests ke Atlas
   static bool _isOperationRunning = false;
 
   static Future<void> connect() async {
@@ -22,7 +20,6 @@ class MongoDatabase {
         throw Exception("MONGO_URL tidak ditemukan di .env");
       }
 
-      // Tambah TLS/SSL dan timeout Atlas yang lebih aman untuk mobile
       if (!mongoUrl.contains('tls=true') && !mongoUrl.contains('ssl=true')) {
         final separator = mongoUrl.contains('?') ? '&' : '?';
         mongoUrl = '$mongoUrl${separator}tls=true';
@@ -40,7 +37,8 @@ class MongoDatabase {
       await db.open().timeout(
         const Duration(seconds: 30),
         onTimeout: () => throw Exception(
-          "Koneksi timeout. Cek IP Whitelist Atlas, pastikan perangkat/emulator dapat mengakses internet, atau gunakan 0.0.0.0/0 jika perlu.",
+          "Koneksi timeout. Cek IP Whitelist Atlas, pastikan perangkat/emulator "
+          "dapat mengakses internet, atau gunakan 0.0.0.0/0 jika perlu.",
         ),
       );
 
@@ -49,6 +47,7 @@ class MongoDatabase {
       usersCollection = db.collection('users');
       schedulesCollection = db.collection('schedules');
       mataKuliahCollection = db.collection('mata_kuliah');
+      dosenCollection = db.collection('dosen'); // ✅ tambahan
 
       isOffline = false;
       print("✅ Berhasil terkoneksi ke MongoDB!");
@@ -59,7 +58,6 @@ class MongoDatabase {
     }
   }
 
-  // Pastikan koneksi masih aktif sebelum operasi
   static Future<void> ensureConnected() async {
     if (!db.isConnected) {
       print("🔄 Reconnecting ke MongoDB...");
@@ -67,8 +65,6 @@ class MongoDatabase {
     }
   }
 
-  // Jalankan operasi DB secara sequential (tidak concurrent)
-  // agar tidak error "connection closed" di Atlas
   static Future<T> runSafe<T>(Future<T> Function() operation) async {
     if (isOffline) {
       throw Exception(

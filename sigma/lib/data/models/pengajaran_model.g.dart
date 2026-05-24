@@ -8,7 +8,7 @@ part of 'pengajaran_model.dart';
 
 class PengajaranModelAdapter extends TypeAdapter<PengajaranModel> {
   @override
-  final int typeId = 4;
+  final int typeId = 6;
 
   @override
   PengajaranModel read(BinaryReader reader) {

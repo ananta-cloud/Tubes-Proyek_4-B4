@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../viewmodels/admin_main_viewodel.dart';
 import '../../schedules/views/admin_schedule_page.dart';
-import '../../announcements/views/admin_announcement_page.dart';
+import '../../../announcements/views/admin_announcement_page.dart';
 import '../../master_matkul/views/admin_matkul_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────

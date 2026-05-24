@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 class ScheduleController extends Controller
 {
 
+<<<<<<< HEAD
+=======
     /**
      * Menampilkan daftar jadwal lengkap beserta fitur filter, search, dan statistik
      */
@@ -65,6 +67,7 @@ class ScheduleController extends Controller
         ));
     }
 
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     /**
      * Dashboard utama Tim Penjadwalan
      */

@@ -171,7 +171,10 @@ class TaskFormViewModel extends ChangeNotifier {
         var photosStatus = await Permission.photos.status;
         if (!photosStatus.isGranted) await Permission.photos.request();
       }
-      FilePickerResult? result = await FilePicker.pickFiles(
+
+      // 2. BUKA SISTEM FILE MANAGER BAWAAN HP
+      // Kita kembalikan ke FileType.any agar sistem HP tidak crash (invalid_format_type)
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
         withData: false,

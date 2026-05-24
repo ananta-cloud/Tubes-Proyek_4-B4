@@ -16,8 +16,18 @@ return [
     */
 
     'defaults' => [
+<<<<<<< HEAD
+<<<<<<< HEAD
+        'guard' => 'web', 
+        'passwords' => 'users',
+=======
         'guard' => env('AUTH_GUARD', 'web'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
+>>>>>>> 2e2f4fafcfbb182b74e8f1c9cd50cf201c0a9f42
+=======
+        'guard' => env('AUTH_GUARD', 'web'),
+        'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
+>>>>>>> f66267e2a3f7d7545a5491663c8eb55f8478e8ce
     ],
 
     /*

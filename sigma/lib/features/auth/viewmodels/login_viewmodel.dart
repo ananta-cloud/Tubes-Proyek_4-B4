@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
+import 'package:sigma/data/models/user_model.dart';
+import 'package:sigma/data/services/notification_service.dart';
 import 'package:sigma/data/models/user_model.dart'; // Tambahkan import UserModel Anda
 
 class LoginViewModel extends ChangeNotifier {
@@ -25,9 +27,16 @@ class LoginViewModel extends ChangeNotifier {
 
     try {
       final result = await _authRepo.login(email, password);
+      print(
+        "🎯 [DEBUG LOGIN] Berhasil Login! Nama: ${result?.nama}, Kelas: ${result?.kelas}",
+      );
 
       // Simpan hasil login ke dalam state _user
       _user = result;
+
+      if (result != null) {
+        await NotificationService.subscribeToRole(result.role);
+      }
 
       _isLoading = false;
       notifyListeners();
@@ -40,30 +49,26 @@ class LoginViewModel extends ChangeNotifier {
     }
   }
 
+  Future<UserModel?> checkLogin() async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await _authRepo.checkAutoLogin();
+    if (result != null) {
+      _user = result;
+      await NotificationService.subscribeToRole(result.role);
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
+  }
+
   Future<void> logout() async {
     await _authRepo.logout();
 
     // Hapus data user dari state saat logout
     _user = null;
     notifyListeners();
-  }
-
-  Future<bool> checkLogin() async {
-    _isLoading = true;
-    notifyListeners();
-
-    // Coba tarik data dari storage
-    final savedUser = await _authRepo.checkLoginStatus();
-
-    if (savedUser != null) {
-      _user = savedUser; // Set user aktif
-      _isLoading = false;
-      notifyListeners();
-      return true; // Berarti ada user yang tersimpan (Sudah login)
-    }
-
-    _isLoading = false;
-    notifyListeners();
-    return false; // Berarti belum login / data kosong
   }
 }
