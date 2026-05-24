@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -10,15 +11,25 @@ import 'package:sigma/data/services/fcm_sender_service.dart';
 const _kBoxAnnouncements = 'admin_announcements';
 const _kBoxQueue = 'announcement_queue';
 
+enum SyncStatus { idle, pending, syncing, synced, failed }
+
 class AdminAnnouncementViewModel extends ChangeNotifier {
   List<AnnouncementModel> _announcements = [];
   bool _isLoading = false;
   bool _isSyncing = false;
 
+  SyncStatus _syncStatus = SyncStatus.idle;
+  Set<String> _pendingIds = {};
+
   List<AnnouncementModel> get announcements => _announcements;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
+  SyncStatus get syncStatus => _syncStatus;
+  Set<String> get pendingIds => _pendingIds;
+
   int get pendingQueueCount => _queueBox.length;
+  int get pendingAnnouncementCount => _pendingIds.length;
+  bool isAnnouncementPending(String id) => _pendingIds.contains(id);
 
   int get thisMonthCount {
     final now = DateTime.now();
@@ -37,6 +48,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   // ─── Init ─────────────────────────────────────────────────────────────────
   Future<void> init() async {
     _loadFromLocal();
+    _rebuildPendingIds();
     await _drainQueue();
     await syncFromMongo();
   }
@@ -45,6 +57,24 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   void _loadFromLocal() {
     _announcements = _announcementsBox.values.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    notifyListeners();
+  }
+
+  void _rebuildPendingIds() {
+    final ids = <String>{};
+    for (final key in _queueBox.keys) {
+      final raw = _queueBox.get(key);
+      if (raw == null) continue;
+      final op = Map<String, dynamic>.from(raw);
+      final id = op['id']?.toString();
+      if (id != null && id.isNotEmpty) ids.add(id);
+    }
+    _pendingIds = ids;
+
+    final newStatus = ids.isEmpty ? SyncStatus.idle : SyncStatus.pending;
+    if (_syncStatus != SyncStatus.syncing && _syncStatus != newStatus) {
+      _syncStatus = newStatus;
+    }
     notifyListeners();
   }
 
@@ -76,13 +106,9 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
-  /// [kategoriList] mendukung multi-select kategori.
-  /// [deadline] opsional; digunakan untuk menentukan tingkat kepentingan
-  /// secara otomatis di sisi view, namun disimpan juga ke DB untuk referensi.
   Future<void> createAnnouncement({
     required String judul,
     required String isi,
-    // Ganti 'kategori' tunggal → 'kategoriList' multi
     required List<String> kategoriList,
     required String target,
     required String tingkatKepentingan,
@@ -116,7 +142,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       'id': newId,
       'judul': judul,
       'isi': isi,
-      // Simpan sebagai List<String> — akan di-encode JSON saat drain
       'kategoriList': kategoriList,
       'target': target,
       'tingkatKepentingan': tingkatKepentingan,
@@ -127,6 +152,10 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       'attachments': attachments,
     });
 
+    _pendingIds.add(newId);
+    _syncStatus = SyncStatus.pending;
+    notifyListeners();
+
     await _drainQueue();
   }
 
@@ -136,22 +165,26 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     if (!isOnline || _queueBox.isEmpty) return;
 
     _isSyncing = true;
+    _syncStatus = SyncStatus.syncing;
     notifyListeners();
 
+    bool allSuccess = true;
     final keys = _queueBox.keys.toList();
+
     for (final key in keys) {
       final raw = _queueBox.get(key);
-      if (raw == null) continue;
+      if (raw == null) {
+        await _queueBox.delete(key);
+        continue;
+      }
       final op = Map<String, dynamic>.from(raw);
 
       try {
         if (op['operation'] == 'create') {
-          // Ambil kategori sebagai List<String>
           List<String> kategoriList = [];
           if (op['kategoriList'] is List) {
             kategoriList = List<String>.from(op['kategoriList']);
           } else if (op['kategori'] != null) {
-            // Backward-compat: queue lama pakai field 'kategori' tunggal
             kategoriList = [op['kategori'].toString()];
           }
 
@@ -169,7 +202,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
               'created_at': DateTime.parse(op['createdAt']),
               'updated_at': DateTime.parse(op['createdAt']),
               'attachments': op['attachments'] ?? [],
-              // Simpan deadline jika ada
               if (op['deadline'] != null)
                 'deadline': DateTime.parse(op['deadline']),
             }),
@@ -182,21 +214,36 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             targetAudience: op['target'],
           );
         }
+
         await _queueBox.delete(key);
-        debugPrint('Announcement queue item $key synced');
+        final syncedId = op['id']?.toString();
+        if (syncedId != null) _pendingIds.remove(syncedId);
+        debugPrint(' Announcement queue item $key synced');
       } catch (e) {
-        debugPrint('AdminAnnouncementViewModel._drainQueue key=$key: $e');
+        debugPrint(' AdminAnnouncementViewModel._drainQueue key=$key: $e');
+        allSuccess = false;
         break;
       }
     }
 
     _isSyncing = false;
+
+    if (allSuccess && _queueBox.isEmpty) {
+      _pendingIds = {};
+      _syncStatus = SyncStatus.synced;
+      notifyListeners();
+      await Future.delayed(const Duration(seconds: 3));
+      _syncStatus = SyncStatus.idle;
+    } else {
+      _rebuildPendingIds();
+      _syncStatus = allSuccess ? SyncStatus.idle : SyncStatus.failed;
+    }
     notifyListeners();
   }
 
   // ─── Connection restored ──────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
-    debugPrint('🔄 Connection restored — draining announcement queue...');
+    debugPrint(' Connection restored — draining announcement queue...');
     await _drainQueue();
     await syncFromMongo();
   }

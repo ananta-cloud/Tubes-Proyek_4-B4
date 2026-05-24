@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,11 +14,28 @@ class AdminMatkulPage extends StatefulWidget {
 }
 
 class _AdminMatkulPageState extends State<AdminMatkulPage> {
+  Timer? _refreshTimer;
+  static const _refreshInterval = Duration(seconds: 30);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminMatkulViewModel>().fetchMatkul();
+      _startAutoRefresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted) context.read<AdminMatkulViewModel>().fetchMatkul();
     });
   }
 
@@ -37,6 +55,12 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
               icon: Icons.add_rounded,
               onTap: () => _showMatkulForm(context, vm),
             ),
+          ),
+
+          //  Sync status banner
+          _SyncStatusBanner(
+            status: vm.syncStatus,
+            pendingCount: vm.pendingMatkulCount,
           ),
 
           Expanded(
@@ -90,7 +114,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                   ),
 
                   // ── Content ──
-                  if (vm.isLoading)
+                  if (vm.isLoading && vm.matkulList.isEmpty)
                     const SliverFillRemaining(
                       child: Center(
                         child: CircularProgressIndicator(
@@ -110,19 +134,17 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) => _MatkulCard(
-                            matkul: vm.matkulList[i],
-                            onEdit: () => _showMatkulForm(
-                              context,
-                              vm,
-                              existing: vm.matkulList[i],
-                            ),
-                            onDelete: () =>
-                                _confirmDelete(context, vm, vm.matkulList[i]),
-                          ),
-                          childCount: vm.matkulList.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, i) {
+                          final matkul = vm.matkulList[i];
+                          final isPending = vm.isMatkulPending(matkul.id);
+                          return _MatkulCard(
+                            matkul: matkul,
+                            isPending: isPending,
+                            onEdit: () =>
+                                _showMatkulForm(context, vm, existing: matkul),
+                            onDelete: () => _confirmDelete(context, vm, matkul),
+                          );
+                        }, childCount: vm.matkulList.length),
                       ),
                     ),
                 ],
@@ -134,7 +156,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     );
   }
 
-  // ── Delete confirmation dialog ──
+  // ── Delete confirmation dialog ─────────────────────────────────────────────
   void _confirmDelete(
     BuildContext context,
     AdminMatkulViewModel vm,
@@ -182,13 +204,12 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     );
   }
 
-  // ── Add / Edit bottom sheet ──
+  // ── Add / Edit bottom sheet ────────────────────────────────────────────────
   void _showMatkulForm(
     BuildContext context,
     AdminMatkulViewModel vm, {
     MatkulModel? existing,
   }) {
-    // Pastikan prodiMap sudah terisi sebelum buka form
     if (vm.prodiMap.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -204,8 +225,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     final sksCtrl = TextEditingController(
       text: existing != null ? '${existing.sks}' : '',
     );
-
-    // Gunakan idProdi dari data existing, atau default ke key pertama prodiMap
     String selectedIdProdi = existing?.idProdi ?? vm.prodiMap.keys.first;
 
     showModalBottomSheet(
@@ -228,7 +247,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle bar
               Center(
                 child: Container(
                   width: 36,
@@ -240,7 +258,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               Text(
                 existing == null ? 'Tambah Mata Kuliah' : 'Edit Mata Kuliah',
                 style: const TextStyle(
@@ -251,22 +268,18 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
               ),
               const SizedBox(height: 16),
 
-              // Kode MK
               const _ModalFieldLabel(label: 'Kode MK', required: true),
               const SizedBox(height: 6),
               _modalTextField(kodeCtrl, 'Cth: IF302'),
               const SizedBox(height: 12),
 
-              // Nama MK
               const _ModalFieldLabel(label: 'Nama Mata Kuliah', required: true),
               const SizedBox(height: 6),
               _modalTextField(namaCtrl, 'Cth: Basis Data'),
               const SizedBox(height: 12),
 
-              // SKS + Program Studi
               Row(
                 children: [
-                  // SKS
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,8 +295,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                     ),
                   ),
                   const SizedBox(width: 12),
-
-                  // Program Studi — dynamic dari prodiMap
                   Expanded(
                     flex: 2,
                     child: Column(
@@ -300,7 +311,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              // value harus ada di dalam items
                               value: vm.prodiMap.containsKey(selectedIdProdi)
                                   ? selectedIdProdi
                                   : vm.prodiMap.keys.first,
@@ -310,12 +320,11 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                                 fontSize: 13,
                               ),
                               dropdownColor: SigmaColors.white,
-                              // Build dari prodiMap: key=idHex, value=nama_prodi
                               items: vm.prodiMap.entries
                                   .map(
                                     (e) => DropdownMenuItem<String>(
-                                      value: e.key, // ObjectId hex
-                                      child: Text(e.value), // nama_prodi
+                                      value: e.key,
+                                      child: Text(e.value),
                                     ),
                                   )
                                   .toList(),
@@ -333,12 +342,10 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
 
               const SizedBox(height: 20),
 
-              // Tombol simpan
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(
                   onTap: () async {
-                    // Validasi input
                     if (kodeCtrl.text.trim().isEmpty ||
                         namaCtrl.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -439,14 +446,96 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
   }
 }
 
-// ─── Matkul Card ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  Sync Status Banner — sama persis dengan di AdminSchedulePage
+// ─────────────────────────────────────────────────────────────────────────────
+class _SyncStatusBanner extends StatelessWidget {
+  const _SyncStatusBanner({required this.status, required this.pendingCount});
+
+  final SyncStatus status;
+  final int pendingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == SyncStatus.idle) return const SizedBox.shrink();
+
+    final (Color bg, Color fg, IconData icon, String text) = switch (status) {
+      SyncStatus.pending => (
+        const Color(0xFFFFF3CD),
+        const Color(0xFFB45309),
+        Icons.cloud_off_rounded,
+        '$pendingCount matkul tersimpan lokal — belum terkirim ke server',
+      ),
+      SyncStatus.syncing => (
+        SigmaColors.navy.withValues(alpha: 0.08),
+        SigmaColors.navy,
+        Icons.sync_rounded,
+        'Mengirim $pendingCount matkul ke server...',
+      ),
+      SyncStatus.synced => (
+        const Color(0xFFE8F5E9),
+        SigmaColors.success,
+        Icons.cloud_done_rounded,
+        'Semua matkul berhasil tersimpan ke server',
+      ),
+      SyncStatus.failed => (
+        SigmaColors.danger.withValues(alpha: 0.08),
+        SigmaColors.danger,
+        Icons.cloud_off_rounded,
+        'Gagal mengirim ke server — akan dicoba ulang saat online',
+      ),
+      SyncStatus.idle => (
+        Colors.transparent,
+        Colors.transparent,
+        Icons.check,
+        '',
+      ),
+    };
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: bg,
+      child: Row(
+        children: [
+          status == SyncStatus.syncing
+              ? SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                )
+              : Icon(icon, color: fg, size: 15),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: fg,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Matkul Card — dengan indikator sync di sudut kanan bawah
+// ─────────────────────────────────────────────────────────────────────────────
 class _MatkulCard extends StatelessWidget {
   const _MatkulCard({
     required this.matkul,
+    required this.isPending,
     required this.onEdit,
     required this.onDelete,
   });
+
   final MatkulModel matkul;
+  final bool isPending;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -457,7 +546,12 @@ class _MatkulCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: SigmaColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: SigmaColors.cardBorder),
+        border: Border.all(
+          //  Border berbeda untuk item pending
+          color: isPending
+              ? const Color(0xFFB45309).withValues(alpha: 0.3)
+              : SigmaColors.cardBorder,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x06000000),
@@ -489,7 +583,7 @@ class _MatkulCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // Nama + Program Studi
+            // Nama + Program Studi + sync indicator
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,16 +597,39 @@ class _MatkulCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    matkul.programStudi, // nama_prodi hasil lookup
-                    style: const TextStyle(
-                      color: SigmaColors.textSub,
-                      fontSize: 11,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          matkul.programStudi,
+                          style: const TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                      //  Indikator sync kecil
+                      Tooltip(
+                        message: isPending
+                            ? 'Belum terkirim ke server'
+                            : 'Sudah di server',
+                        child: Icon(
+                          isPending
+                              ? Icons.cloud_off_rounded
+                              : Icons.cloud_done_rounded,
+                          size: 13,
+                          color: isPending
+                              ? const Color(0xFFB45309)
+                              : SigmaColors.success,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(width: 8),
 
             // SKS chip
             Container(
@@ -579,9 +696,12 @@ class _MatkulCard extends StatelessWidget {
   }
 }
 
-// ─── Modal Field Label ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  Modal Field Label (tidak berubah)
+// ─────────────────────────────────────────────────────────────────────────────
 class _ModalFieldLabel extends StatelessWidget {
   const _ModalFieldLabel({required this.label, this.required = false});
+
   final String label;
   final bool required;
 

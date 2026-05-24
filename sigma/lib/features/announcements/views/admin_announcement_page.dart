@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -16,11 +17,28 @@ class AdminAnnouncementPage extends StatefulWidget {
 }
 
 class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
+  Timer? _refreshTimer;
+  static const _refreshInterval = Duration(seconds: 30);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminAnnouncementViewModel>().init();
+      _startAutoRefresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted) context.read<AdminAnnouncementViewModel>().init();
     });
   }
 
@@ -35,13 +53,19 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
           // ── Header ──
           SigmaPageHeader(title: 'Pengumuman'),
 
+          //  Sync status banner
+          _SyncStatusBanner(
+            status: vm.syncStatus,
+            pendingCount: vm.pendingAnnouncementCount,
+          ),
+
           Expanded(
             child: RefreshIndicator(
               color: SigmaColors.navy,
               onRefresh: () => vm.init(),
               child: CustomScrollView(
                 slivers: [
-                  // ── Stat Cards ── (hanya TOTAL dan BULAN INI)
+                  // ── Stat Cards ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -107,7 +131,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                   ),
 
                   // ── Content ──
-                  if (vm.isLoading)
+                  if (vm.isLoading && vm.announcements.isEmpty)
                     const SliverFillRemaining(
                       child: Center(
                         child: CircularProgressIndicator(
@@ -127,20 +151,24 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) => GestureDetector(
+                        delegate: SliverChildBuilderDelegate((context, i) {
+                          final item = vm.announcements[i];
+                          final isPending = vm.isAnnouncementPending(item.id);
+                          return GestureDetector(
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => AdminAnnouncementDetailPage(
-                                  announcement: vm.announcements[i],
+                                  announcement: item,
                                 ),
                               ),
                             ),
-                            child: _AnnouncementCard(item: vm.announcements[i]),
-                          ),
-                          childCount: vm.announcements.length,
-                        ),
+                            child: _AnnouncementCard(
+                              item: item,
+                              isPending: isPending,
+                            ),
+                          );
+                        }, childCount: vm.announcements.length),
                       ),
                     ),
                 ],
@@ -153,10 +181,91 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
   }
 }
 
-// ─── Announcement Card ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  Sync Status Banner
+// ─────────────────────────────────────────────────────────────────────────────
+class _SyncStatusBanner extends StatelessWidget {
+  const _SyncStatusBanner({required this.status, required this.pendingCount});
+
+  final SyncStatus status;
+  final int pendingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == SyncStatus.idle) return const SizedBox.shrink();
+
+    final (Color bg, Color fg, IconData icon, String text) = switch (status) {
+      SyncStatus.pending => (
+        const Color(0xFFFFF3CD),
+        const Color(0xFFB45309),
+        Icons.cloud_off_rounded,
+        '$pendingCount pengumuman tersimpan lokal — belum terkirim ke server',
+      ),
+      SyncStatus.syncing => (
+        SigmaColors.navy.withValues(alpha: 0.08),
+        SigmaColors.navy,
+        Icons.sync_rounded,
+        'Mengirim $pendingCount pengumuman ke server...',
+      ),
+      SyncStatus.synced => (
+        const Color(0xFFE8F5E9),
+        SigmaColors.success,
+        Icons.cloud_done_rounded,
+        'Semua pengumuman berhasil tersimpan ke server',
+      ),
+      SyncStatus.failed => (
+        SigmaColors.danger.withValues(alpha: 0.08),
+        SigmaColors.danger,
+        Icons.cloud_off_rounded,
+        'Gagal mengirim ke server — akan dicoba ulang saat online',
+      ),
+      SyncStatus.idle => (
+        Colors.transparent,
+        Colors.transparent,
+        Icons.check,
+        '',
+      ),
+    };
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: bg,
+      child: Row(
+        children: [
+          status == SyncStatus.syncing
+              ? SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                )
+              : Icon(icon, color: fg, size: 15),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: fg,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Announcement Card — dengan indikator sync
+// ─────────────────────────────────────────────────────────────────────────────
 class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard({required this.item});
+  const _AnnouncementCard({required this.item, required this.isPending});
+
   final AnnouncementModel item;
+  final bool isPending;
 
   static const _kategoriColors = <String, Color>{
     'Akademik': SigmaColors.navy,
@@ -180,7 +289,12 @@ class _AnnouncementCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: SigmaColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: SigmaColors.cardBorder),
+        border: Border.all(
+          //  Border berbeda untuk item pending
+          color: isPending
+              ? const Color(0xFFB45309).withValues(alpha: 0.3)
+              : SigmaColors.cardBorder,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x06000000),
@@ -194,7 +308,7 @@ class _AnnouncementCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Judul + badge kategori (tampilkan semua kategori)
+            // Judul + badge kategori
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -209,7 +323,6 @@ class _AnnouncementCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Tampilkan badge kategori pertama saja di card
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -230,7 +343,8 @@ class _AnnouncementCard extends StatelessWidget {
                 ),
               ],
             ),
-            // Jika ada lebih dari 1 kategori, tampilkan sisanya
+
+            // Kategori tambahan
             if (item.kategori.length > 1) ...[
               const SizedBox(height: 4),
               Wrap(
@@ -275,7 +389,7 @@ class _AnnouncementCard extends StatelessWidget {
             const Divider(color: SigmaColors.cardBorder, height: 1),
             const SizedBox(height: 10),
 
-            // Footer: target + tanggal
+            // Footer: target + tanggal + sync indicator
             Row(
               children: [
                 const Icon(
@@ -292,6 +406,24 @@ class _AnnouncementCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+
+                //  Sync indicator di footer card
+                Tooltip(
+                  message: isPending
+                      ? 'Belum terkirim ke server'
+                      : 'Sudah di server',
+                  child: Icon(
+                    isPending
+                        ? Icons.cloud_off_rounded
+                        : Icons.cloud_done_rounded,
+                    size: 13,
+                    color: isPending
+                        ? const Color(0xFFB45309)
+                        : SigmaColors.success,
+                  ),
+                ),
+                const SizedBox(width: 8),
+
                 const Icon(
                   Icons.calendar_today_outlined,
                   size: 12,
