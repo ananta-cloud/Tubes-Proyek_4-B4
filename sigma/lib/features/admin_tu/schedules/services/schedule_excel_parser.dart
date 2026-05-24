@@ -12,9 +12,7 @@ import '../models/schedule_model.dart';
 //  Kolom yang dibaca dari Excel:
 //    HARI, JAM KE, WAKTU, KODE MK, TE/PR, KODE DOSEN, RUANGAN, KELAS
 //
-//  Kolom NAMA MK dan NAMA DOSEN diabaikan sepenuhnya meski ada di file.
-//  Nama MK dan nama dosen HANYA diambil dari MongoDB (collection mata_kuliah
-//  dan dosen) berdasarkan kode yang ditemukan.
+//  NAMA MK dan NAMA DOSEN diabaikan sepenuhnya — diambil dari MongoDB.
 // ─────────────────────────────────────────────────────────────────────────────
 class ScheduleExcelParser {
   ScheduleExcelParser._();
@@ -35,6 +33,7 @@ class ScheduleExcelParser {
         .map((r) => r.kodeMk)
         .where((k) => k.isNotEmpty)
         .toSet();
+
     final kodeDosenSet = <String>{};
     for (final r in rawRows) {
       for (final k in r.kodeDosen.split(';')) {
@@ -43,7 +42,7 @@ class ScheduleExcelParser {
       }
     }
 
-    // Batch lookup ke MongoDB
+    // Batch lookup ke MongoDB — pakai collection yang sudah terdaftar
     final namaMkMap = await _lookupNamaMk(kodeMkSet);
     final namaDosenMap = await _lookupNamaDosen(kodeDosenSet);
 
@@ -51,8 +50,7 @@ class ScheduleExcelParser {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Step 1 — Baca Excel, hanya ambil kolom yang dibutuhkan
-  //  NAMA MK dan NAMA DOSEN tidak dibaca sama sekali
+  //  Step 1 — Baca Excel
   // ─────────────────────────────────────────────────────────────────────────
   static Future<List<_RawRow>> _readExcel(String filePath) async {
     final bytes = await File(filePath).readAsBytes();
@@ -169,15 +167,16 @@ class ScheduleExcelParser {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Step 2a — Lookup nama MK dari collection `mata_kuliah`
+  //  Step 2a — Lookup nama MK dari mataKuliahCollection
   // ─────────────────────────────────────────────────────────────────────────
   static Future<Map<String, String>> _lookupNamaMk(Set<String> kodes) async {
     final result = <String, String>{};
     if (kodes.isEmpty) return result;
 
     try {
+      // ✅ Pakai MongoDatabase.mataKuliahCollection yang sudah terdaftar
       final docs = await MongoDatabase.runSafe(
-        () => MongoDatabase.db.collection('mata_kuliah').find(<String, dynamic>{
+        () => MongoDatabase.mataKuliahCollection.find(<String, dynamic>{
           'kode_mk': {'\$in': kodes.toList()},
         }).toList(),
       );
@@ -185,35 +184,40 @@ class ScheduleExcelParser {
         final kode = d['kode_mk']?.toString() ?? '';
         final nama =
             d['nama_mk']?.toString() ?? d['nama_matkul']?.toString() ?? '';
-        if (kode.isNotEmpty) result[kode] = nama;
+        if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
       }
+      debugPrint(
+        '✅ Lookup mata kuliah: ${result.length}/${kodes.length} ditemukan',
+      );
     } catch (e) {
-      debugPrint('⚠️ _lookupNamaMk: $e');
+      debugPrint('⚠️ _lookupNamaMk gagal: $e');
     }
 
     return result;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Step 2b — Lookup nama dosen dari collection `dosen`
+  //  Step 2b — Lookup nama dosen dari dosenCollection
   // ─────────────────────────────────────────────────────────────────────────
   static Future<Map<String, String>> _lookupNamaDosen(Set<String> kodes) async {
     final result = <String, String>{};
     if (kodes.isEmpty) return result;
 
     try {
+      // ✅ Pakai MongoDatabase.dosenCollection yang sudah terdaftar
       final docs = await MongoDatabase.runSafe(
-        () => MongoDatabase.db.collection('dosen').find(<String, dynamic>{
+        () => MongoDatabase.dosenCollection.find(<String, dynamic>{
           'kode_dosen': {'\$in': kodes.toList()},
         }).toList(),
       );
       for (final d in docs) {
         final kode = d['kode_dosen']?.toString() ?? '';
         final nama = d['nama_dosen']?.toString() ?? '';
-        if (kode.isNotEmpty) result[kode] = nama;
+        if (kode.isNotEmpty && nama.isNotEmpty) result[kode] = nama;
       }
+      debugPrint('✅ Lookup dosen: ${result.length}/${kodes.length} ditemukan');
     } catch (e) {
-      debugPrint('⚠️ _lookupNamaDosen: $e');
+      debugPrint('⚠️ _lookupNamaDosen gagal: $e');
     }
 
     return result;
@@ -235,9 +239,7 @@ class ScheduleExcelParser {
       if (current == null) return;
 
       // Nama MK dari MongoDB, fallback ke kode jika tidak ditemukan
-      final namaMk = (namaMkMap[current!.kodeMk]?.isNotEmpty == true)
-          ? namaMkMap[current!.kodeMk]!
-          : current!.kodeMk;
+      final namaMk = namaMkMap[current!.kodeMk] ?? current!.kodeMk;
 
       // Nama dosen dari MongoDB (bisa multi kode "KO073N;KO063N")
       final kodeList = current!.kodeDosen
@@ -246,17 +248,9 @@ class ScheduleExcelParser {
           .where((k) => k.isNotEmpty)
           .toList();
 
-      final String namaDosen;
-      if (kodeList.isEmpty) {
-        namaDosen = '-';
-      } else {
-        namaDosen = kodeList
-            .map(
-              (k) =>
-                  (namaDosenMap[k]?.isNotEmpty == true) ? namaDosenMap[k]! : k,
-            ) // fallback ke kode jika nama tidak ditemukan
-            .join(';');
-      }
+      final String namaDosen = kodeList.isEmpty
+          ? '-'
+          : kodeList.map((k) => namaDosenMap[k] ?? k).join(';');
 
       results.add(
         ScheduleModel(

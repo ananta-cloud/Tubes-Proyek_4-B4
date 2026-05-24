@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,7 +25,12 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
   final Set<String> _filterHari = {};
   final Set<String> _filterTePr = {};
 
-  bool _filterExpanded = true;
+  bool _filterExpanded =
+      false; // ✅ Default collapsed agar tidak overflow saat kosong
+
+  // ── Auto refresh ──────────────────────────────────────────────────────────
+  Timer? _refreshTimer;
+  static const _refreshInterval = Duration(seconds: 30);
 
   static const _hariOrder = [
     'SENIN',
@@ -40,6 +46,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminScheduleViewModel>().fetchSchedules();
+      _startAutoRefresh();
     });
     _searchCtrl.addListener(() {
       setState(() => _searchQuery = _searchCtrl.text.trim().toLowerCase());
@@ -48,10 +55,21 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted) {
+        context.read<AdminScheduleViewModel>().fetchSchedules();
+      }
+    });
+  }
+
+  // ── Filter helpers ────────────────────────────────────────────────────────
   int get _activeFilterCount =>
       (_searchQuery.isNotEmpty ? 1 : 0) +
       _filterKelas.length +
@@ -95,7 +113,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
     final vm = context.watch<AdminScheduleViewModel>();
     final schedules = _applyFilters(vm.schedules);
 
-    // Opsi filter dinamis dari data yang ada
     final allKelas =
         vm.schedules
             .map((s) => s.kelas)
@@ -114,13 +131,19 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
           // ── Header ──
           SigmaPageHeader(title: 'Kelola Jadwal', action: _LogoutButton()),
 
+          // ── Sync status banner ── tampil di luar scroll agar selalu terlihat
+          _SyncStatusBanner(
+            status: vm.syncStatus,
+            pendingCount: vm.pendingQueueCount,
+          ),
+
           Expanded(
             child: RefreshIndicator(
               color: SigmaColors.navy,
               onRefresh: () => vm.fetchSchedules(),
               child: CustomScrollView(
                 slivers: [
-                  // ── Stat — hanya total ──
+                  // ── Stat cards ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -166,7 +189,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                     ),
                   ),
 
-                  // ── List header ──
+                  // ── List header + Import button ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
@@ -211,8 +234,9 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                   ),
 
                   // ── Content ──
-                  if (vm.isLoading)
+                  if (vm.isLoading && vm.schedules.isEmpty)
                     const SliverFillRemaining(
+                      hasScrollBody: false,
                       child: Center(
                         child: CircularProgressIndicator(
                           color: SigmaColors.navy,
@@ -220,14 +244,41 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                       ),
                     )
                   else if (schedules.isEmpty)
+                    // ✅ FIX overflow: hasScrollBody: false + Center dengan
+                    // padding, sehingga tidak memaksa expand melebihi viewport
                     SliverFillRemaining(
-                      child: SigmaEmptyState(
-                        icon: vm.schedules.isEmpty
-                            ? Icons.calendar_today_outlined
-                            : Icons.search_off_rounded,
-                        message: vm.schedules.isEmpty
-                            ? 'Belum ada data jadwal.\nTap "Import" untuk mengunggah.'
-                            : 'Tidak ada jadwal yang cocok\ndengan filter yang dipilih.',
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 32,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                vm.schedules.isEmpty
+                                    ? Icons.calendar_today_outlined
+                                    : Icons.search_off_rounded,
+                                size: 48,
+                                color: SigmaColors.cardBorder,
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                vm.schedules.isEmpty
+                                    ? 'Belum ada data jadwal.\nTap "Import" untuk mengunggah.'
+                                    : 'Tidak ada jadwal yang cocok\ndengan filter yang dipilih.',
+                                style: const TextStyle(
+                                  color: SigmaColors.textSub,
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     )
                   else
@@ -268,7 +319,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle bar
             Center(
               child: Container(
                 width: 36,
@@ -280,8 +330,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Kelas chip + kode MK
             Row(
               children: [
                 if (s.kelas.isNotEmpty) _KelasChip(s.kelas),
@@ -292,8 +340,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
               ],
             ),
             const SizedBox(height: 10),
-
-            // Nama MK
             Text(
               s.namaMatkul,
               style: const TextStyle(
@@ -305,7 +351,6 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
             const SizedBox(height: 16),
             const Divider(color: SigmaColors.cardBorder),
             const SizedBox(height: 12),
-
             _DetailRow(
               icon: Icons.person_outline_rounded,
               label: 'Dosen',
@@ -345,6 +390,85 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Sync Status Banner
+//  Tampil di bawah header, di luar area scroll
+// ─────────────────────────────────────────────────────────────────────────────
+class _SyncStatusBanner extends StatelessWidget {
+  const _SyncStatusBanner({required this.status, required this.pendingCount});
+
+  final SyncStatus status;
+  final int pendingCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == SyncStatus.idle) return const SizedBox.shrink();
+
+    final (Color bg, Color fg, IconData icon, String text) = switch (status) {
+      SyncStatus.pending => (
+        const Color(0xFFFFF3CD),
+        const Color(0xFFB45309),
+        Icons.cloud_off_rounded,
+        'Jadwal tersimpan lokal — $pendingCount jadwal belum terkirim ke server',
+      ),
+      SyncStatus.syncing => (
+        SigmaColors.navy.withValues(alpha: 0.08),
+        SigmaColors.navy,
+        Icons.sync_rounded,
+        'Mengirim jadwal ke server...',
+      ),
+      SyncStatus.synced => (
+        const Color(0xFFE8F5E9),
+        SigmaColors.success,
+        Icons.cloud_done_rounded,
+        'Semua jadwal berhasil tersimpan ke server',
+      ),
+      SyncStatus.failed => (
+        SigmaColors.danger.withValues(alpha: 0.08),
+        SigmaColors.danger,
+        Icons.cloud_off_rounded,
+        'Gagal mengirim ke server — akan dicoba ulang saat online',
+      ),
+      SyncStatus.idle => (
+        Colors.transparent,
+        Colors.transparent,
+        Icons.check,
+        '',
+      ),
+    };
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: bg,
+      child: Row(
+        children: [
+          // Spinning icon saat syncing
+          status == SyncStatus.syncing
+              ? SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                )
+              : Icon(icon, color: fg, size: 15),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: fg,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Filter Panel
 // ─────────────────────────────────────────────────────────────────────────────
 class _FilterPanel extends StatelessWidget {
@@ -369,15 +493,12 @@ class _FilterPanel extends StatelessWidget {
   final int activeCount;
   final VoidCallback? onReset;
   final TextEditingController searchCtrl;
-
   final List<String> allKelas;
   final Set<String> filterKelas;
   final void Function(String) onToggleKelas;
-
   final List<String> allHari;
   final Set<String> filterHari;
   final void Function(String) onToggleHari;
-
   final Set<String> filterTePr;
   final void Function(String) onToggleTePr;
 
@@ -392,7 +513,6 @@ class _FilterPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header filter (selalu tampil) ──
           GestureDetector(
             onTap: onToggleExpand,
             behavior: HitTestBehavior.opaque,
@@ -460,17 +580,13 @@ class _FilterPanel extends StatelessWidget {
               ),
             ),
           ),
-
-          // ── Isi filter (collapsible) ──
           if (expanded) ...[
             const Divider(color: SigmaColors.cardBorder, height: 1),
-
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Search
                   Container(
                     decoration: BoxDecoration(
                       color: SigmaColors.bgPage,
@@ -499,8 +615,6 @@ class _FilterPanel extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-
-                  // Kelas
                   if (allKelas.isNotEmpty) ...[
                     _FilterLabel(icon: Icons.group_outlined, label: 'Kelas'),
                     const SizedBox(height: 6),
@@ -511,8 +625,6 @@ class _FilterPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
-
-                  // Hari
                   if (allHari.isNotEmpty) ...[
                     _FilterLabel(
                       icon: Icons.date_range_outlined,
@@ -523,7 +635,7 @@ class _FilterPanel extends StatelessWidget {
                       options: allHari,
                       selected: filterHari,
                       onTap: onToggleHari,
-                      displayMap: {
+                      displayMap: const {
                         'SENIN': 'Senin',
                         'SELASA': 'Selasa',
                         'RABU': 'Rabu',
@@ -534,8 +646,6 @@ class _FilterPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
-
-                  // Tipe (TE / PR)
                   _FilterLabel(
                     icon: Icons.label_outline_rounded,
                     label: 'Tipe',
@@ -561,7 +671,7 @@ class _FilterPanel extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Schedule Card — info lengkap, tanpa status publish
+//  Schedule Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _ScheduleCard extends StatelessWidget {
   const _ScheduleCard({required this.schedule});
@@ -591,7 +701,6 @@ class _ScheduleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Baris atas: kelas + kode MK + tePr chip ──
             Row(
               children: [
                 if (schedule.kelas.isNotEmpty) ...[
@@ -604,8 +713,6 @@ class _ScheduleCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
-            // ── Nama MK ──
             Text(
               schedule.namaMatkul,
               style: const TextStyle(
@@ -616,8 +723,6 @@ class _ScheduleCard extends StatelessWidget {
               softWrap: true,
             ),
             const SizedBox(height: 6),
-
-            // ── Dosen (icon users jika multi) ──
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -642,8 +747,6 @@ class _ScheduleCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-
-            // ── Hari + jam ──
             Row(
               children: [
                 const Icon(
@@ -683,8 +786,6 @@ class _ScheduleCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-
-            // ── Ruangan ──
             Row(
               children: [
                 const Icon(
@@ -713,31 +814,28 @@ class _ScheduleCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Shared small widgets
+//  Small shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
 class _KelasChip extends StatelessWidget {
   const _KelasChip(this.kelas);
   final String kelas;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: SigmaColors.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: SigmaColors.accent.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      kelas,
+      style: const TextStyle(
+        color: SigmaColors.accent,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
       ),
-      child: Text(
-        kelas,
-        style: const TextStyle(
-          color: SigmaColors.accent,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class _KodeMkChip extends StatelessWidget {
@@ -745,24 +843,22 @@ class _KodeMkChip extends StatelessWidget {
   final String kode;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: SigmaColors.bgPage,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: SigmaColors.cardBorder),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: SigmaColors.bgPage,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: SigmaColors.cardBorder),
+    ),
+    child: Text(
+      kode,
+      style: const TextStyle(
+        color: SigmaColors.textSub,
+        fontSize: 11,
+        fontFamily: 'monospace',
       ),
-      child: Text(
-        kode,
-        style: const TextStyle(
-          color: SigmaColors.textSub,
-          fontSize: 11,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class _TePrChip extends StatelessWidget {
@@ -798,22 +894,20 @@ class _FilterLabel extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: SigmaColors.textSub),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(
-            color: SigmaColors.textSub,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 13, color: SigmaColors.textSub),
+      const SizedBox(width: 5),
+      Text(
+        label,
+        style: const TextStyle(
+          color: SigmaColors.textSub,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
 class _ChipGroup extends StatelessWidget {
@@ -875,32 +969,30 @@ class _DetailRow extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: SigmaColors.textSub),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 16, color: SigmaColors.textSub),
+      const SizedBox(width: 10),
+      SizedBox(
+        width: 80,
+        child: Text(
+          label,
+          style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: SigmaColors.navy,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              color: SigmaColors.navy,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -950,11 +1042,8 @@ class _LogoutButton extends StatelessWidget {
             ],
           ),
         );
-
         if (confirm != true || !context.mounted) return;
-
         await context.read<LoginViewModel>().logout();
-
         if (!context.mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginPage()),
