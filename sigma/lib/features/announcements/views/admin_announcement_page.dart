@@ -50,10 +50,8 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
       backgroundColor: SigmaColors.bgPage,
       body: Column(
         children: [
-          // ── Header ──
           SigmaPageHeader(title: 'Pengumuman'),
 
-          //  Sync status banner
           _SyncStatusBanner(
             status: vm.syncStatus,
             pendingCount: vm.pendingAnnouncementCount,
@@ -65,12 +63,14 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
               onRefresh: () => vm.init(),
               child: CustomScrollView(
                 slivers: [
-                  // ── Stat Cards ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                       child: Row(
                         children: [
+                          // SigmaStatCard tidak lagi punya Expanded di dalamnya
+                          // (sudah diperbaiki di admin_main_page.dart), jadi
+                          // Expanded ada di sini sebagai pemanggil
                           Expanded(
                             child: SigmaStatCard(
                               label: 'TOTAL',
@@ -93,7 +93,6 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                     ),
                   ),
 
-                  // ── Section title + tombol buat ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
@@ -130,7 +129,6 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                     ),
                   ),
 
-                  // ── Content ──
                   if (vm.isLoading && vm.announcements.isEmpty)
                     const SliverFillRemaining(
                       child: Center(
@@ -259,7 +257,7 @@ class _SyncStatusBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Announcement Card — dengan indikator sync
+//  Announcement Card — layout diperbaiki agar tidak overflow
 // ─────────────────────────────────────────────────────────────────────────────
 class _AnnouncementCard extends StatelessWidget {
   const _AnnouncementCard({required this.item, required this.isPending});
@@ -290,7 +288,6 @@ class _AnnouncementCard extends StatelessWidget {
         color: SigmaColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          //  Border berbeda untuk item pending
           color: isPending
               ? const Color(0xFFB45309).withValues(alpha: 0.3)
               : SigmaColors.cardBorder,
@@ -308,7 +305,7 @@ class _AnnouncementCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Judul + badge kategori
+            // ── Baris atas: judul + badge kategori pertama ────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -323,32 +320,38 @@ class _AnnouncementCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    kategori,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                // FIX: batasi lebar badge agar tidak overflow
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 100),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      kategori,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
               ],
             ),
 
-            // Kategori tambahan
+            // ── Kategori tambahan ─────────────────────────────────────
             if (item.kategori.length > 1) ...[
               const SizedBox(height: 4),
               Wrap(
                 spacing: 4,
+                runSpacing: 4,
                 children: item.kategori.skip(1).map((k) {
                   final c = _kategoriColors[k] ?? SigmaColors.accent;
                   return Container(
@@ -374,7 +377,7 @@ class _AnnouncementCard extends StatelessWidget {
             ],
             const SizedBox(height: 6),
 
-            // Preview isi
+            // ── Preview isi ───────────────────────────────────────────
             Text(
               item.isi,
               maxLines: 2,
@@ -389,53 +392,69 @@ class _AnnouncementCard extends StatelessWidget {
             const Divider(color: SigmaColors.cardBorder, height: 1),
             const SizedBox(height: 10),
 
-            // Footer: target + tanggal + sync indicator
-            Row(
+            // ── Footer: target + sync icon + tanggal ──────────────────
+            // FIX: pisah jadi dua baris jika target panjang
+            // menggunakan Column agar tidak overflow secara horizontal
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.people_outline_rounded,
-                  size: 13,
-                  color: SigmaColors.textSub,
+                // Baris 1: target audience
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.people_outline_rounded,
+                      size: 13,
+                      color: SigmaColors.textSub,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        item.targetAudience,
+                        style: const TextStyle(
+                          color: SigmaColors.textSub,
+                          fontSize: 11,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  item.targetAudience,
-                  style: const TextStyle(
-                    color: SigmaColors.textSub,
-                    fontSize: 11,
-                  ),
-                ),
-                const Spacer(),
+                const SizedBox(height: 4),
 
-                //  Sync indicator di footer card
-                Tooltip(
-                  message: isPending
-                      ? 'Belum terkirim ke server'
-                      : 'Sudah di server',
-                  child: Icon(
-                    isPending
-                        ? Icons.cloud_off_rounded
-                        : Icons.cloud_done_rounded,
-                    size: 13,
-                    color: isPending
-                        ? const Color(0xFFB45309)
-                        : SigmaColors.success,
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 12,
-                  color: SigmaColors.textSub,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  tanggal,
-                  style: const TextStyle(
-                    color: SigmaColors.textSub,
-                    fontSize: 11,
-                  ),
+                // Baris 2: sync icon + tanggal (rata kanan)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Sync indicator
+                    Tooltip(
+                      message: isPending
+                          ? 'Belum terkirim ke server'
+                          : 'Sudah di server',
+                      child: Icon(
+                        isPending
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_done_rounded,
+                        size: 13,
+                        color: isPending
+                            ? const Color(0xFFB45309)
+                            : SigmaColors.success,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 12,
+                      color: SigmaColors.textSub,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      tanggal,
+                      style: const TextStyle(
+                        color: SigmaColors.textSub,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -21,7 +21,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
   bool _isSyncing = false;
   bool _isSyncInProgress = false;
 
-  //  Tambahan sync status & pending tracking
   SyncStatus _syncStatus = SyncStatus.idle;
   Set<String> _pendingIds = {};
 
@@ -37,7 +36,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
   int get pendingMatkulCount => _pendingIds.length;
   bool isMatkulPending(String id) => _pendingIds.contains(id);
 
-  // ─── Boxes ────────────────────────────────────────────────────────────────
   Box<MatkulModel> get _matkulBox => Hive.box<MatkulModel>(_kBoxMatkul);
   Box<Map> get _queueBox => Hive.box<Map>(_kBoxQueue);
   Box get _prodiBox => Hive.box(_kBoxProdi);
@@ -65,19 +63,17 @@ class AdminMatkulViewModel extends ChangeNotifier {
       _matkulList = _matkulBox.values.toList();
       notifyListeners();
     } catch (e) {
-      debugPrint(' AdminMatkulViewModel._loadFromLocal: $e');
+      debugPrint('AdminMatkulViewModel._loadFromLocal: $e');
     }
   }
 
-  //  Rebuild set ID yang masih pending dari isi queue
+  // ─── Rebuild pending IDs ──────────────────────────────────────────────────
   void _rebuildPendingIds() {
     final ids = <String>{};
     for (final key in _queueBox.keys) {
       final raw = _queueBox.get(key);
       if (raw == null) continue;
       final op = Map<String, dynamic>.from(raw);
-      // add & update → ID perlu ditampilkan sebagai pending
-      // delete → tidak perlu ditampilkan (item sudah hilang dari list)
       if (op['operation'] == 'add' || op['operation'] == 'update') {
         final id = op['id']?.toString();
         if (id != null && id.isNotEmpty) ids.add(id);
@@ -103,7 +99,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Fetch prodi
       final prodiDocs = await MongoDatabase.runSafe(
         () => MongoDatabase.db.collection('program_studi').find().toList(),
       );
@@ -125,7 +120,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       await _prodiBox.put('prodiMap', _prodiMap);
       await _prodiBox.put('prodiJurusanMap', _prodiJurusanMap);
 
-      // 2. Hanya overwrite Hive jika queue kosong
       if (_queueBox.isEmpty) {
         final mkDocs = await MongoDatabase.runSafe(
           () => MongoDatabase.db.collection('mata_kuliah').find().toList(),
@@ -151,7 +145,7 @@ class AdminMatkulViewModel extends ChangeNotifier {
 
       _loadFromLocal();
     } catch (e) {
-      debugPrint(' AdminMatkulViewModel._syncFromMongo: $e');
+      debugPrint('AdminMatkulViewModel._syncFromMongo: $e');
     } finally {
       _isLoading = false;
       _isSyncInProgress = false;
@@ -192,7 +186,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'idJurusan': idJurusan,
     });
 
-    // Tandai sebagai pending
     _pendingIds.add(newId);
     _syncStatus = SyncStatus.pending;
     notifyListeners();
@@ -233,7 +226,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'idJurusan': idJurusan,
     });
 
-    // Tandai sebagai pending
     _pendingIds.add(id);
     _syncStatus = SyncStatus.pending;
     notifyListeners();
@@ -244,7 +236,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
   // ─── Delete ───────────────────────────────────────────────────────────────
   Future<void> deleteMatkul(String id) async {
     await _matkulBox.delete(id);
-    // Hapus dari pending juga karena item sudah dihapus dari list
     _pendingIds.remove(id);
     _loadFromLocal();
 
@@ -253,6 +244,11 @@ class AdminMatkulViewModel extends ChangeNotifier {
   }
 
   // ─── Queue drain ──────────────────────────────────────────────────────────
+  //
+  // FIX: hilangkan `break` — proses SEMUA item queue meski ada yang gagal.
+  // Setiap item dicoba secara independen; yang gagal tetap di queue untuk
+  // dicoba lagi, yang berhasil langsung dihapus dari queue.
+  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -261,8 +257,8 @@ class AdminMatkulViewModel extends ChangeNotifier {
     _syncStatus = SyncStatus.syncing;
     notifyListeners();
 
-    bool allSuccess = true;
     final keys = _queueBox.keys.toList();
+    int failCount = 0;
 
     for (final key in keys) {
       final raw = _queueBox.get(key);
@@ -276,12 +272,13 @@ class AdminMatkulViewModel extends ChangeNotifier {
         final col = MongoDatabase.db.collection('mata_kuliah');
 
         if (op['operation'] == 'add') {
-          final existing = await MongoDatabase.runSafe(
-            () => col.findOne(where.id(ObjectId.fromHexString(op['id']))),
-          );
-          if (existing == null) {
-            await MongoDatabase.runSafe(
-              () => col.insertOne({
+          // FIX: pakai insertOne dengan upsert-style — jika sudah ada,
+          // update saja. Ini menghindari duplicate key error yang dulu
+          // menyebabkan drain berhenti total.
+          await MongoDatabase.runSafe(
+            () => col.replaceOne(
+              where.id(ObjectId.fromHexString(op['id'])),
+              {
                 '_id': ObjectId.fromHexString(op['id']),
                 'kode_mk': op['kodeMk'],
                 'nama_mk': op['namaMatkul'],
@@ -290,9 +287,10 @@ class AdminMatkulViewModel extends ChangeNotifier {
                 'created_at': DateTime.now(),
                 'updated_at': DateTime.now(),
                 'id_jurusan': ObjectId.fromHexString(op['idJurusan']),
-              }),
-            );
-          }
+              },
+              upsert: true, //insert jika belum ada, replace jika sudah
+            ),
+          );
         } else if (op['operation'] == 'update') {
           await MongoDatabase.runSafe(
             () => col.updateOne(
@@ -312,36 +310,42 @@ class AdminMatkulViewModel extends ChangeNotifier {
           );
         }
 
+        // Berhasil — hapus dari queue dan pending set
         await _queueBox.delete(key);
-        //  Hapus dari pending set setelah berhasil
         final syncedId = op['id']?.toString();
         if (syncedId != null) _pendingIds.remove(syncedId);
-        debugPrint(' Matkul queue item $key synced');
+        debugPrint('Matkul queue item $key synced');
       } catch (e) {
-        debugPrint(' AdminMatkulViewModel._drainQueue key=$key: $e');
-        allSuccess = false;
-        break;
+        // FIX: tidak break — lanjut ke item berikutnya
+        failCount++;
+        debugPrint(
+          '❌ Matkul queue item $key gagal: $e — lanjut ke item berikutnya',
+        );
       }
     }
 
     _isSyncing = false;
 
-    if (allSuccess && _queueBox.isEmpty) {
+    if (failCount == 0 && _queueBox.isEmpty) {
       _pendingIds = {};
       _syncStatus = SyncStatus.synced;
       notifyListeners();
       await Future.delayed(const Duration(seconds: 3));
       _syncStatus = SyncStatus.idle;
+    } else if (failCount > 0) {
+      // Ada yang gagal — rebuild dari sisa queue
+      _rebuildPendingIds();
+      _syncStatus = SyncStatus.failed;
     } else {
       _rebuildPendingIds();
-      _syncStatus = allSuccess ? SyncStatus.idle : SyncStatus.failed;
+      _syncStatus = SyncStatus.idle;
     }
     notifyListeners();
   }
 
   // ─── Connection restored ──────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
-    debugPrint(' Connection restored — draining matkul queue...');
+    debugPrint('Connection restored — draining matkul queue...');
     await _drainQueue();
     await _syncFromMongo();
   }

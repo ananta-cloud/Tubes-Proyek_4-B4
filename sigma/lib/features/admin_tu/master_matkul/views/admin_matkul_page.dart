@@ -47,7 +47,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
       backgroundColor: SigmaColors.bgPage,
       body: Column(
         children: [
-          // ── Header ──
           SigmaPageHeader(
             title: 'Master Matkul',
             action: SigmaPrimaryButton(
@@ -57,7 +56,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
             ),
           ),
 
-          //  Sync status banner
           _SyncStatusBanner(
             status: vm.syncStatus,
             pendingCount: vm.pendingMatkulCount,
@@ -69,7 +67,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
               onRefresh: () => vm.fetchMatkul(),
               child: CustomScrollView(
                 slivers: [
-                  // ── Section title ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
@@ -113,7 +110,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                     ),
                   ),
 
-                  // ── Content ──
                   if (vm.isLoading && vm.matkulList.isEmpty)
                     const SliverFillRemaining(
                       child: Center(
@@ -156,7 +152,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     );
   }
 
-  // ── Delete confirmation dialog ─────────────────────────────────────────────
   void _confirmDelete(
     BuildContext context,
     AdminMatkulViewModel vm,
@@ -204,7 +199,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     );
   }
 
-  // ── Add / Edit bottom sheet ────────────────────────────────────────────────
   void _showMatkulForm(
     BuildContext context,
     AdminMatkulViewModel vm, {
@@ -267,17 +261,14 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               const _ModalFieldLabel(label: 'Kode MK', required: true),
               const SizedBox(height: 6),
               _modalTextField(kodeCtrl, 'Cth: IF302'),
               const SizedBox(height: 12),
-
               const _ModalFieldLabel(label: 'Nama Mata Kuliah', required: true),
               const SizedBox(height: 6),
               _modalTextField(namaCtrl, 'Cth: Basis Data'),
               const SizedBox(height: 12),
-
               Row(
                 children: [
                   Expanded(
@@ -339,9 +330,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
-
               SizedBox(
                 width: double.infinity,
                 child: GestureDetector(
@@ -366,7 +355,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                       );
                       return;
                     }
-
                     if (existing == null) {
                       await vm.addMatkul(
                         kodeMk: kodeCtrl.text.trim(),
@@ -447,7 +435,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Sync Status Banner — sama persis dengan di AdminSchedulePage
+//  Sync Status Banner
 // ─────────────────────────────────────────────────────────────────────────────
 class _SyncStatusBanner extends StatelessWidget {
   const _SyncStatusBanner({required this.status, required this.pendingCount});
@@ -524,7 +512,7 @@ class _SyncStatusBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Matkul Card — dengan indikator sync di sudut kanan bawah
+//  Matkul Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _MatkulCard extends StatelessWidget {
   const _MatkulCard({
@@ -547,7 +535,6 @@ class _MatkulCard extends StatelessWidget {
         color: SigmaColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          //  Border berbeda untuk item pending
           color: isPending
               ? const Color(0xFFB45309).withValues(alpha: 0.3)
               : SigmaColors.cardBorder,
@@ -561,133 +548,153 @@ class _MatkulCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Kode MK badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: SigmaColors.navy.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                matkul.kodeMk,
-                style: const TextStyle(
-                  color: SigmaColors.navy,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Nama + Program Studi + sync indicator
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    matkul.namaMatkul,
-                    style: const TextStyle(
-                      color: SigmaColors.navy,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+            // ── Baris 1: kode MK (kiri) + SKS badge + sync icon (kanan) ──
+            // FIX: Row dengan mainAxisAlignment spaceBetween agar
+            // badge SKS & sync icon SELALU menempel di kanan,
+            // tidak peduli panjang kode MK
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Kode MK — Flexible agar bisa ellipsis jika terlalu panjang
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.navy.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      matkul.kodeMk,
+                      style: const TextStyle(
+                        color: SigmaColors.navy,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          matkul.programStudi,
-                          style: const TextStyle(
-                            color: SigmaColors.textSub,
-                            fontSize: 11,
-                          ),
+                ),
+
+                // Badge SKS + sync icon selalu di kanan, tidak ikut wrap
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: SigmaColors.gold.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${matkul.sks} SKS',
+                        style: const TextStyle(
+                          color: Color(0xFFB87A00),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      //  Indikator sync kecil
-                      Tooltip(
-                        message: isPending
-                            ? 'Belum terkirim ke server'
-                            : 'Sudah di server',
-                        child: Icon(
-                          isPending
-                              ? Icons.cloud_off_rounded
-                              : Icons.cloud_done_rounded,
-                          size: 13,
-                          color: isPending
-                              ? const Color(0xFFB45309)
-                              : SigmaColors.success,
-                        ),
+                    ),
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: isPending
+                          ? 'Belum terkirim ke server'
+                          : 'Sudah di server',
+                      child: Icon(
+                        isPending
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_done_rounded,
+                        size: 14,
+                        color: isPending
+                            ? const Color(0xFFB45309)
+                            : SigmaColors.success,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── Baris 2: Nama MK — wrap bebas ────────────────────────
+            Text(
+              matkul.namaMatkul,
+              style: const TextStyle(
+                color: SigmaColors.navy,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+              softWrap: true,
+            ),
+
+            const SizedBox(height: 2),
+
+            // ── Baris 3: Program Studi ────────────────────────────────
+            Text(
+              matkul.programStudi,
+              style: const TextStyle(color: SigmaColors.textSub, fontSize: 11),
+              softWrap: true,
+            ),
+
+            const SizedBox(height: 10),
+
+            // ── Baris 4: tombol Edit + Delete selalu rata kanan ───────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: onEdit,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(
+                        color: SigmaColors.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
-            // SKS chip
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: SigmaColors.gold.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${matkul.sks} SKS',
-                style: const TextStyle(
-                  color: Color(0xFFB87A00),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Edit button
-            GestureDetector(
-              onTap: onEdit,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: SigmaColors.accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Edit',
-                  style: TextStyle(
-                    color: SigmaColors.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onDelete,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.danger.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: SigmaColors.danger,
+                      size: 16,
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 6),
-
-            // Delete button
-            GestureDetector(
-              onTap: onDelete,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: SigmaColors.danger.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: SigmaColors.danger,
-                  size: 16,
-                ),
-              ),
+              ],
             ),
           ],
         ),
@@ -697,7 +704,7 @@ class _MatkulCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Modal Field Label (tidak berubah)
+//  Modal Field Label
 // ─────────────────────────────────────────────────────────────────────────────
 class _ModalFieldLabel extends StatelessWidget {
   const _ModalFieldLabel({required this.label, this.required = false});
