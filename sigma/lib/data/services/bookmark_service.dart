@@ -13,8 +13,12 @@ class BookmarkService {
   // 1. Simpan Bookmark ke MongoDB beserta Snapshot-nya
   Future<bool> saveBookmark(String userId, AnnouncementModel announcement) async {
     try {
+
+      if (!MongoDatabase.db.isConnected) {
+        await MongoDatabase.db.open();
+      }
+
       final collection = MongoDatabase.db.collection('bookmarks');
-      
       final userObjId = _safeObjectId(userId);
       final annObjId = _safeObjectId(announcement.id);
 
@@ -27,16 +31,7 @@ class BookmarkService {
         await collection.insert({
           'id_user': userObjId,
           'id_announcement': annObjId,
-          'announcement_snapshot': {
-            'judul': announcement.judul,
-            'isi': announcement.isi,
-            'target_audience': announcement.targetAudience,
-            'nama_publisher': announcement.namaPublisher,
-            'kategori': announcement.kategori,
-            'tingkat_kepentingan': announcement.tingkatKepentingan,
-            'created_at': announcement.createdAt,
-            'updated_at': announcement.updatedAt,
-          },
+          'announcement_snapshot': announcement.toJson(),
           'bookmarked_at': DateTime.now(),
           'updated_at': DateTime.now(),
         });
@@ -52,6 +47,11 @@ class BookmarkService {
   // 2. Hapus Bookmark dari MongoDB
   Future<bool> removeBookmark(String userId, String announcementId) async {
     try {
+
+      if (!MongoDatabase.db.isConnected) {
+        await MongoDatabase.db.open();
+      }
+      
       final collection = MongoDatabase.db.collection('bookmarks');
       await collection.remove(
         where.eq('id_user', _safeObjectId(userId))

@@ -24,26 +24,23 @@ class TaskViewModel extends ChangeNotifier {
     final connectivityResult = await Connectivity().checkConnectivity();
     bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
-    if (isOffline) return;
+    // 🔥 PENTING: Eksekusi antrean offline terlebih dahulu jika ada sinyal!
+    if (!isOffline) {
+      await syncOfflineTaskActions();
+    } else {
+      return; // Jika offline, berhenti di sini (tampilkan data lokal)
+    }
 
     try {
-
-      print("🧑‍🎓 [TaskViewModel] Cek Kelas User di HP: '${user.kelas}'");
-
-      // Panggil fungsi baru dari TaskService (Kirim ID dan Kelas Mahasiswa)
+      final String idKelasMahasiswa = user.profilMahasiswa?.idKelas ?? '';
       final List<Map<String, dynamic>> mongoTasks = await _taskService
-          .getTasksForMahasiswa(user.id, user.kelas);
-
-      print("🔄 [TaskViewModel] Total tugas yang berhasil ditarik: ${mongoTasks.length}");
+          .getTasksForMahasiswa(user.id, idKelasMahasiswa);
 
       List<String> mongoIds = [];
-
       for (var item in mongoTasks) {
         final task = TaskModel.fromMongo(item);
         mongoIds.add(task.id);
 
-        // 🔥 PERLINDUNGAN STATUS:
-        // Jika ini tugas dari dosen, kita pertahankan status Selesai/Belum dari memori HP mahasiswa
         if (!task.isPersonal) {
           final localTask = _taskBox.get(task.id);
           if (localTask != null) {
@@ -53,7 +50,6 @@ class TaskViewModel extends ChangeNotifier {
         await _taskBox.put(task.id, task);
       }
 
-      // Hapus tugas di memori lokal yang sudah dihapus oleh Dosen dari Cloud
       final localIds = _taskBox.keys.cast<String>().toList();
       for (var id in localIds) {
         if (!mongoIds.contains(id)) {
@@ -63,7 +59,7 @@ class TaskViewModel extends ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      print("🔥 ERROR SINKRONISASI TUGAS: $e");
+      print("ERROR SINKRONISASI TUGAS: $e");
     }
   }
 
@@ -81,8 +77,8 @@ class TaskViewModel extends ChangeNotifier {
       idUser: userId,
       namaTugas: namaTugas,
       deskripsi: null, 
-      idMk: null, // Null menandakan ini Tugas Personal!
-      namaMkSnapshot: matkul, // Kita gunakan ini sebagai label
+      idMk: null,
+      namaMkSnapshot: matkul,
       deadline: deadline,
       status: 'BELUM',
       isSynced: false,
@@ -110,36 +106,47 @@ class TaskViewModel extends ChangeNotifier {
   Future<void> toggleStatus(TaskModel task) async {
     final newStatus = task.status == 'BELUM' ? 'SELESAI' : 'BELUM';
 
-    // ⚡ UPDATE LOKAL DI HP MAHASISWA (Berlaku untuk semua tugas)
+    // ⚡ Optimistic UI: Langsung ubah di layar
     task.status = newStatus;
     task.updatedAt = DateTime.now();
     await task.save();
     notifyListeners();
 
-    // ☁️ UPDATE KE MONGODB (HANYA UNTUK TUGAS PERSONAL)
-    // Agar status tugas dosen tidak ikut tercentang "Selesai" di HP teman sekelas
+    // ☁️ Update ke MongoDB (Hanya tugas personal)
     if (task.isPersonal) {
       final connectivityResult = await Connectivity().checkConnectivity();
       bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
-      if (!isOffline) {
+      if (isOffline) {
+        // 🔥 Jika Offline, masukkan ke Antrean!
+        final queueBox = Hive.box('student_action_queue');
+        await queueBox.add({
+          'action': 'update_task_status',
+          'task_id': task.id,
+          'status': newStatus,
+        });
+        print("Tugas tersimpan di antrean offline.");
+        return;
+      }
+
+      // Jika Online, eksekusi langsung
+      try {
         await _taskService.updateTaskStatus(task.id, newStatus);
+      } catch (e) {
+        print("Gagal update status tugas: $e");
       }
     }
   }
 
   // 4. HAPUS TUGAS PERSONAL
   Future<void> deleteTask(TaskModel task) async {
-    // 🛡️ KEAMANAN: Pastikan yang dihapus BUKAN tugas dari dosen
     if (!task.isPersonal) return;
 
-    final taskId = task.id; // Simpan ID sebelum dihapus dari lokal
+    final taskId = task.id;
 
-    // ⚡ HAPUS DARI LOKAL
     await task.delete();
     notifyListeners();
 
-    // ☁️ HAPUS DARI MONGODB
     final connectivityResult = await Connectivity().checkConnectivity();
     bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
@@ -155,7 +162,7 @@ class TaskViewModel extends ChangeNotifier {
     String? matkul,
     required DateTime deadline,
   }) async {
-    if (!task.isPersonal) return; // Hanya boleh edit tugas personal
+    if (!task.isPersonal) return;
 
     // Update Lokal
     task.namaTugas = namaTugas;
@@ -175,6 +182,28 @@ class TaskViewModel extends ChangeNotifier {
       if (success) {
         task.isSynced = true;
         await task.save();
+      }
+    }
+  }
+
+  Future<void> syncOfflineTaskActions() async {
+    final queueBox = Hive.box('student_action_queue');
+    if (queueBox.isEmpty) return;
+
+    print("🔄 Menjalankan sinkronisasi aksi TUGAS offline...");
+
+    final keys = queueBox.keys.toList();
+    for (var key in keys) {
+      final item = queueBox.get(key);
+      
+      // Ambil aksi yang khusus untuk Tugas
+      if (item['action'] == 'update_task_status') {
+        try {
+          await _taskService.updateTaskStatus(item['task_id'], item['status']);
+          await queueBox.delete(key); // Hapus dari antrean jika sukses
+        } catch (e) {
+          print("Gagal sync antrean tugas: $e");
+        }
       }
     }
   }
