@@ -18,8 +18,8 @@ import 'features/auth/views/login_page.dart';
 import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
 import 'data/models/task_model.dart';
-import 'features/admin_tu/master_matkul/models/matkul_model.dart';
-import 'features/admin_tu/schedules/models/schedule_model.dart';
+import 'data/models/matkul_model.dart';
+import 'data/models/schedule_model.dart';
 import 'data/models/pengajaran_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
@@ -51,8 +51,8 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
 
-  if (!Hive.isAdapterRegistered(1))
-    Hive.registerAdapter(ScheduleLocalModelAdapter());
+  // if (!Hive.isAdapterRegistered(1))
+  //   Hive.registerAdapter(ScheduleLocalModelAdapter());
   if (!Hive.isAdapterRegistered(2))
     Hive.registerAdapter(AnnouncementModelAdapter());
   if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(TaskModelAdapter());
@@ -71,7 +71,8 @@ void main() async {
   }
 
   // ── Open Boxes ─────────────────────────────────────────────────────────────
-  await Hive.openBox<ScheduleLocalModel>('schedules');
+  // await Hive.openBox<ScheduleLocalModel>('schedules');
+  await Hive.openBox<ScheduleModel>('schedules');
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
@@ -175,7 +176,7 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
       await announcementVM.syncOfflineActions();
       await announcementVM.syncAnnouncements();
       await taskVM.syncTasks(user); 
-      await scheduleVM.syncSchedules();
+      await scheduleVM.syncSchedules(user);
     }
   }
 

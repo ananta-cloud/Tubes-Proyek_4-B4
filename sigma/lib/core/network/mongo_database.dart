@@ -10,6 +10,7 @@ class MongoDatabase {
   static late DbCollection mataKuliahCollection;
   static late DbCollection mahasiswaCollection;
   static late DbCollection kelasCollection;
+  static late DbCollection prodiCollection;
   static late DbCollection dosenCollection;
 
   static bool isOffline = true;
@@ -51,7 +52,8 @@ class MongoDatabase {
       mataKuliahCollection = db.collection('mata_kuliah');
       mahasiswaCollection = db.collection('mahasiswa');
       kelasCollection = db.collection('kelas');
-      dosenCollection = db.collection('dosen'); // ✅ tambahan
+      prodiCollection = db.collection('program_studi');
+      dosenCollection = db.collection('dosen');
 
       isOffline = false;
       print("Berhasil terkoneksi ke MongoDB!");

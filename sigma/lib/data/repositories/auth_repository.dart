@@ -59,53 +59,65 @@ class AuthRepository {
 
       // 3. Jika ia MAHASISWA, ambil data relasinya!
       if (user["role"] == "MAHASISWA") {
-        // Cari profil mahasiswa
         final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
           "user_id": user["_id"],
         });
 
         if (profilMahasiswa != null) {
-          // Jika punya kelas, ambil juga data kelasnya
+          // 👉 3A. Ambil Data Kelas
           if (profilMahasiswa["id_kelas"] != null) {
             final dataKelas = await MongoDatabase.kelasCollection.findOne({
               "_id": profilMahasiswa["id_kelas"],
             });
-            // Gabungkan data kelas ke dalam object profil mahasiswa
+            
+            // 👉 3B. Ambil Data Prodi (Menerjemahkan ID menjadi Nama)
+            if (dataKelas != null && dataKelas["id_prodi"] != null) {
+              final dataProdi = await MongoDatabase.prodiCollection.findOne({
+                "_id": dataKelas["id_prodi"]
+              });
+              
+              if (dataProdi != null) {
+                // Tangkap nama prodinya (mendukung field 'nama_prodi' atau 'nama')
+                dataKelas["nama_prodi"] = dataProdi["nama_prodi"] ?? dataProdi["nama"];
+              }
+            }
+
+            // Gabungkan kelas (yang sudah berisi nama prodi) ke profil mahasiswa
             profilMahasiswa["kelas"] = dataKelas;
           }
-          profilLengkap = profilMahasiswa; // Set profil lengkap
+          profilLengkap = profilMahasiswa;
         }
       }
 
-      // 4. Simpan ke Secure Storage untuk Offline/Auto-Login
-      await _storage.write(key: "user_id", value: user["_id"].oid);
-      await _storage.write(key: "user_nama", value: user["nama"]);
-      await _storage.write(key: "user_role", value: user["role"]);
-      await _storage.write(key: "user_email", value: user["email"]);
-      
-      // Simpan Map Profil sebagai JSON String (karena storage hanya menerima String)
+      // 4. Saring Data Mentah ke Model
       MahasiswaModel? modelMahasiswa;
       if (user["role"] == "MAHASISWA" && profilLengkap != null) {
         modelMahasiswa = MahasiswaModel.fromJson(profilLengkap);
       }
 
+      // 🔥 PERBAIKAN NAMA: Prioritaskan nama dari koleksi MAHASISWA!
       final String safeId = (user["_id"] is ObjectId) ? (user["_id"] as ObjectId).toHexString() : user["_id"].toString();
-      final String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama";
+      
+      final String namaDariProfil = profilLengkap?["nama"]?.toString() ?? "";
+      final String namaDariUser = user["nama"]?.toString() ?? "";
+      
+      // Jika profil mahasiswa punya nama, pakai itu. Jika kosong, baru pakai dari users.
+      final String safeNama = namaDariProfil.isNotEmpty ? namaDariProfil : (namaDariUser.isNotEmpty ? namaDariUser : "Mahasiswa");
+      
       final String safeEmail = user["email"]?.toString() ?? "";
       final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
 
-      // 5. Simpan ke Secure Storage untuk Offline/Auto-Login dengan variabel yang sudah aman
+      // 5. Simpan ke Secure Storage
       await _storage.write(key: "user_id", value: safeId);
       await _storage.write(key: "user_nama", value: safeNama);
       await _storage.write(key: "user_role", value: safeRole);
       await _storage.write(key: "user_email", value: safeEmail);
       
-      // Simpan Map Profil sebagai JSON String
       if (modelMahasiswa != null) {
         await _storage.write(key: "user_profil", value: jsonEncode(modelMahasiswa.toJson()));
       }
 
-      // 6. Kembalikan UserModel dengan variabel yang dijamin bukan Null
+      // 6. Kembalikan UserModel
       return UserModel(
         id: safeId,
         nama: safeNama,

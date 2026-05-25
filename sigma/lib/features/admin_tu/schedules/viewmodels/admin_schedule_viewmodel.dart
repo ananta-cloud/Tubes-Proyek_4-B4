@@ -4,7 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box;
 
 import '../../../../../core/network/mongo_database.dart';
-import '../models/schedule_model.dart';
+import '../../../../data/models/schedule_model.dart';
 
 const _kBoxSchedules = 'admin_schedules';
 const _kBoxQueue = 'schedule_queue';

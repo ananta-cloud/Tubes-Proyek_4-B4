@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
-import '../models/schedule_model.dart';
+import '../../../../data/models/schedule_model.dart';
 import 'import_schedule_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
