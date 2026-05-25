@@ -30,10 +30,12 @@ class AnnouncementViewModel extends ChangeNotifier {
   String selectedFilter = 'SEMUA';
   final List<String> filters = [
     'SEMUA',
-    'PENGABDIAN',
-    'PENGAJARAN',
-    'PENELITIAN',
-    'UMUM',
+    'Akademik',
+    'Beasiswa',
+    'Lomba',
+    'UKM',
+    'Karir',
+    'Umum',
   ];
 
   // Box untuk bookmark
