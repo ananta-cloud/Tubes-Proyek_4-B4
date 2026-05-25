@@ -27,6 +27,8 @@ import 'features/admin_tu/master_matkul/models/matkul_model.dart';
 import 'features/admin_tu/schedules/models/schedule_model.dart';
 import 'data/models/schedule_request_model.dart';
 import 'data/models/pengajaran_model.dart';
+import 'data/models/dosen_model.dart';
+import 'data/models/tpj_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
@@ -68,16 +70,19 @@ void main() async {
     Hive.registerAdapter(ScheduleLocalModelAdapter());
   if (!Hive.isAdapterRegistered(2))
     Hive.registerAdapter(AnnouncementModelAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(TaskModelAdapter());
-  if (!Hive.isAdapterRegistered(3)) {
+  if (!Hive.isAdapterRegistered(3))
     Hive.registerAdapter(DetailPerubahanAdapter());
-  }
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(MatkulModelAdapter());
+  if (!Hive.isAdapterRegistered(4))
+    Hive.registerAdapter(ScheduleRequestModelAdapter());
   if (!Hive.isAdapterRegistered(5))
     Hive.registerAdapter(ScheduleModelAdapter());
-  if (!Hive.isAdapterRegistered(6)) {
-    Hive.registerAdapter(ScheduleRequestModelAdapter());
-  }
+  if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(MatkulModelAdapter());
+  if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(DosenModelAdapter());
+  if (!Hive.isAdapterRegistered(8))
+    Hive.registerAdapter(TimPenjadwalanModelAdapter());
+  if (!Hive.isAdapterRegistered(9))
+    Hive.registerAdapter(PengajaranModelAdapter());
+  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(TaskModelAdapter());
 
   // ── MongoDB ────────────────────────────────────────────────────────────────
   try {
@@ -117,9 +122,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LoginViewModel(AuthRepository())),
-        ChangeNotifierProvider(
-          create: (_) => ScheduleController(ScheduleService()),
-        ),
+
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
 
         // 4. Announcement ViewModel
@@ -127,7 +130,7 @@ void main() async {
           create: (_) => AnnouncementViewModel(AnnouncementService()),
         ),
 
-        // ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
+        ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
         ChangeNotifierProvider(create: (_) => AdminMainViewModel()),
 
         ChangeNotifierProvider(create: (_) => AdminScheduleViewModel()),
@@ -137,17 +140,6 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => DosenRequestController(DosenRequestService()),
         ),
-        // ChangeNotifierProvider(
-        //   create: (_) => ScheduleController(ScheduleService()),
-        // ),
-        ChangeNotifierProvider(
-          create: (_) => ScheduleRequestController(ScheduleRequestService()),
-        ),
-        ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
-        ChangeNotifierProvider(create: (_) => AdminMainViewModel()),
-        ChangeNotifierProvider(create: (_) => AdminScheduleViewModel()),
-        ChangeNotifierProvider(create: (_) => AdminAnnouncementViewModel()),
-        ChangeNotifierProvider(create: (_) => AdminMatkulViewModel()),
       ],
       child: const MyApp(),
     ),

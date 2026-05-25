@@ -23,15 +23,26 @@ class JadwalCard extends StatelessWidget {
     final jamSelesai = jadwal['jam_selesai']?.toString() ?? '-';
     final ruangan = jadwal['ruangan']?.toString() ?? '-';
     // final namaMk = jadwal['nama_mk']?.toString() ?? '-';
-    final namaMk = (jadwal['nama_mk'] != null && jadwal['nama_mk'].toString().isNotEmpty) ? jadwal['nama_mk'].toString() :
-               (jadwal['namaMk'] != null && jadwal['namaMk'].toString().isNotEmpty) ? jadwal['namaMk'].toString() :
-               (jadwal['nama_matkul'] != null && jadwal['nama_matkul'].toString().isNotEmpty) ? jadwal['nama_matkul'].toString() :
-               (jadwal['namaMatkul'] != null && jadwal['tahun_akademik'].toString().isNotEmpty) ? jadwal['namaMatkul'].toString() : 
-               'Mata Kuliah Tidak Terdefinisi';
+    final namaMk =
+        (jadwal['nama_mk'] != null && jadwal['nama_mk'].toString().isNotEmpty)
+        ? jadwal['nama_mk'].toString()
+        : (jadwal['namaMk'] != null && jadwal['namaMk'].toString().isNotEmpty)
+        ? jadwal['namaMk'].toString()
+        : (jadwal['nama_matkul'] != null &&
+              jadwal['nama_matkul'].toString().isNotEmpty)
+        ? jadwal['nama_matkul'].toString()
+        : (jadwal['namaMatkul'] != null &&
+              jadwal['tahun_akademik'].toString().isNotEmpty)
+        ? jadwal['namaMatkul'].toString()
+        : 'Mata Kuliah Tidak Terdefinisi';
     final kelas = jadwal['kelas']?.toString() ?? '-';
     final tipe = jadwal['tipe']?.toString() ?? 'KULIAH';
     final semester = jadwal['semester']?.toString() ?? '-';
     final tahunAkademik = jadwal['tahun_akademik']?.toString() ?? '-';
+    final jamKe =
+        jadwal['jam_ke']?.toString() ?? jadwal['jamKe']?.toString() ?? '';
+    final tePr =
+        jadwal['te_pr']?.toString() ?? jadwal['tePr']?.toString() ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -108,7 +119,7 @@ class JadwalCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Wrap(
-                  spacing: 8, 
+                  spacing: 8,
                   runSpacing: 8,
                   children: [
                     _InfoChip(
@@ -116,6 +127,12 @@ class JadwalCard extends StatelessWidget {
                       label: hari,
                       color: _tipeColor,
                     ),
+                    if (jamKe.isNotEmpty)
+                      _InfoChip(
+                        icon: Icons.format_list_numbered,
+                        label: 'Jam ke-$jamKe',
+                        color: _tipeColor,
+                      ),
                     _InfoChip(
                       icon: Icons.access_time,
                       label: '$jamMulai–$jamSelesai',
@@ -126,6 +143,12 @@ class JadwalCard extends StatelessWidget {
                       label: ruangan,
                       color: _tipeColor,
                     ),
+                    if (tePr.isNotEmpty)
+                      _InfoChip(
+                        icon: Icons.science_outlined,
+                        label: tePr,
+                        color: tePr == 'PR' ? Colors.teal : _tipeColor,
+                      ),
                   ],
                 ),
               ],

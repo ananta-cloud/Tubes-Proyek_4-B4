@@ -4,10 +4,16 @@ import 'package:sigma/theme/app_colors.dart';
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:sigma/features/dosen/schedules/widgets/jadwal_card.dart';
+import 'package:sigma/data/models/dosen_model.dart';
 
 class JadwalMengajarPage extends StatefulWidget {
   final UserModel user;
-  const JadwalMengajarPage({super.key, required this.user});
+  final DosenModel dosen;
+  const JadwalMengajarPage({
+    super.key,
+    required this.user,
+    required this.dosen,
+  });
 
   @override
   State<JadwalMengajarPage> createState() => _JadwalMengajarPageState();
@@ -27,12 +33,14 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
   ];
 
   @override
-    void initState() {
-      super.initState();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.read<DosenRequestController>().loadMySchedules(widget.user.kodeDosen ?? '');
-        }
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<DosenRequestController>().loadMySchedules(
+          widget.dosen.kodeDosen,
+        );
+      }
     });
   }
 
@@ -164,7 +172,7 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
                 : RefreshIndicator(
                     onRefresh: () => context
                         .read<DosenRequestController>()
-                        .loadMySchedules(widget.user.kodeDosen ?? ''),
+                        .loadMySchedules(widget.dosen.kodeDosen),
                     child: ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),

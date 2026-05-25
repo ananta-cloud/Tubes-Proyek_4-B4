@@ -1,50 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'matkul_model.dart';
+part of 'tpj_model.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class MatkulModelAdapter extends TypeAdapter<MatkulModel> {
+class TimPenjadwalanModelAdapter extends TypeAdapter<TimPenjadwalanModel> {
   @override
-  final int typeId = 6;
+  final int typeId = 8;
 
   @override
-  MatkulModel read(BinaryReader reader) {
+  TimPenjadwalanModel read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return MatkulModel(
+    return TimPenjadwalanModel(
       id: fields[0] as String,
-      kodeMk: fields[1] as String,
-      namaMatkul: fields[2] as String,
-      programStudi: fields[3] as String,
-      idProdi: fields[4] as String,
-      sks: fields[5] as int,
-      idJurusan: fields[6] as String,
+      userId: fields[1] as String,
+      nama: fields[2] as String,
+      idJurusan: fields[3] as String,
+      createdAt: fields[4] as DateTime,
+      updatedAt: fields[5] as DateTime,
     );
   }
 
   @override
-  void write(BinaryWriter writer, MatkulModel obj) {
+  void write(BinaryWriter writer, TimPenjadwalanModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.kodeMk)
+      ..write(obj.userId)
       ..writeByte(2)
-      ..write(obj.namaMatkul)
+      ..write(obj.nama)
       ..writeByte(3)
-      ..write(obj.programStudi)
+      ..write(obj.idJurusan)
       ..writeByte(4)
-      ..write(obj.idProdi)
+      ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.sks)
-      ..writeByte(6)
-      ..write(obj.idJurusan);
+      ..write(obj.updatedAt);
   }
 
   @override
@@ -53,7 +50,7 @@ class MatkulModelAdapter extends TypeAdapter<MatkulModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MatkulModelAdapter &&
+      other is TimPenjadwalanModelAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

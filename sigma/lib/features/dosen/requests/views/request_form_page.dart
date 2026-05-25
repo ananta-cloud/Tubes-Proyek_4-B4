@@ -4,10 +4,12 @@ import 'package:sigma/theme/app_colors.dart';
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:intl/intl.dart';
+import 'package:sigma/data/models/dosen_model.dart';
 
 class RequestFormPage extends StatefulWidget {
   final UserModel user;
-  const RequestFormPage({super.key, required this.user});
+  final DosenModel dosen;
+  const RequestFormPage({super.key, required this.user, required this.dosen});
 
   @override
   State<RequestFormPage> createState() => _RequestFormPageState();
@@ -24,7 +26,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
     _alasanCtrl.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DosenRequestController>().loadMySchedules(
-        widget.user.kodeDosen ?? '',
+        widget.dosen.kodeDosen,
       );
     });
   }
@@ -377,7 +379,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
           label: 'Konfirmasi & Kirim',
           onTap: () async {
             final ok = await ctrl.submitRequest(
-              idDosen: widget.user.id,
+              idDosen: widget.dosen.id,
               namaDosen: widget.user.nama,
               alasan: _alasanCtrl.text,
             );

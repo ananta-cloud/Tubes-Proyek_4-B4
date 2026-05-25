@@ -47,35 +47,12 @@ class ScheduleLocalModel extends HiveObject {
   String idPeriode;
 
   @HiveField(14)
-  String? updatedAt;
-
-  @HiveField(7)
-  String status; // DRAFT | FINAL | PUBLISHED
-
-  @HiveField(8)
-  String tipe; // KULIAH | UTS | UAS
-
-  @HiveField(9)
-  String kodeMk;
-
-  @HiveField(10)
-  String idMk;
-
-  @HiveField(11)
-  String idProdi;
-
-  @HiveField(12)
-  String idJurusan;
-
-  @HiveField(13)
-  String idPeriode;
-
-  @HiveField(14)
-  @HiveField(15)
   String kelas;
 
-  @HiveField(16)
+  @HiveField(15)
   List<String> kodeDosen;
+
+  @HiveField(16)
   String? updatedAt;
 
   ScheduleLocalModel({
@@ -100,7 +77,6 @@ class ScheduleLocalModel extends HiveObject {
 
   factory ScheduleLocalModel.fromJson(Map<String, dynamic> json) {
     return ScheduleLocalModel(
-      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       namaMk: json['nama_mk'] ?? '-',
       hari: json['hari'] ?? '-',
@@ -141,25 +117,8 @@ class ScheduleLocalModel extends HiveObject {
     'updated_at': updatedAt,
   };
 
-  Map<String, dynamic> toJson() => {
-    '_id': id,
-    'nama_mk': namaMk,
-    'hari': hari,
-    'jam_mulai': jamMulai,
-    'jam_selesai': jamSelesai,
-    'ruangan': ruangan,
-    'nama_dosen': dosen,
-    'status': status,
-    'tipe': tipe,
-    'kode_mk': kodeMk,
-    'id_mk': idMk,
-    'id_prodi': idProdi,
-    'id_jurusan': idJurusan,
-    'id_periode': idPeriode,
-    'updated_at': updatedAt,
-  };
-
   @override
-  String toString() =>
-      'ScheduleLocalModel(namaMk: $namaMk, hari: $hari, jam: $jamMulai-$jamSelesai, status: $status, status: $status)';
+  String toString() {
+    return 'ScheduleLocalModel(namaMk: $namaMk, hari: $hari, jam: $jamMulai-$jamSelesai, status: $status)';
+  }
 }

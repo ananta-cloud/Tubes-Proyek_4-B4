@@ -9,7 +9,7 @@ import 'package:sigma/data/repositories/auth_repository.dart';
 // ==========================================
 import 'package:sigma/data/models/announcement_model.dart';
 import 'package:sigma/data/models/user_model.dart';
-
+import 'package:sigma/data/models/dosen_model.dart';
 // ==========================================
 // 2. IMPORT VIEWMODELS & VIEWS
 // ==========================================
@@ -24,9 +24,9 @@ import 'package:sigma/features/dosen/schedules/views/jadwal_mengajar_page.dart';
 import 'package:sigma/features/dosen/requests/views/my_requests_page.dart';
 
 class HomePageDsn extends StatefulWidget {
-  final UserModel user; // <-- Pastikan tetap menerima user
-
-  const HomePageDsn({super.key, required this.user});
+  final UserModel user;
+  final DosenModel dosen;
+  const HomePageDsn({super.key, required this.user, required this.dosen});
 
   @override
   State<HomePageDsn> createState() => _HomePageDsnState();
@@ -90,6 +90,7 @@ class _HomePageDsnState extends State<HomePageDsn> {
   Widget build(BuildContext context) {
     final announcementViewModel = context.watch<AnnouncementViewModel>();
     final activeUser = context.watch<LoginViewModel>().user;
+    final activeDosen = context.watch<LoginViewModel>().dosen ?? widget.dosen;
 
     return Scaffold(
       extendBody: true,
@@ -107,10 +108,18 @@ class _HomePageDsnState extends State<HomePageDsn> {
                   index: currentIndex,
                   children: [
                     _home(announcementViewModel), // Tab 0: Home / Pengumuman
-                    JadwalMengajarPage(user: activeUser ?? widget.user), // Tab 1: Mengajar
-                    MyRequestsPage(user: activeUser ?? widget.user), // Tab 2: Permohonan
+                    JadwalMengajarPage(
+                      user: activeUser ?? widget.user,
+                      dosen: activeDosen,
+                    ), // Tab 1: Mengajar
+                    MyRequestsPage(
+                      user: activeUser ?? widget.user,
+                      dosen: activeDosen,
+                    ), // Tab 2: Permohonan
                     const TaskManagementPage(), // Tab 3: Tugas
-                    _buildMainDashboard(context), // Tab 4: Profil (diganti pakai _buildMainDashboard)
+                    _buildMainDashboard(
+                      context,
+                    ), // Tab 4: Profil (diganti pakai _buildMainDashboard)
                   ],
                 ),
               ),
@@ -124,7 +133,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
 
   // ================= HEADER =================
   Widget _header(BuildContext context) {
-    final namaLengkap = widget.user.nama.isNotEmpty ? widget.user.nama : "Dosen SIGMA";
+    final namaLengkap = widget.user.nama.isNotEmpty
+        ? widget.user.nama
+        : "Dosen SIGMA";
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
@@ -150,14 +161,15 @@ class _HomePageDsnState extends State<HomePageDsn> {
                   children: [
                     const Text(
                       "Selamat Datang,",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                     Text(
                       namaLengkap,
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -280,13 +292,13 @@ class _HomePageDsnState extends State<HomePageDsn> {
       'Pengajaran',
       'Penelitian',
       'Pengabdian',
-      'Informasi Umum'
+      'Informasi Umum',
     ];
 
     final filteredAnnouncementsForDosen = viewModel.announcements.where((data) {
-      return data.targetAudience != 'SEMUA_MAHASISWA' && 
-             data.targetAudience != 'PRODI_MAHASISWA' &&
-             data.targetAudience != 'MAHASISWA'; 
+      return data.targetAudience != 'SEMUA_MAHASISWA' &&
+          data.targetAudience != 'PRODI_MAHASISWA' &&
+          data.targetAudience != 'MAHASISWA';
     }).toList();
 
     return RefreshIndicator(
@@ -298,9 +310,23 @@ class _HomePageDsnState extends State<HomePageDsn> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         children: [
-          Text("Jadwal mengajar hari ini", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkText)),
+          Text(
+            "Jadwal mengajar hari ini",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: darkText,
+            ),
+          ),
           const SizedBox(height: 25),
-          Text("Pengumuman Terbaru", style: TextStyle(fontWeight: FontWeight.bold, color: darkText, fontSize: 16)),
+          Text(
+            "Pengumuman Terbaru",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: darkText,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 10),
 
           SingleChildScrollView(
@@ -308,8 +334,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
             child: Row(
               children: dosenFilters.map((filter) {
                 final filterKey = filter == 'Semua' ? '' : filter;
-                final isActive = viewModel.selectedFilter == filterKey || 
-                                 (filter == 'Semua' && viewModel.selectedFilter == 'SEMUA');
+                final isActive =
+                    viewModel.selectedFilter == filterKey ||
+                    (filter == 'Semua' && viewModel.selectedFilter == 'SEMUA');
                 return GestureDetector(
                   onTap: () => viewModel.setFilter(filterKey),
                   child: _chip(filter, isActive),
@@ -320,16 +347,26 @@ class _HomePageDsnState extends State<HomePageDsn> {
           const SizedBox(height: 15),
 
           if (viewModel.isLoading && filteredAnnouncementsForDosen.isEmpty)
-            const Padding(padding: EdgeInsets.only(top: 30), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.only(top: 30),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (filteredAnnouncementsForDosen.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 30),
-              child: Center(child: Text("Tidak ada pengumuman.", style: TextStyle(color: Colors.grey.shade600))),
+              child: Center(
+                child: Text(
+                  "Tidak ada pengumuman.",
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
             )
           else
-            ...filteredAnnouncementsForDosen.map((data) => _announcement(data)).toList(),
+            ...filteredAnnouncementsForDosen
+                .map((data) => _announcement(data))
+                .toList(),
 
-          const SizedBox(height: 80), 
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -389,7 +426,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.user.nama.isNotEmpty ? widget.user.nama : "Nama Tidak Tersedia",
+                          widget.user.nama.isNotEmpty
+                              ? widget.user.nama
+                              : "Nama Tidak Tersedia",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -397,7 +436,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
                           ),
                         ),
                         Text(
-                          widget.user.role.isNotEmpty ? widget.user.role : "DOSEN",
+                          widget.user.role.isNotEmpty
+                              ? widget.user.role
+                              : "DOSEN",
                           style: TextStyle(
                             fontSize: 14,
                             color: accentOrange,
@@ -415,13 +456,15 @@ class _HomePageDsnState extends State<HomePageDsn> {
               _infoRow(
                 Icons.password,
                 "Password",
-                _isPasswordRevealed ? "PasswordAsli123!" : "••••••••••••",
+                _isPasswordRevealed ? "tidak tersedia" : "••••••••••••",
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: Icon(
-                        _isPasswordRevealed ? Icons.visibility_off : Icons.visibility,
+                        _isPasswordRevealed
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                         color: _isPasswordRevealed ? accentOrange : Colors.grey,
                         size: 20,
                       ),
@@ -466,7 +509,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
         ),
         const SizedBox(height: 15),
         ValueListenableBuilder<Box<AnnouncementModel>>(
-          valueListenable: Hive.box<AnnouncementModel>('bookmarks').listenable(),
+          valueListenable: Hive.box<AnnouncementModel>(
+            'bookmarks',
+          ).listenable(),
           builder: (context, box, _) {
             final bookmarkedItems = box.values.toList()
               ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -482,7 +527,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
               );
             }
             return Column(
-              children: bookmarkedItems.map((data) => _announcement(data)).toList(),
+              children: bookmarkedItems
+                  .map((data) => _announcement(data))
+                  .toList(),
             );
           },
         ),
@@ -490,7 +537,12 @@ class _HomePageDsnState extends State<HomePageDsn> {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value, {Widget? trailing}) {
+  Widget _infoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Widget? trailing,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -528,21 +580,30 @@ class _HomePageDsnState extends State<HomePageDsn> {
     final oldPasswordCtrl = TextEditingController();
     final newPasswordCtrl = TextEditingController();
     final confirmPasswordCtrl = TextEditingController();
-    
+
     bool obscureOld = true;
     bool obscureNew = true;
     bool obscureConfirm = true;
-    bool isSubmitting = false; 
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
-      barrierDismissible: false, 
-      builder: (dialogContext) { 
+      barrierDismissible: false,
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text("Ganti Password", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryBlue)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                "Ganti Password",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: primaryBlue,
+                ),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -554,9 +615,16 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       decoration: InputDecoration(
                         labelText: "Password Lama",
                         suffixIcon: IconButton(
-                          icon: Icon(obscureOld ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
-                          onPressed: () => setDialogState(() => obscureOld = !obscureOld),
-                        )
+                          icon: Icon(
+                            obscureOld
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setDialogState(() => obscureOld = !obscureOld),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -567,9 +635,16 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       decoration: InputDecoration(
                         labelText: "Password Baru",
                         suffixIcon: IconButton(
-                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
-                          onPressed: () => setDialogState(() => obscureNew = !obscureNew),
-                        )
+                          icon: Icon(
+                            obscureNew
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setDialogState(() => obscureNew = !obscureNew),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -580,9 +655,17 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       decoration: InputDecoration(
                         labelText: "Konfirmasi Password Baru",
                         suffixIcon: IconButton(
-                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
-                          onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
-                        )
+                          icon: Icon(
+                            obscureConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () => setDialogState(
+                            () => obscureConfirm = !obscureConfirm,
+                          ),
+                        ),
                       ),
                     ),
                     if (isSubmitting)
@@ -595,60 +678,103 @@ class _HomePageDsnState extends State<HomePageDsn> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: const Text("Batal"),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentOrange,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  onPressed: isSubmitting ? null : () async {
-                    if (oldPasswordCtrl.text.isEmpty || newPasswordCtrl.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Semua kolom harus diisi!"), backgroundColor: Colors.red));
-                      return;
-                    }
-                    if (newPasswordCtrl.text != confirmPasswordCtrl.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Konfirmasi password baru tidak cocok!"), backgroundColor: Colors.red));
-                      return;
-                    }
-                    if (newPasswordCtrl.text.length < 6) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Password baru minimal 6 karakter!"), backgroundColor: Colors.red));
-                      return;
-                    }
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (oldPasswordCtrl.text.isEmpty ||
+                              newPasswordCtrl.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Semua kolom harus diisi!"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          if (newPasswordCtrl.text !=
+                              confirmPasswordCtrl.text) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Konfirmasi password baru tidak cocok!",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          if (newPasswordCtrl.text.length < 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Password baru minimal 6 karakter!",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
 
-                    setDialogState(() => isSubmitting = true);
+                          setDialogState(() => isSubmitting = true);
 
-                    try {
-                      final authRepo = AuthRepository(); 
-                      bool success = await authRepo.changePassword(
-                        widget.user.id, 
-                        oldPasswordCtrl.text, 
-                        newPasswordCtrl.text
-                      );
+                          try {
+                            final authRepo = AuthRepository();
+                            bool success = await authRepo.changePassword(
+                              widget.user.id,
+                              oldPasswordCtrl.text,
+                              newPasswordCtrl.text,
+                            );
 
-                      if (!context.mounted) return;
+                            if (!context.mounted) return;
 
-                      if (success) {
-                        Navigator.pop(dialogContext); 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("✅ Password berhasil diperbarui!"), backgroundColor: Colors.green),
-                        );
-                      }
-                    } catch (e) {
-                      setDialogState(() => isSubmitting = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("❌ Gagal: ${e.toString().replaceAll('Exception: ', '')}"), backgroundColor: Colors.red),
-                      );
-                    }
-                  },
-                  child: Text(isSubmitting ? "Menyimpan..." : "Simpan", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            if (success) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "✅ Password berhasil diperbarui!",
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSubmitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "❌ Gagal: ${e.toString().replaceAll('Exception: ', '')}",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: Text(
+                    isSubmitting ? "Menyimpan..." : "Simpan",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 
@@ -700,26 +826,41 @@ class _HomePageDsnState extends State<HomePageDsn> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 data.targetAudience.replaceAll('_', ' '),
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryBlue),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
+                                ),
                               ),
                             ),
                             Text(
                               data.tingkatKepentingan,
-                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: indikatorWarna),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: indikatorWarna,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
                         Text(
                           data.judul,
-                          style: TextStyle(fontWeight: FontWeight.bold, color: darkText, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: darkText,
+                            fontSize: 14,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -727,10 +868,18 @@ class _HomePageDsnState extends State<HomePageDsn> {
                         if (data.kategori.isNotEmpty)
                           Wrap(
                             spacing: 6,
-                            children: data.kategori.map((kat) => Text(
-                              "#$kat",
-                              style: TextStyle(fontSize: 11, color: accentOrange, fontWeight: FontWeight.w600),
-                            )).toList(),
+                            children: data.kategori
+                                .map(
+                                  (kat) => Text(
+                                    "#$kat",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: accentOrange,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                       ],
                     ),
@@ -763,10 +912,10 @@ class _HomePageDsnState extends State<HomePageDsn> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _navItem(Icons.dashboard_rounded, "Beranda", 0), 
-          _navItem(Icons.menu_book_rounded, "Mengajar", 1), 
-          _navItem(Icons.schedule_send_rounded, "Permohonan", 2), 
-          _navItem(Icons.assignment_rounded, "Tugas", 3), 
+          _navItem(Icons.dashboard_rounded, "Beranda", 0),
+          _navItem(Icons.menu_book_rounded, "Mengajar", 1),
+          _navItem(Icons.schedule_send_rounded, "Permohonan", 2),
+          _navItem(Icons.assignment_rounded, "Tugas", 3),
           _navItem(Icons.person_pin_rounded, "Akun", 4),
         ],
       ),

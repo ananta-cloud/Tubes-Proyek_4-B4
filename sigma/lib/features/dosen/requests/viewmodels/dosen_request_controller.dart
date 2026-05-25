@@ -58,34 +58,38 @@ class DosenRequestController extends ChangeNotifier {
   // LOAD JADWAL MILIK DOSEN
   // ─────────────────────────────────────────────────
 
-Future<void> loadMySchedules(String kodeDosen) async {
+  Future<void> loadMySchedules(String kodeDosen) async {
     if (kodeDosen.isEmpty) {
       print('⚠️ loadMySchedules dibatalkan karena kodeDosen kosong');
       return;
     }
-    
+
     isLoadingSchedules = true;
     notifyListeners();
     try {
       print('🔄 Memulai fetch jadwal untuk kode dosen: "$kodeDosen"');
       final rawSchedules = await service.getMySchedules(kodeDosen);
-      
-      print('📦 Total data mentah dari MongoDB: ${rawSchedules.length} dokumen.');
-      
+
+      print(
+        '📦 Total data mentah dari MongoDB: ${rawSchedules.length} dokumen.',
+      );
+
       final List<Map<String, dynamic>> tempSchedules = [];
       final targetKode = kodeDosen.trim().toUpperCase();
-      
+
       for (var item in rawSchedules) {
         final kodes = item['kode_dosen'];
         bool isMengampu = false;
-        
+
         if (kodes is List) {
           // Normalisasi setiap elemen di dalam array (buang spasi & jadikan uppercase)
-          isMengampu = kodes.any((k) => k.toString().trim().toUpperCase() == targetKode);
+          isMengampu = kodes.any(
+            (k) => k.toString().trim().toUpperCase() == targetKode,
+          );
         } else if (kodes != null) {
           isMengampu = kodes.toString().trim().toUpperCase() == targetKode;
         }
-        
+
         if (isMengampu) {
           final sanitizedItem = item.map((key, value) {
             if (value != null && value.runtimeType.toString() == 'ObjectId') {
@@ -96,16 +100,53 @@ Future<void> loadMySchedules(String kodeDosen) async {
           tempSchedules.add(sanitizedItem);
         }
       }
-      
-      mySchedules = tempSchedules;
-      print('🎯 Selesai menyaring! Jadwal lolos filter untuk $targetKode: ${mySchedules.length} data.');
-      
+      mySchedules = _mergeJadwal(tempSchedules);
+      print(
+        '🎯 Selesai menyaring! Jadwal lolos filter untuk $targetKode: ${mySchedules.length} data.',
+      );
     } catch (e) {
       errorMsg = e.toString();
       print('❌ Error saat load/filter MySchedules: $e');
     }
     isLoadingSchedules = false;
     notifyListeners();
+  }
+
+  List<Map<String, dynamic>> _mergeJadwal(List<Map<String, dynamic>> raw) {
+    final merged = <String, Map<String, dynamic>>{};
+
+    for (final item in raw) {
+      // hari + kodeMk + kodeDosen + kelas + ruangan
+      final key =
+          '${item['hari']}|${item['kode_mk']}|${item['kode_dosen']}|'
+          '${item['kelas']}|${item['ruangan']}';
+
+      if (!merged.containsKey(key)) {
+        merged[key] = Map<String, dynamic>.from(item);
+      } else {
+        // Ambil jam_selesai yang paling akhir
+        final existing = merged[key]!;
+        final existingSelesai = existing['jam_selesai']?.toString() ?? '';
+        final newSelesai = item['jam_selesai']?.toString() ?? '';
+        if (newSelesai.compareTo(existingSelesai) > 0) {
+          existing['jam_selesai'] = newSelesai;
+        }
+        // Ambil jam_ke range
+        final existingJamKe = existing['jam_ke'];
+        final newJamKe = item['jam_ke'];
+        if (existingJamKe != null && newJamKe != null) {
+          final start = (existingJamKe is int)
+              ? existingJamKe
+              : int.tryParse(existingJamKe.toString()) ?? 0;
+          final end = (newJamKe is int)
+              ? newJamKe
+              : int.tryParse(newJamKe.toString()) ?? 0;
+          existing['jam_ke'] = '$start–$end';
+        }
+      }
+    }
+
+    return merged.values.toList();
   }
 
   // ─────────────────────────────────────────────────

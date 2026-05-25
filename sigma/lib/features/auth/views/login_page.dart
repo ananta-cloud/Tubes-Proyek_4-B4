@@ -28,15 +28,34 @@ class _LoginPageState extends State<LoginPage> {
   void _runAutoLogin() async {
     final viewModel = context.read<LoginViewModel>();
     final user = await viewModel.checkLogin();
+    final currentDosen = viewModel.dosen;
 
     if (!mounted) return;
 
     if (user != null) {
-      // Jika ternyata sudah login, langsung usir dari halaman login!
-      if (user.role.toUpperCase() == 'DOSEN') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePageDsn()));
+      if (user.role.toUpperCase() == 'DOSEN' && currentDosen != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomePageDsn(user: user, dosen: currentDosen),
+          ),
+        );
       } else if (user.role.toUpperCase() == 'MAHASISWA') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePageMhs()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePageMhs()),
+        );
+      } else if (user.role.toUpperCase() == 'TIM_PENJADWALAN') {
+        final tim = viewModel.timPenjadwalan;
+        if (tim != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  PenjadwalanMainPage(user: user, timPenjadwalan: tim),
+            ),
+          );
+        }
       }
     }
   }
@@ -65,22 +84,27 @@ class _LoginPageState extends State<LoginPage> {
         context,
       ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
 
-      if (user.role?.toUpperCase() == 'DOSEN') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => HomePageDsn(user: user)),
-        );
-      } else if (user.role?.toUpperCase() == 'MAHASISWA') {
+      if (user.role.toUpperCase() == 'DOSEN') {
+        final dosen = viewModel.dosen;
+        if (dosen != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomePageDsn(user: user, dosen: dosen),
+            ),
+          );
+        }
+      } else if (user.role.toUpperCase() == 'MAHASISWA') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageMhs()),
         );
-      } else if (user.role?.toUpperCase() == 'ADMIN_TU') {
+      } else if (user.role.toUpperCase() == 'ADMIN_TU') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),
         );
-      } else if (user.role?.toUpperCase() == 'MANAJEMEN') {
+      } else if (user.role.toUpperCase() == 'MANAJEMEN') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),

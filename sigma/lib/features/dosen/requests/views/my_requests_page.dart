@@ -5,10 +5,12 @@ import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import '../views/request_form_page.dart';
+import 'package:sigma/data/models/dosen_model.dart';
 
 class MyRequestsPage extends StatefulWidget {
   final UserModel user;
-  const MyRequestsPage({super.key, required this.user});
+  final DosenModel dosen;
+  const MyRequestsPage({super.key, required this.user, required this.dosen});
 
   @override
   State<MyRequestsPage> createState() => _MyRequestsPageState();
@@ -21,7 +23,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<DosenRequestController>().loadMyRequests(widget.user.id);
-        }
+      }
     });
   }
 
@@ -54,7 +56,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
           : isEmpty
           ? const _EmptyState()
           : RefreshIndicator(
-              onRefresh: () => ctrl.loadMyRequests(widget.user.id),
+              onRefresh: () => ctrl.loadMyRequests(widget.dosen.id),
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
@@ -203,15 +205,15 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(context);
-              final ok = await ctrl.cancelRequest(req.id, widget.user.id);
+              final ok = await ctrl.cancelRequest(req.id, widget.dosen.id);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
                       ok
                           ? isOffline
-                              ? 'Akan dibatalkan setelah online'
-                              : 'Permohonan dibatalkan'
+                                ? 'Akan dibatalkan setelah online'
+                                : 'Permohonan dibatalkan'
                           : 'Gagal membatalkan',
                     ),
                     backgroundColor: ok && isOffline ? Colors.orange : null,
@@ -233,13 +235,14 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
   void _goToForm(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RequestFormPage(user: widget.user)),
-    ).then(
-      (_) {
-        if (mounted) {
-          context.read<DosenRequestController>().loadMyRequests(widget.user.id);        }
+      MaterialPageRoute(
+        builder: (_) => RequestFormPage(dosen: widget.dosen, user: widget.user),
+      ),
+    ).then((_) {
+      if (mounted) {
+        context.read<DosenRequestController>().loadMyRequests(widget.dosen.id);
       }
-    );
+    });
   }
 }
 
@@ -349,10 +352,13 @@ class _RequestCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        (request.namaMk != null && request.namaMk!.isNotEmpty) 
-                            ? request.namaMk! 
+                        (request.namaMk != null && request.namaMk!.isNotEmpty)
+                            ? request.namaMk!
                             : 'Permohonan: ${request.alasan}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

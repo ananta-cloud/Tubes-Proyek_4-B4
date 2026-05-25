@@ -3,10 +3,10 @@ import 'package:mongo_dart/mongo_dart.dart';
 
 part 'pengajaran_model.g.dart';
 
-@HiveType(typeId: 6)
+@HiveType(typeId: 9)
 class PengajaranModel extends HiveObject {
   @HiveField(0)
-  final String id; 
+  final String id;
 
   @HiveField(1)
   final String idDosen;
@@ -18,7 +18,7 @@ class PengajaranModel extends HiveObject {
   final String namaMk;
 
   @HiveField(4)
-  final String kodeMk; 
+  final String kodeMk;
 
   @HiveField(5)
   final List<String> targetKelas;
@@ -37,7 +37,11 @@ class PengajaranModel extends HiveObject {
       if (field == null) return '';
       if (field is ObjectId) return field.toHexString();
       if (field is Map && field.containsKey('\$oid')) return field['\$oid'];
-      return field.toString().replaceAll('ObjectId("', '').replaceAll('")', '').trim();
+      return field
+          .toString()
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '')
+          .trim();
     }
 
     List<String> parsedKelas = [];

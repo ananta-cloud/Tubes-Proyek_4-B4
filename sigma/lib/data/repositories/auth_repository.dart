@@ -10,6 +10,8 @@ import '../../core/network/mongo_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
+import '../models/dosen_model.dart';
+import '../models/tpj_model.dart';
 
 class AuthRepository {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -77,6 +79,18 @@ class AuthRepository {
           }
           profilLengkap = profilMahasiswa; // Set profil lengkap
         }
+      } else if (user["role"] == "DOSEN") {
+        final dosenDoc = await MongoDatabase.dosenCollection.findOne({
+          "user_id": user["_id"],
+        });
+        if (dosenDoc != null) {
+          final dosenId = (dosenDoc["_id"] as ObjectId).toHexString();
+          final kodeDosen = dosenDoc["kode_dosen"]?.toString() ?? '';
+          final namaDosen = dosenDoc["nama_dosen"]?.toString() ?? '';
+          await _storage.write(key: "dosen_id", value: dosenId);
+          await _storage.write(key: "dosen_kode", value: kodeDosen);
+          await _storage.write(key: "dosen_nama", value: namaDosen);
+        }
       }
 
       // 4. Simpan ke Secure Storage untuk Offline/Auto-Login
@@ -122,6 +136,32 @@ class AuthRepository {
       );
     } catch (e) {
       debugPrint("LOGIN ERROR: $e");
+      return null;
+    }
+  }
+
+  Future<DosenModel?> getDosenByUserId(String userId) async {
+    try {
+      final doc = await MongoDatabase.dosenCollection.findOne({
+        "user_id": ObjectId.fromHexString(userId),
+      });
+      if (doc == null) return null;
+      return DosenModel.fromMongo(doc);
+    } catch (e) {
+      debugPrint("GET DOSEN ERROR: $e");
+      return null;
+    }
+  }
+
+  Future<TimPenjadwalanModel?> getTimPenjadwalanByUserId(String userId) async {
+    try {
+      final doc = await MongoDatabase.timPenjadwalanCollection.findOne({
+        "user_id": ObjectId.fromHexString(userId),
+      });
+      if (doc == null) return null;
+      return TimPenjadwalanModel.fromMongo(doc);
+    } catch (e) {
+      debugPrint("GET TIM PENJADWALAN ERROR: $e");
       return null;
     }
   }
@@ -188,6 +228,10 @@ class AuthRepository {
     await _storage.delete(key: "user_email");
     await _storage.delete(key: "user_profil");
     await _storage.delete(key: "user_data");
+
+    await _storage.delete(key: "dosen_id");
+    await _storage.delete(key: "dosen_kode");
+    await _storage.delete(key: "dosen_nama");
 
     // Bersihkan data Hive
     await Hive.box<ScheduleLocalModel>('schedules').clear();

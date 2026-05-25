@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:sigma/theme/app_colors.dart';
 import 'package:sigma/data/models/user_model.dart';
-import '../penjadwalan/viewmodels/schedule_request_controller.dart';
+import 'package:sigma/data/models/tpj_model.dart';
 import 'requests/views/request_index_page.dart';
 
 class PenjadwalanMainPage extends StatefulWidget {
   final UserModel user;
-  const PenjadwalanMainPage({super.key, required this.user});
+  final TimPenjadwalanModel timPenjadwalan;
+  const PenjadwalanMainPage({
+    super.key,
+    required this.user,
+    required this.timPenjadwalan,
+  });
 
   @override
   State<PenjadwalanMainPage> createState() => _PenjadwalanMainPageState();
@@ -23,7 +27,7 @@ class _PenjadwalanMainPageState extends State<PenjadwalanMainPage> {
     super.initState();
     _pages = [
       RequestsIndexPage(
-        idJurusan: widget.user.idJurusan ?? '',
+        idJurusan: widget.timPenjadwalan.idJurusan,
         user: widget.user,
       ),
     ];
