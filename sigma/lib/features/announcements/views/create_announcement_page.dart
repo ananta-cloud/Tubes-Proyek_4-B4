@@ -1,0 +1,1088 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+
+import '../../admin_tu/main/views/admin_main_page.dart';
+import '../viewmodels/admin_announcement_viewmodel.dart';
+
+class CreateAnnouncementPage extends StatefulWidget {
+  const CreateAnnouncementPage({super.key});
+
+  @override
+  State<CreateAnnouncementPage> createState() => _CreateAnnouncementPageState();
+}
+
+class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
+  final _judulCtrl = TextEditingController();
+  final _isiCtrl = TextEditingController();
+
+  // Multi-select kategori
+  final Set<String> _selectedKategori = {};
+
+  String _selectedTarget = 'SEMUA';
+  String? _selectedProdi; // null = tidak dipilih
+  String _selectedTingkat = 'BIASA';
+  DateTime? _selectedDeadline;
+
+  // File attachments
+  List<PlatformFile> _selectedFiles = [];
+  bool _isUploading = false;
+
+  static const _kategoriList = [
+    'Akademik',
+    'Beasiswa',
+    'Lomba',
+    'UKM',
+    'Karir',
+    'Umum',
+    'Penelitian',
+    'Pengabdian',
+    'Pengajaran',
+  ];
+
+  static const _targetList = ['SEMUA', 'MAHASISWA', 'DOSEN'];
+
+  // Pilihan prodi berdasarkan data MongoDB
+  static const _prodiList = ['D3 Teknik Informatika', 'D4 Teknik Informatika'];
+
+  static const _tingkatColors = {
+    'BIASA': SigmaColors.textSub,
+    'PENTING': Color(0xFFF59E0B),
+    'SANGAT PENTING': SigmaColors.danger,
+  };
+
+  static const int _maxFileSizeBytes = 5 * 1024 * 1024;
+
+  bool get _isTargetMahasiswa => _selectedTarget == 'MAHASISWA';
+
+  // ─── Deadline → auto tingkat kepentingan ─────────────────────────────────
+  void _onDeadlineChanged(DateTime? date) {
+    setState(() {
+      _selectedDeadline = date;
+      if (date == null) {
+        _selectedTingkat = 'BIASA';
+      } else {
+        final diff = date.difference(DateTime.now()).inDays;
+        if (diff <= 3) {
+          _selectedTingkat = 'SANGAT PENTING';
+        } else if (diff <= 7) {
+          _selectedTingkat = 'PENTING';
+        } else {
+          _selectedTingkat = 'BIASA';
+        }
+      }
+    });
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDeadline ?? now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: SigmaColors.navy,
+            onPrimary: SigmaColors.white,
+            surface: SigmaColors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) _onDeadlineChanged(picked);
+  }
+
+  void _clearDeadline() => _onDeadlineChanged(null);
+
+  @override
+  void dispose() {
+    _judulCtrl.dispose();
+    _isiCtrl.dispose();
+    super.dispose();
+  }
+
+  // ─── Pick File ────────────────────────────────────────────────────────────
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+    );
+    if (result == null) return;
+
+    final oversized = <String>[];
+    final valid = <PlatformFile>[];
+
+    for (final file in result.files) {
+      if (file.size > _maxFileSizeBytes) {
+        oversized.add(file.name);
+      } else {
+        final existing = _selectedFiles.map((f) => f.name).toSet();
+        if (!existing.contains(file.name)) valid.add(file);
+      }
+    }
+
+    if (oversized.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'File berikut melebihi 5MB dan dilewati: ${oversized.join(', ')}',
+          ),
+          backgroundColor: SigmaColors.danger,
+        ),
+      );
+    }
+
+    if (valid.isNotEmpty) setState(() => _selectedFiles.addAll(valid));
+  }
+
+  void _removeFile(int index) => setState(() => _selectedFiles.removeAt(index));
+
+  Future<List<Map<String, String>>> _encodeFiles() async {
+    final encoded = <Map<String, String>>[];
+    for (final file in _selectedFiles) {
+      if (file.path == null) continue;
+      try {
+        final bytes = await File(file.path!).readAsBytes();
+        encoded.add({
+          'name': file.name,
+          'type': file.extension?.toLowerCase() ?? 'file',
+          'data': base64Encode(bytes),
+          'size': file.size.toString(),
+        });
+      } catch (e) {
+        debugPrint('❌ Encode file ${file.name}: $e');
+      }
+    }
+    return encoded;
+  }
+
+  // ─── Submit ───────────────────────────────────────────────────────────────
+  Future<void> _submit() async {
+    if (_judulCtrl.text.trim().isEmpty || _isiCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Judul dan isi tidak boleh kosong.'),
+          backgroundColor: SigmaColors.danger,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isUploading = true);
+    List<Map<String, String>> attachments = [];
+    if (_selectedFiles.isNotEmpty) attachments = await _encodeFiles();
+    setState(() => _isUploading = false);
+
+    if (!mounted) return;
+
+    // Susun target string: kalau MAHASISWA + prodi dipilih, tambahkan info prodi
+    String targetFinal = _selectedTarget;
+    if (_isTargetMahasiswa && _selectedProdi != null) {
+      // Misal: "MAHASISWA - D4 Teknik Informatika"
+      targetFinal = 'MAHASISWA - $_selectedProdi';
+    }
+
+    final vm = context.read<AdminAnnouncementViewModel>();
+    await vm.createAnnouncement(
+      judul: _judulCtrl.text.trim(),
+      isi: _isiCtrl.text.trim(),
+      kategoriList: _selectedKategori.isEmpty
+          ? ['Umum']
+          : _selectedKategori.toList(),
+      target: targetFinal,
+      tingkatKepentingan: _selectedTingkat,
+      deadline: _selectedDeadline,
+      attachments: attachments,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengumuman berhasil diterbitkan!'),
+          backgroundColor: SigmaColors.success,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  // ─── Build ────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<AdminAnnouncementViewModel>();
+
+    return Scaffold(
+      backgroundColor: SigmaColors.bgPage,
+      body: Column(
+        children: [
+          // ── Header ──
+          Container(
+            color: SigmaColors.white,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 12,
+              left: 16,
+              right: 16,
+              bottom: 12,
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.bgPage,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: SigmaColors.navy,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Buat Pengumuman Baru',
+                        style: TextStyle(
+                          color: SigmaColors.navy,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'Semester Genap 2025/2026',
+                        style: TextStyle(
+                          color: SigmaColors.textSub,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Form ──
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: SigmaColors.cardBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header form
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: SigmaColors.navy.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.edit_rounded,
+                                color: SigmaColors.navy,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Form Pengumuman Jurusan',
+                              style: TextStyle(
+                                color: SigmaColors.navy,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Pengumuman akan dikirim via Push Notification ke mahasiswa sesuai target.',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ── Judul ──────────────────────────────────────────
+                        const _FieldLabel(
+                          label: 'Judul Pengumuman',
+                          required: true,
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _judulCtrl,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: SigmaColors.navy,
+                          ),
+                          decoration: _inputDeco(
+                            hint: 'Cth: Perubahan Jadwal Ujian Basis Data...',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Kategori (multi-select, full width) ───────────
+                        const _FieldLabel(label: 'Kategori'),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Dapat memilih lebih dari satu',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _kategoriList.map((k) {
+                            final isSelected = _selectedKategori.contains(k);
+                            return GestureDetector(
+                              onTap: () => setState(() {
+                                if (isSelected) {
+                                  _selectedKategori.remove(k);
+                                } else {
+                                  _selectedKategori.add(k);
+                                }
+                              }),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? SigmaColors.navy
+                                      : SigmaColors.bgPage,
+                                  borderRadius: BorderRadius.circular(99),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? SigmaColors.navy
+                                        : SigmaColors.cardBorder,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  k,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? SigmaColors.white
+                                        : SigmaColors.textSub,
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Target + Prodi (2 kolom) ───────────────────────
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Target
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _FieldLabel(label: 'Target'),
+                                  const SizedBox(height: 6),
+                                  _SigmaDropdown<String>(
+                                    value: _selectedTarget,
+                                    hint: 'Pilih...',
+                                    items: _targetList,
+                                    labelBuilder: (e) => e,
+                                    onChanged: (v) => setState(() {
+                                      _selectedTarget = v ?? 'SEMUA';
+                                      // Reset prodi jika target bukan MAHASISWA
+                                      if (_selectedTarget != 'MAHASISWA') {
+                                        _selectedProdi = null;
+                                      }
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Sub-field Prodi
+                            Expanded(
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _isTargetMahasiswa ? 1.0 : 0.35,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const _FieldLabel(label: 'Prodi'),
+                                        const SizedBox(width: 4),
+                                        if (!_isTargetMahasiswa)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: SigmaColors.textSub
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'nonaktif',
+                                              style: TextStyle(
+                                                color: SigmaColors.textSub,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _SigmaDropdown<String>(
+                                      value: _selectedProdi,
+                                      hint: 'Semua prodi',
+                                      items: _prodiList,
+                                      labelBuilder: (e) => e,
+                                      onChanged: _isTargetMahasiswa
+                                          ? (v) => setState(
+                                              () => _selectedProdi = v,
+                                            )
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Deadline (opsional) ────────────────────────────
+                        Row(
+                          children: [
+                            const _FieldLabel(label: 'Deadline'),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: SigmaColors.textSub.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'opsional',
+                                style: TextStyle(
+                                  color: SigmaColors.textSub,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          '≤ 3 hari → Sangat Penting · ≤ 7 hari → Penting · Tidak ada → Biasa',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _pickDeadline,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: SigmaColors.bgPage,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _selectedDeadline != null
+                                    ? SigmaColors.navy
+                                    : SigmaColors.cardBorder,
+                                width: _selectedDeadline != null ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.event_rounded,
+                                  size: 16,
+                                  color: _selectedDeadline != null
+                                      ? SigmaColors.navy
+                                      : SigmaColors.textSub,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _selectedDeadline != null
+                                        ? DateFormat(
+                                            'd MMMM yyyy',
+                                            'id_ID',
+                                          ).format(_selectedDeadline!)
+                                        : 'Pilih tanggal deadline...',
+                                    style: TextStyle(
+                                      color: _selectedDeadline != null
+                                          ? SigmaColors.navy
+                                          : SigmaColors.textSub,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                if (_selectedDeadline != null)
+                                  GestureDetector(
+                                    onTap: _clearDeadline,
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      size: 16,
+                                      color: SigmaColors.textSub,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Tingkat Kepentingan ────────────────────────────
+                        // Manual jika tanpa deadline; dikunci otomatis jika deadline diisi
+                        Row(
+                          children: [
+                            const _FieldLabel(label: 'Tingkat Kepentingan'),
+                            const SizedBox(width: 6),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: _selectedDeadline != null
+                                  ? Container(
+                                      key: const ValueKey('auto'),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: SigmaColors.navy.withOpacity(
+                                          0.07,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'otomatis dari deadline',
+                                        style: TextStyle(
+                                          color: SigmaColors.navy,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      key: const ValueKey('manual'),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: SigmaColors.textSub.withOpacity(
+                                          0.08,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'pilih manual',
+                                        style: TextStyle(
+                                          color: SigmaColors.textSub,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: ['BIASA', 'PENTING', 'SANGAT PENTING'].map((
+                            tingkat,
+                          ) {
+                            final isSelected = _selectedTingkat == tingkat;
+                            final isLocked = _selectedDeadline != null;
+                            final color =
+                                _tingkatColors[tingkat] ?? SigmaColors.textSub;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: isLocked
+                                    ? null
+                                    : () => setState(
+                                        () => _selectedTingkat = tingkat,
+                                      ),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: EdgeInsets.only(
+                                    right: tingkat != 'SANGAT PENTING' ? 8 : 0,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? color.withOpacity(0.12)
+                                        : SigmaColors.bgPage,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? color
+                                          : SigmaColors.cardBorder,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        tingkat == 'BIASA'
+                                            ? Icons.info_outline_rounded
+                                            : tingkat == 'PENTING'
+                                            ? Icons.warning_amber_rounded
+                                            : Icons.error_rounded,
+                                        color: isSelected
+                                            ? color
+                                            : SigmaColors.textSub,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        tingkat,
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? color
+                                              : SigmaColors.textSub,
+                                          fontSize: 9,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w400,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Isi ────────────────────────────────────────────
+                        const _FieldLabel(
+                          label: 'Isi Pengumuman',
+                          required: true,
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _isiCtrl,
+                          maxLines: 5,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: SigmaColors.navy,
+                          ),
+                          decoration: _inputDeco(
+                            hint: 'Tuliskan detail pengumuman di sini...',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Upload Lampiran ────────────────────────────────
+                        const _FieldLabel(label: 'Lampiran'),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'PDF, PNG, JPG, JPEG • Maks. 5 MB per file',
+                          style: TextStyle(
+                            color: SigmaColors.textSub,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _pickFile,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: SigmaColors.bgPage,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: SigmaColors.navy.withOpacity(0.3),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.attach_file_rounded,
+                                  color: SigmaColors.navy,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Pilih File',
+                                  style: TextStyle(
+                                    color: SigmaColors.navy,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        if (_selectedFiles.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ..._selectedFiles.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final file = entry.value;
+                            final isImage = [
+                              'png',
+                              'jpg',
+                              'jpeg',
+                            ].contains(file.extension?.toLowerCase());
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: SigmaColors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: SigmaColors.cardBorder,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isImage
+                                        ? Icons.image_outlined
+                                        : Icons.picture_as_pdf_outlined,
+                                    color: isImage
+                                        ? SigmaColors.accent
+                                        : SigmaColors.danger,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      file.name,
+                                      style: const TextStyle(
+                                        color: SigmaColors.navy,
+                                        fontSize: 12,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                    style: const TextStyle(
+                                      color: SigmaColors.textSub,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () => _removeFile(i),
+                                    child: const Icon(
+                                      Icons.close_rounded,
+                                      color: SigmaColors.danger,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+
+                        if (_isUploading)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 10),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: SigmaColors.navy,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Memproses lampiran...',
+                                  style: TextStyle(
+                                    color: SigmaColors.textSub,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Info banner
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: SigmaColors.navy.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: SigmaColors.navy.withOpacity(0.12),
+                      ),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: SigmaColors.navy,
+                          size: 15,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
+                            style: TextStyle(
+                              color: SigmaColors.navy,
+                              fontSize: 11,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Tombol aksi
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: SigmaColors.bgPage,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: SigmaColors.cardBorder),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Batal',
+                                style: TextStyle(
+                                  color: SigmaColors.textSub,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: GestureDetector(
+                          onTap: (vm.isLoading || _isUploading)
+                              ? null
+                              : _submit,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: (vm.isLoading || _isUploading)
+                                  ? SigmaColors.textSub
+                                  : SigmaColors.navy,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: (vm.isLoading || _isUploading)
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: SigmaColors.white,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.send_rounded,
+                                          color: SigmaColors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Terbitkan Pengumuman',
+                                          style: TextStyle(
+                                            color: SigmaColors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDeco({required String hint}) => InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+    filled: true,
+    fillColor: SigmaColors.bgPage,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: SigmaColors.cardBorder),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: SigmaColors.cardBorder),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: SigmaColors.navy, width: 1.5),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel({required this.label, this.required = false});
+  final String label;
+  final bool required;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: SigmaColors.navy,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (required)
+          const Text(
+            ' *',
+            style: TextStyle(
+              color: SigmaColors.danger,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SigmaDropdown<T> extends StatelessWidget {
+  const _SigmaDropdown({
+    required this.value,
+    required this.hint,
+    required this.items,
+    required this.labelBuilder,
+    required this.onChanged,
+  });
+
+  final T? value;
+  final String hint;
+  final List<T> items;
+  final String Function(T) labelBuilder;
+  final ValueChanged<T?>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: SigmaColors.bgPage,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: SigmaColors.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          hint: Text(
+            hint,
+            style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+          ),
+          isExpanded: true,
+          dropdownColor: SigmaColors.white,
+          style: const TextStyle(color: SigmaColors.navy, fontSize: 13),
+          onChanged: onChanged,
+          items: items
+              .map(
+                (e) =>
+                    DropdownMenuItem<T>(value: e, child: Text(labelBuilder(e))),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+}

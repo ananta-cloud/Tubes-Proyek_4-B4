@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
-import 'package:sigma/data/models/user_model.dart'; // Tambahkan import UserModel Anda
+import 'package:sigma/data/models/user_model.dart';
+import 'package:sigma/data/services/notification_service.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepo;
@@ -19,8 +20,6 @@ class LoginViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Trik Wajib: Beri jeda 100ms agar UI sempat menggambar indikator loading
-    // sebelum HP bekerja keras menyambungkan diri ke MongoDB Atlas
     await Future.delayed(const Duration(milliseconds: 100));
 
     try {
@@ -28,6 +27,12 @@ class LoginViewModel extends ChangeNotifier {
 
       // Simpan hasil login ke dalam state _user
       _user = result;
+
+      if (result != null) {
+        NotificationService.subscribeToRole(result.role).catchError((e) {
+          debugPrint("FCM Subscribe gagal (diabaikan): $e");
+        });
+      }
 
       _isLoading = false;
       notifyListeners();
@@ -40,30 +45,28 @@ class LoginViewModel extends ChangeNotifier {
     }
   }
 
+  Future<UserModel?> checkLogin() async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await _authRepo.checkAutoLogin();
+    if (result != null) {
+      _user = result;
+      NotificationService.subscribeToRole(result.role).catchError((e) {
+        debugPrint("FCM Tertunda karena offline: $e");
+      });
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
+  }
+
   Future<void> logout() async {
     await _authRepo.logout();
 
     // Hapus data user dari state saat logout
     _user = null;
     notifyListeners();
-  }
-
-  Future<bool> checkLogin() async {
-    _isLoading = true;
-    notifyListeners();
-
-    // Coba tarik data dari storage
-    final savedUser = await _authRepo.checkLoginStatus();
-
-    if (savedUser != null) {
-      _user = savedUser; // Set user aktif
-      _isLoading = false;
-      notifyListeners();
-      return true; // Berarti ada user yang tersimpan (Sudah login)
-    }
-
-    _isLoading = false;
-    notifyListeners();
-    return false; // Berarti belum login / data kosong
   }
 }

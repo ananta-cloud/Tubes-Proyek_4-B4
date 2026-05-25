@@ -89,23 +89,58 @@ class TaskService {
   }
 
   Future<bool> updateTask(TaskModel task) async {
+      try {
+        await MongoDatabase.runSafe(
+          () => MongoDatabase.tasksCollection.update(
+            where.eq('_id', _safeObjectId(task.id)),
+            modify
+                .set('nama_tugas', task.namaTugas)
+                .set('nama_mk_snapshot', task.namaMkSnapshot)
+                .set('deadline', task.deadline)
+                .set('lampiran', task.lampiran)
+                .set('updated_at', DateTime.now()),
+          ),
+        );
+        print("✅ SUKSES MENGEDIT TUGAS DI MONGODB!");
+        return true;
+      } catch (e) {
+        print("🔥 Error Update Task (Mongo): $e");
+        return false;
+      }
+    }
+
+    // Fungsi Baru: Menarik Tugas Personal + Tugas Dosen untuk Mahasiswa
+  Future<List<Map<String, dynamic>>> getTasksForMahasiswa(String userId, String? kelas) async {
     try {
-      await MongoDatabase.runSafe(
-        () => MongoDatabase.tasksCollection.update(
-          where.eq('_id', _safeObjectId(task.id)),
-          modify
-              .set('nama_tugas', task.namaTugas)
-              .set('nama_mk_snapshot', task.namaMkSnapshot)
-              .set('deadline', task.deadline)
-              .set('lampiran', task.lampiran)
-              .set('updated_at', DateTime.now()),
-        ),
+      // 1. Ambil tugas personal (id_user == Mahasiswa ID)
+      final personalTasks = await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection
+            .find(where.eq('id_user', _safeObjectId(userId)))
+            .toList(),
       );
-      print("✅ SUKSES MENGEDIT TUGAS DI MONGODB!");
-      return true;
+
+      // 2. Ambil tugas Dosen berdasarkan Kelas Mahasiswa
+      List<Map<String, dynamic>> dosenTasks = [];
+      if (kelas != null && kelas.isNotEmpty) {
+        // dosenTasks = await MongoDatabase.runSafe(
+        //   () => MongoDatabase.tasksCollection
+        //       // 👇 Gunakan format .*kelas.* agar lebih aman mencari kata di tengah kalimat 👇
+        //       .find(where.match('nama_mk_snapshot', '.*\\($kelas\\).*', caseInsensitive: true))
+        //       .toList(),
+        // );
+        dosenTasks = await MongoDatabase.runSafe(
+          () => MongoDatabase.tasksCollection
+              .find(where.match('nama_mk_snapshot', '.*$kelas.*', caseInsensitive: true))
+              .toList(),
+        );
+        print("📚 [TaskService] Tugas dari Dosen untuk kelas $kelas: ${dosenTasks.length}");
+      }
+
+      // Gabungkan keduanya
+      return [...personalTasks, ...dosenTasks];
     } catch (e) {
-      print("🔥 Error Update Task (Mongo): $e");
-      return false;
+      print("🔥 Error Get Tasks For Mahasiswa (Mongo): $e");
+      return [];
     }
   }
 }

@@ -11,8 +11,8 @@ class AnnouncementService {
       );
       return announcements;
     } catch (e) {
-      print("❌ Error AnnouncementService (Mongo): $e");
-      rethrow;
+      print("Error AnnouncementService (Mongo): $e");
+      rethrow; 
     }
   }
 }

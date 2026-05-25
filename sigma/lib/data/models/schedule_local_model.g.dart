@@ -31,15 +31,14 @@ class ScheduleLocalModelAdapter extends TypeAdapter<ScheduleLocalModel> {
       idProdi: fields[11] as String,
       idJurusan: fields[12] as String,
       idPeriode: fields[13] as String,
-      kelas: fields[14] as String,
-      kodeDosen: (fields[16] as List).cast<String>(),
+      updatedAt: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ScheduleLocalModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -69,9 +68,7 @@ class ScheduleLocalModelAdapter extends TypeAdapter<ScheduleLocalModel> {
       ..writeByte(13)
       ..write(obj.idPeriode)
       ..writeByte(14)
-      ..write(obj.kelas)
-      ..writeByte(16)
-      ..write(obj.kodeDosen);
+      ..write(obj.updatedAt);
   }
 
   @override

@@ -71,7 +71,7 @@ class TaskModel extends HiveObject {
       deadline: map['deadline'] as DateTime,
       status: map['status'] ?? 'BELUM',
       isSynced:
-          map['is_synced'] ?? true, // Default ke true karena ditarik dari Cloud
+       map['is_synced'] ??    map['is_synced'] ?? true, // Default ke true karena ditarik dari Cloud // Default ke true karena ditarik dari Cloud
       createdAt: map['created_at'] as DateTime,
       updatedAt: map['updated_at'] as DateTime,
       // Pada TaskModel.fromMongo:
