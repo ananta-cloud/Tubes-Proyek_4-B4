@@ -189,7 +189,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: SigmaColors.navy.withValues(alpha: 0.12)),
       ),
-      // ✅ NAMA MK dan NAMA DOSEN dihapus dari daftar
+      // NAMA MK dan NAMA DOSEN dihapus dari daftar
       // Nama akan diambil otomatis dari MongoDB berdasarkan kode
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +407,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
-            // ✅ Tabel preview tetap menampilkan nama MK & dosen
+            // Tabel preview tetap menampilkan nama MK & dosen
             // yang sudah di-resolve dari MongoDB oleh parser
             headingRowColor: WidgetStateProperty.all(
               SigmaColors.navy.withValues(alpha: 0.06),

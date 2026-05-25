@@ -54,7 +54,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
       _schedules = _schedulesBox.values.toList();
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ _loadFromLocal: $e');
+      debugPrint(' _loadFromLocal: $e');
     }
   }
 
@@ -108,7 +108,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
 
       _loadFromLocal();
     } catch (e) {
-      debugPrint('❌ _syncFromMongo: $e');
+      debugPrint(' _syncFromMongo: $e');
     } finally {
       _isLoading = false;
       _isSyncInProgress = false;
@@ -214,7 +214,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     } catch (e) {
       _importStatus = 'Terjadi kesalahan: $e';
       _syncStatus = SyncStatus.failed;
-      debugPrint('❌ importSchedules: $e');
+      debugPrint(' importSchedules: $e');
       notifyListeners();
     } finally {
       _isImporting = false;
@@ -232,7 +232,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     final keys = _queueBox.keys.toList();
     bool allSuccess = true;
 
-    // ✅ Kumpulkan ID semua jadwal yang berhasil di-drain untuk di-enrich
+    // Kumpulkan ID semua jadwal yang berhasil di-drain untuk di-enrich
     final enrichIds = <String>[];
 
     for (final key in keys) {
@@ -281,14 +281,14 @@ class AdminScheduleViewModel extends ChangeNotifier {
             );
           }
 
-          // ✅ Tandai ID ini untuk enrichment nama MK & dosen
+          //  Tandai ID ini untuk enrichment nama MK & dosen
           enrichIds.addAll(ids);
         }
 
         await _queueBox.delete(key);
-        debugPrint('✅ Queue item $key synced');
+        debugPrint(' Queue item $key synced');
       } catch (e) {
-        debugPrint('❌ _drainQueue key=$key: $e');
+        debugPrint(' _drainQueue key=$key: $e');
         allSuccess = false;
         break;
       }
@@ -300,7 +300,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
       _syncStatus = SyncStatus.synced;
       notifyListeners();
 
-      // ✅ Enrich nama MK & dosen yang masih berupa kode (diimport saat offline)
+      //  Enrich nama MK & dosen yang masih berupa kode (diimport saat offline)
       if (enrichIds.isNotEmpty) {
         await enrichPendingSchedules(enrichIds);
       }
@@ -324,7 +324,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     if (ids.isEmpty) return;
     if (!await _checkOnline()) return;
 
-    debugPrint('🔄 Enriching ${ids.length} jadwal (patch nama MK & dosen)...');
+    debugPrint(' Enriching ${ids.length} jadwal (patch nama MK & dosen)...');
 
     // Kumpulkan semua kode unik dari jadwal yang perlu di-enrich
     final kodeMkSet = <String>{};
@@ -343,7 +343,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
     }
 
     if (kodeMkSet.isEmpty && kodeDosenSet.isEmpty) {
-      debugPrint('ℹ️ Tidak ada jadwal yang perlu di-enrich.');
+      debugPrint('Tidak ada jadwal yang perlu di-enrich.');
       return;
     }
 
@@ -365,7 +365,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
           if (kode.isNotEmpty && nama.isNotEmpty) namaMkMap[kode] = nama;
         }
         debugPrint(
-          '✅ Enrich lookup MK: ${namaMkMap.length}/${kodeMkSet.length} ditemukan',
+          ' Enrich lookup MK: ${namaMkMap.length}/${kodeMkSet.length} ditemukan',
         );
       }
 
@@ -381,11 +381,11 @@ class AdminScheduleViewModel extends ChangeNotifier {
           if (kode.isNotEmpty && nama.isNotEmpty) namaDosenMap[kode] = nama;
         }
         debugPrint(
-          '✅ Enrich lookup dosen: ${namaDosenMap.length}/${kodeDosenSet.length} ditemukan',
+          ' Enrich lookup dosen: ${namaDosenMap.length}/${kodeDosenSet.length} ditemukan',
         );
       }
     } catch (e) {
-      debugPrint('❌ enrichPendingSchedules lookup gagal: $e');
+      debugPrint(' enrichPendingSchedules lookup gagal: $e');
       return;
     }
 
@@ -435,11 +435,11 @@ class AdminScheduleViewModel extends ChangeNotifier {
         );
         enrichedCount++;
       } catch (e) {
-        debugPrint('⚠️ Patch Mongo untuk id=$id gagal: $e');
+        debugPrint(' Patch Mongo untuk id=$id gagal: $e');
       }
     }
 
-    debugPrint('✅ Enrichment selesai: $enrichedCount jadwal diperbarui.');
+    debugPrint(' Enrichment selesai: $enrichedCount jadwal diperbarui.');
 
     if (enrichedCount > 0) {
       _loadFromLocal();
@@ -449,7 +449,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
 
   // ── Connection restored ────────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
-    debugPrint('🔄 Connection restored — draining queue...');
+    debugPrint(' Connection restored — draining queue...');
     await _drainQueue();
     await _syncFromMongo();
   }

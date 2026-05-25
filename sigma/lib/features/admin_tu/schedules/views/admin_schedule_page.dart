@@ -23,7 +23,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
   final Set<String> _filterKelas = {};
   final Set<String> _filterHari = {};
   final Set<String> _filterTePr = {};
-  // ✅ Filter sinkronisasi: 'LOCAL' = belum ke server, 'SERVER' = sudah
+  // Filter sinkronisasi: 'LOCAL' = belum ke server, 'SERVER' = sudah
   final Set<String> _filterSync = {};
 
   bool _filterExpanded = false;
@@ -353,7 +353,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
               ],
             ),
             const SizedBox(height: 8),
-            // ✅ Indikator sync di detail sheet
+            // Indikator sync di detail sheet
             _SyncIndicatorBadge(isPending: isPending, large: true),
             const SizedBox(height: 8),
             Text(
@@ -423,7 +423,7 @@ class _SyncStatusBanner extends StatelessWidget {
         const Color(0xFFFFF3CD),
         const Color(0xFFB45309),
         Icons.cloud_off_rounded,
-        // ✅ Fix: tampilkan jumlah jadwal, bukan jumlah item queue
+        // Fix: tampilkan jumlah jadwal, bukan jumlah item queue
         '$pendingCount jadwal tersimpan lokal — belum terkirim ke server',
       ),
       SyncStatus.syncing => (
@@ -743,7 +743,7 @@ class _FilterPanel extends StatelessWidget {
                     },
                   ),
 
-                  // ✅ Filter sinkronisasi — hanya tampil jika ada jadwal pending
+                  // Filter sinkronisasi — hanya tampil jika ada jadwal pending
                   if (hasPendingSchedules) ...[
                     const SizedBox(height: 14),
                     _FilterLabel(
@@ -791,7 +791,7 @@ class _ScheduleCard extends StatelessWidget {
         color: SigmaColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          // ✅ Border sedikit berbeda untuk jadwal pending
+          //  Border sedikit berbeda untuk jadwal pending
           color: isPending
               ? const Color(0xFFB45309).withValues(alpha: 0.3)
               : SigmaColors.cardBorder,
@@ -922,7 +922,7 @@ class _ScheduleCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // ✅ Indikator kecil di sudut kanan bawah card
+                // Indikator kecil di sudut kanan bawah card
                 _SyncIndicatorBadge(isPending: isPending),
               ],
             ),

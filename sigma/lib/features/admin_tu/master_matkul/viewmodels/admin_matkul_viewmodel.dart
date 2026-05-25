@@ -10,24 +10,32 @@ const _kBoxMatkul = 'admin_matkul';
 const _kBoxProdi = 'admin_prodi';
 const _kBoxQueue = 'matkul_queue';
 
+enum SyncStatus { idle, pending, syncing, synced, failed }
+
 class AdminMatkulViewModel extends ChangeNotifier {
   List<MatkulModel> _matkulList = [];
   Map<String, String> _prodiMap = {};
-
   Map<String, String> _prodiJurusanMap = {};
-  Map<String, String> get prodiJurusanMap => _prodiJurusanMap;
 
   bool _isLoading = false;
   bool _isSyncing = false;
-
-  // Guard agar tidak ada dua sync berjalan bersamaan
   bool _isSyncInProgress = false;
+
+  //  Tambahan sync status & pending tracking
+  SyncStatus _syncStatus = SyncStatus.idle;
+  Set<String> _pendingIds = {};
 
   List<MatkulModel> get matkulList => _matkulList;
   Map<String, String> get prodiMap => _prodiMap;
+  Map<String, String> get prodiJurusanMap => _prodiJurusanMap;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
+  SyncStatus get syncStatus => _syncStatus;
+  Set<String> get pendingIds => _pendingIds;
+
   int get pendingQueueCount => _queueBox.length;
+  int get pendingMatkulCount => _pendingIds.length;
+  bool isMatkulPending(String id) => _pendingIds.contains(id);
 
   // ─── Boxes ────────────────────────────────────────────────────────────────
   Box<MatkulModel> get _matkulBox => Hive.box<MatkulModel>(_kBoxMatkul);
@@ -36,8 +44,9 @@ class AdminMatkulViewModel extends ChangeNotifier {
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   Future<void> fetchMatkul() async {
-    if (_isSyncInProgress) return; // cegah double sync
+    if (_isSyncInProgress) return;
     _loadFromLocal();
+    _rebuildPendingIds();
     await _drainQueue();
     await _syncFromMongo();
   }
@@ -49,7 +58,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       if (savedProdi != null) {
         _prodiMap = Map<String, String>.from(savedProdi);
       }
-
       final savedJurusan = _prodiBox.get('prodiJurusanMap');
       if (savedJurusan != null) {
         _prodiJurusanMap = Map<String, String>.from(savedJurusan);
@@ -59,6 +67,29 @@ class AdminMatkulViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint(' AdminMatkulViewModel._loadFromLocal: $e');
     }
+  }
+
+  //  Rebuild set ID yang masih pending dari isi queue
+  void _rebuildPendingIds() {
+    final ids = <String>{};
+    for (final key in _queueBox.keys) {
+      final raw = _queueBox.get(key);
+      if (raw == null) continue;
+      final op = Map<String, dynamic>.from(raw);
+      // add & update → ID perlu ditampilkan sebagai pending
+      // delete → tidak perlu ditampilkan (item sudah hilang dari list)
+      if (op['operation'] == 'add' || op['operation'] == 'update') {
+        final id = op['id']?.toString();
+        if (id != null && id.isNotEmpty) ids.add(id);
+      }
+    }
+    _pendingIds = ids;
+
+    final newStatus = ids.isEmpty ? SyncStatus.idle : SyncStatus.pending;
+    if (_syncStatus != SyncStatus.syncing && _syncStatus != newStatus) {
+      _syncStatus = newStatus;
+    }
+    notifyListeners();
   }
 
   // ─── Sync dari MongoDB ────────────────────────────────────────────────────
@@ -77,22 +108,20 @@ class AdminMatkulViewModel extends ChangeNotifier {
         () => MongoDatabase.db.collection('program_studi').find().toList(),
       );
       final newProdiMap = <String, String>{};
-      final newProdiJurusanMap = <String, String>{}; // ← tambah
+      final newProdiJurusanMap = <String, String>{};
 
       for (final p in prodiDocs) {
         final key = p['_id'] is ObjectId
             ? (p['_id'] as ObjectId).toHexString()
             : p['_id'].toString();
         newProdiMap[key] = p['nama_prodi']?.toString() ?? '-';
-
-        // simpan mapping prodi -> jurusan
         final idJurusan = p['id_jurusan'] is ObjectId
             ? (p['id_jurusan'] as ObjectId).toHexString()
             : p['id_jurusan']?.toString() ?? '';
         newProdiJurusanMap[key] = idJurusan;
       }
       _prodiMap = newProdiMap;
-      _prodiJurusanMap = newProdiJurusanMap; // ← tambah
+      _prodiJurusanMap = newProdiJurusanMap;
       await _prodiBox.put('prodiMap', _prodiMap);
       await _prodiBox.put('prodiJurusanMap', _prodiJurusanMap);
 
@@ -102,7 +131,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
           () => MongoDatabase.db.collection('mata_kuliah').find().toList(),
         );
 
-        // Gunakan putAll untuk batch update — lebih aman dari clear() + loop
         final newEntries = <String, MatkulModel>{};
         for (final d in mkDocs) {
           final idProdiHex = d['id_prodi'] is ObjectId
@@ -113,22 +141,17 @@ class AdminMatkulViewModel extends ChangeNotifier {
           newEntries[model.id] = model;
         }
 
-        // Hapus key lama yang sudah tidak ada di MongoDB
         final oldKeys = _matkulBox.keys.cast<String>().toList();
         final newKeys = newEntries.keys.toSet();
         for (final oldKey in oldKeys) {
-          if (!newKeys.contains(oldKey)) {
-            await _matkulBox.delete(oldKey);
-          }
+          if (!newKeys.contains(oldKey)) await _matkulBox.delete(oldKey);
         }
-
-        // Upsert semua data baru
         await _matkulBox.putAll(newEntries);
       }
 
       _loadFromLocal();
     } catch (e) {
-      debugPrint('❌ AdminMatkulViewModel._syncFromMongo: $e');
+      debugPrint(' AdminMatkulViewModel._syncFromMongo: $e');
     } finally {
       _isLoading = false;
       _isSyncInProgress = false;
@@ -147,7 +170,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
     final namaProdi = _prodiMap[idProdi] ?? '-';
     final idJurusan = _prodiJurusanMap[idProdi] ?? '';
 
-    // 1. Simpan ke Hive langsung
     final model = MatkulModel(
       id: newId,
       kodeMk: kodeMk,
@@ -160,7 +182,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
     await _matkulBox.put(newId, model);
     _loadFromLocal();
 
-    // 2. Tambah ke queue
     await _queueBox.add({
       'operation': 'add',
       'id': newId,
@@ -171,7 +192,11 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'idJurusan': idJurusan,
     });
 
-    // 3. Drain — jika online langsung sync, jika tidak tetap tersimpan di queue
+    // Tandai sebagai pending
+    _pendingIds.add(newId);
+    _syncStatus = SyncStatus.pending;
+    notifyListeners();
+
     await _drainQueue();
   }
 
@@ -208,16 +233,22 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'idJurusan': idJurusan,
     });
 
+    // Tandai sebagai pending
+    _pendingIds.add(id);
+    _syncStatus = SyncStatus.pending;
+    notifyListeners();
+
     await _drainQueue();
   }
 
   // ─── Delete ───────────────────────────────────────────────────────────────
   Future<void> deleteMatkul(String id) async {
     await _matkulBox.delete(id);
+    // Hapus dari pending juga karena item sudah dihapus dari list
+    _pendingIds.remove(id);
     _loadFromLocal();
 
     await _queueBox.add({'operation': 'delete', 'id': id});
-
     await _drainQueue();
   }
 
@@ -227,9 +258,12 @@ class AdminMatkulViewModel extends ChangeNotifier {
     if (!isOnline || _queueBox.isEmpty) return;
 
     _isSyncing = true;
+    _syncStatus = SyncStatus.syncing;
     notifyListeners();
 
+    bool allSuccess = true;
     final keys = _queueBox.keys.toList();
+
     for (final key in keys) {
       final raw = _queueBox.get(key);
       if (raw == null) {
@@ -242,7 +276,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
         final col = MongoDatabase.db.collection('mata_kuliah');
 
         if (op['operation'] == 'add') {
-          // Cek dulu apakah sudah ada di MongoDB (hindari duplicate)
           final existing = await MongoDatabase.runSafe(
             () => col.findOne(where.id(ObjectId.fromHexString(op['id']))),
           );
@@ -280,20 +313,35 @@ class AdminMatkulViewModel extends ChangeNotifier {
         }
 
         await _queueBox.delete(key);
-        debugPrint('✅ Matkul queue item $key synced');
+        //  Hapus dari pending set setelah berhasil
+        final syncedId = op['id']?.toString();
+        if (syncedId != null) _pendingIds.remove(syncedId);
+        debugPrint(' Matkul queue item $key synced');
       } catch (e) {
-        debugPrint('❌ AdminMatkulViewModel._drainQueue key=$key: $e');
+        debugPrint(' AdminMatkulViewModel._drainQueue key=$key: $e');
+        allSuccess = false;
         break;
       }
     }
 
     _isSyncing = false;
+
+    if (allSuccess && _queueBox.isEmpty) {
+      _pendingIds = {};
+      _syncStatus = SyncStatus.synced;
+      notifyListeners();
+      await Future.delayed(const Duration(seconds: 3));
+      _syncStatus = SyncStatus.idle;
+    } else {
+      _rebuildPendingIds();
+      _syncStatus = allSuccess ? SyncStatus.idle : SyncStatus.failed;
+    }
     notifyListeners();
   }
 
   // ─── Connection restored ──────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
-    debugPrint('🔄 Connection restored — draining matkul queue...');
+    debugPrint(' Connection restored — draining matkul queue...');
     await _drainQueue();
     await _syncFromMongo();
   }

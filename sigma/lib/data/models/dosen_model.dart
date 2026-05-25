@@ -16,7 +16,7 @@ class DosenModel extends HiveObject {
   final String kodeDosen; // "KO009N" — primary key / referensi dari jadwal
 
   @HiveField(3)
-  final String namaDosen; // "Santi Sundari, S.T., M.T."
+  final String namaDosen; // "Santi Sundari"
 
   @HiveField(4)
   final String idJurusan; // hex ObjectId → referensi ke collection jurusan
