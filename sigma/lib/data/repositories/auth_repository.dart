@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bcrypt/bcrypt.dart';
 import '../models/user_model.dart';
 import '../models/mahasiswa_model.dart';
-import '../models/schedule_local_model.dart';
+import '../models/schedule_model.dart';
 import '../models/announcement_model.dart';
 import 'dart:convert';
 import '../../core/network/mongo_database.dart';
@@ -59,33 +59,47 @@ class AuthRepository {
 
       // 3. Jika ia MAHASISWA, ambil data relasinya!
       if (user["role"] == "MAHASISWA") {
+        // 🔥 PERBAIKAN: Cari berdasarkan email dari tabel users, bukan user_id!
         final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
-          "user_id": user["_id"],
+          "email": user["email"], 
         });
 
         if (profilMahasiswa != null) {
-          // 👉 3A. Ambil Data Kelas
+          // 3A. Ambil Data Kelas
           if (profilMahasiswa["id_kelas"] != null) {
-            final dataKelas = await MongoDatabase.kelasCollection.findOne({
-              "_id": profilMahasiswa["id_kelas"],
-            });
-            
-            // 👉 3B. Ambil Data Prodi (Menerjemahkan ID menjadi Nama)
-            if (dataKelas != null && dataKelas["id_prodi"] != null) {
-              final dataProdi = await MongoDatabase.prodiCollection.findOne({
-                "_id": dataKelas["id_prodi"]
-              });
-              
-              if (dataProdi != null) {
-                // Tangkap nama prodinya (mendukung field 'nama_prodi' atau 'nama')
-                dataKelas["nama_prodi"] = dataProdi["nama_prodi"] ?? dataProdi["nama"];
-              }
+            var searchIdKelas = profilMahasiswa["id_kelas"];
+            if (searchIdKelas is String && searchIdKelas.length == 24) {
+              searchIdKelas = ObjectId.fromHexString(searchIdKelas);
             }
-
-            // Gabungkan kelas (yang sudah berisi nama prodi) ke profil mahasiswa
+            final dataKelas = await MongoDatabase.kelasCollection.findOne({
+              "_id": searchIdKelas,
+            });
             profilMahasiswa["kelas"] = dataKelas;
           }
+
+          // 3B. Ambil Data Prodi (Terdapat di profilMahasiswa atau Kelas)
+          // Kode kueri prodi Anda yang kemarin ditaruh di sini tetap sama dan aman
+          var searchIdProdi = profilMahasiswa["id_prodi"] ?? (profilMahasiswa["kelas"] != null ? profilMahasiswa["kelas"]["id_prodi"] : null);
+          if (searchIdProdi != null) {
+            if (searchIdProdi is String && searchIdProdi.length == 24) {
+              searchIdProdi = ObjectId.fromHexString(searchIdProdi);
+            }
+            final dataProdi = await MongoDatabase.prodiCollection.findOne({
+              "_id": searchIdProdi
+            });
+            if (dataProdi != null) {
+              if (profilMahasiswa["kelas"] != null) {
+                profilMahasiswa["kelas"]["nama_prodi"] = dataProdi["nama_prodi"] ?? dataProdi["nama"];
+              } else {
+                profilMahasiswa["kelas"] = {"nama_prodi": dataProdi["nama_prodi"] ?? dataProdi["nama"]};
+              }
+            }
+          }
+          
           profilLengkap = profilMahasiswa;
+          print("✅ PROFIL MAHASISWA DITEMUKAN VIA EMAIL: ${profilLengkap['nama']}");
+        } else {
+          print("❌ WARNING: Profil mahasiswa TIDAK DITEMUKAN untuk email: ${user["email"]}");
         }
       }
 
@@ -196,7 +210,7 @@ class AuthRepository {
     await _storage.delete(key: "user_data");
 
     // Bersihkan data Hive
-    await Hive.box<ScheduleLocalModel>('schedules').clear();
+    await Hive.box<ScheduleModel>('schedules').clear();
     await Hive.box<AnnouncementModel>('announcements').clear();
     if (Hive.isBoxOpen('bookmarks')) {
       await Hive.box<AnnouncementModel>('bookmarks').clear();

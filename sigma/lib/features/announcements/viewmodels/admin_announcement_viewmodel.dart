@@ -180,6 +180,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             isi: op['isi'],
             module: 'pengumuman',
             targetAudience: op['target'],
+            tingkatKepentingan: op['tingkatKepentingan'] ?? 'BIASA',
           );
         }
         await _queueBox.delete(key);
