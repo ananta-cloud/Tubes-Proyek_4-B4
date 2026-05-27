@@ -39,6 +39,17 @@ class LoginViewModel extends ChangeNotifier {
 
         if (result.isDosen) {
           _dosen = await _authRepo.getDosenByUserId(result.id);
+
+          if (_dosen != null) {
+            _user = UserModel(
+              id: result.id,
+              nama: _dosen!.namaDosen,
+              email: result.email,
+              role: result.role,
+              deviceToken: result.deviceToken,
+              profilMahasiswa: result.profilMahasiswa,
+            );
+          }
         }
         if (result.isTimPenjadwalan) {
           _timPenjadwalan = await _authRepo.getTimPenjadwalanByUserId(
@@ -49,7 +60,7 @@ class LoginViewModel extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
-      return result;
+      return _user;
     } catch (e) {
       _isLoading = false;
       notifyListeners();

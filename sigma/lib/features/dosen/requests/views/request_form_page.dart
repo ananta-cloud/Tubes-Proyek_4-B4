@@ -347,7 +347,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
         ),
         child: Column(
           children: [
-            _buildSummaryRow("Mata Kuliah", lama['nama_mk'] ?? '-'),
+            _buildSummaryRow("Mata Kuliah", lama['nama_matkul'] ?? lama['nama_mk'] ?? '-'),
             const Divider(height: 24),
             _buildSummaryRow(
               "Jadwal Asli",
@@ -644,7 +644,7 @@ class _JadwalCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          jadwal['nama_mk'] ?? '-',
+          jadwal['nama_matkul'] ?? jadwal['nama_mk'] ?? '-',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 15,
@@ -709,7 +709,7 @@ class _SelectedJadwalBanner extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          jadwal['nama_mk'] ?? '-',
+          jadwal['nama_matkul'] ?? jadwal['nama_mk'] ?? '-',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 15,

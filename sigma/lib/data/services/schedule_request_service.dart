@@ -17,12 +17,11 @@ class ScheduleRequestService {
     String? status,
   }) async {
     try {
-      // 1. Pastikan idJurusan bersih dari teks 'ObjectId()'
       final cleanJurusanId = idJurusan
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
 
-      // 2. Ambil jadwal. Gunakan fromHexString agar lebih akurat
+      // Ambil jadwal
       final schedules = await _schCol
           .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanJurusanId)))
           .toList();
@@ -40,7 +39,7 @@ class ScheduleRequestService {
         return [];
       }
 
-      // 3. Cari request berdasarkan list ID jadwal
+      // Cari request berdasarkan list ID jadwal
       final selector = where.oneFrom('id_schedule', scheduleIds);
       if (status != null && status != 'SEMUA') {
         selector.eq('status', status);
@@ -62,7 +61,7 @@ class ScheduleRequestService {
     }
   }
 
-  /// Ambil satu request by id, sekalian embed data jadwalnya.
+  /// Ambil satu request by id, sekalian embed data jadwalnya
   Future<ScheduleRequestModel?> getRequestById(String id) async {
     final req = await _reqCol.findOne(where.id(ObjectId.parse(id)));
     if (req == null) return null;
@@ -78,7 +77,7 @@ class ScheduleRequestService {
     return ScheduleRequestModel.fromJson(req, jadwal: jadwal);
   }
 
-  /// Hitung stats untuk header cards.
+  /// Hitung stats untuk header cards
   Future<Map<String, int>> getStats(String idJurusan) async {
     final schedules = await _schCol
         .find(where.eq('id_jurusan', ObjectId.parse(idJurusan)))

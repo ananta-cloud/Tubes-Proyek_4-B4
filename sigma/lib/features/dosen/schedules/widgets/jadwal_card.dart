@@ -24,8 +24,9 @@ class JadwalCard extends StatelessWidget {
     final ruangan = jadwal['ruangan']?.toString() ?? '-';
     // final namaMk = jadwal['nama_mk']?.toString() ?? '-';
     final namaMk =
-        (jadwal['nama_mk'] != null && jadwal['nama_mk'].toString().isNotEmpty)
-        ? jadwal['nama_mk'].toString()
+        (jadwal['nama_matkul'] != null &&
+            jadwal['nama_matkul'].toString().isNotEmpty)
+        ? jadwal['nama_matkul'].toString()
         : (jadwal['namaMk'] != null && jadwal['namaMk'].toString().isNotEmpty)
         ? jadwal['namaMk'].toString()
         : (jadwal['nama_matkul'] != null &&

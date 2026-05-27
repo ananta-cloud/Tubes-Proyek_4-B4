@@ -3,7 +3,6 @@ import '../../core/network/mongo_database.dart';
 import '../models/task_model.dart';
 
 class TaskService {
-  // 🔥 HELPER SAKTI: Membersihkan ID dari teks aneh agar tidak crash
   ObjectId _safeObjectId(String id) {
     String cleanId = id
         .replaceAll('ObjectId("', '')
@@ -13,7 +12,7 @@ class TaskService {
     return ObjectId.fromHexString(cleanId);
   }
 
-  // 1. Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
+  // Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
   Future<List<Map<String, dynamic>>> getTasksByUser(String userId) async {
     try {
       final data = await MongoDatabase.runSafe(
@@ -23,12 +22,12 @@ class TaskService {
       );
       return data;
     } catch (e) {
-      print("🔥 Error Get Tasks (Mongo): $e");
+      print(" Error Get Tasks (Mongo): $e");
       return [];
     }
   }
 
-  // 2. Simpan Tugas Personal Baru ke MongoDB
+  // Simpan Tugas Personal Baru ke MongoDB
   Future<bool> createTask(TaskModel task) async {
     try {
       await MongoDatabase.runSafe(
@@ -37,11 +36,11 @@ class TaskService {
           'id_user': _safeObjectId(task.idUser),
           'nama_tugas': task.namaTugas,
           'deskripsi': task.deskripsi,
-          'id_mk': task.idMk, // Ini akan berisi null untuk tugas personal
+          'id_mk': task.idMk, // Berisi null untuk tugas personal
           'nama_mk_snapshot': task.namaMkSnapshot,
           'deadline': task.deadline,
           'status': task.status,
-          'is_synced': true, // Wajib true agar lolos validasi MongoDB
+          'is_synced': true,
           'created_at': task.createdAt,
           'updated_at': task.updatedAt,
           'lampiran': task.lampiran,
@@ -50,12 +49,12 @@ class TaskService {
       print("✅ SUKSES MENGIRIM TUGAS BARU KE MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Create Task (Mongo): $e");
+      print(" Error Create Task (Mongo): $e");
       return false;
     }
   }
 
-  // 3. Update Status Tugas (Bisa untuk semua jenis tugas)
+  // Update Status Tugas (Bisa untuk semua jenis tugas)
   Future<bool> updateTaskStatus(String taskId, String status) async {
     try {
       await MongoDatabase.runSafe(
@@ -67,12 +66,12 @@ class TaskService {
       print("✅ SUKSES UPDATE STATUS TUGAS DI MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Update Task Status (Mongo): $e");
+      print(" Error Update Task Status (Mongo): $e");
       return false;
     }
   }
 
-  // 4. Hapus Tugas (Khusus Tugas Personal)
+  // Hapus Tugas (Khusus Tugas Personal)
   Future<bool> deleteTask(String taskId) async {
     try {
       await MongoDatabase.runSafe(
@@ -80,66 +79,74 @@ class TaskService {
           where.eq('_id', _safeObjectId(taskId)),
         ),
       );
-      print("🗑️ SUKSES MENGHAPUS TUGAS DARI MONGODB!");
+      print("SUKSES MENGHAPUS TUGAS DARI MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Delete Task (Mongo): $e");
+      print(" Error Delete Task (Mongo): $e");
       return false;
     }
   }
 
   Future<bool> updateTask(TaskModel task) async {
-      try {
-        await MongoDatabase.runSafe(
-          () => MongoDatabase.tasksCollection.update(
-            where.eq('_id', _safeObjectId(task.id)),
-            modify
-                .set('nama_tugas', task.namaTugas)
-                .set('nama_mk_snapshot', task.namaMkSnapshot)
-                .set('deadline', task.deadline)
-                .set('lampiran', task.lampiran)
-                .set('updated_at', DateTime.now()),
-          ),
-        );
-        print("✅ SUKSES MENGEDIT TUGAS DI MONGODB!");
-        return true;
-      } catch (e) {
-        print("🔥 Error Update Task (Mongo): $e");
-        return false;
-      }
-    }
-
-    // Fungsi Baru: Menarik Tugas Personal + Tugas Dosen untuk Mahasiswa
-  Future<List<Map<String, dynamic>>> getTasksForMahasiswa(String userId, String? kelas) async {
     try {
-      // 1. Ambil tugas personal (id_user == Mahasiswa ID)
+      await MongoDatabase.runSafe(
+        () => MongoDatabase.tasksCollection.update(
+          where.eq('_id', _safeObjectId(task.id)),
+          modify
+              .set('nama_tugas', task.namaTugas)
+              .set('nama_mk_snapshot', task.namaMkSnapshot)
+              .set('deadline', task.deadline)
+              .set('lampiran', task.lampiran)
+              .set('updated_at', DateTime.now()),
+        ),
+      );
+      print("✅ SUKSES MENGEDIT TUGAS DI MONGODB!");
+      return true;
+    } catch (e) {
+      print(" Error Update Task (Mongo): $e");
+      return false;
+    }
+  }
+
+  // Menarik Tugas Personal + Tugas Dosen untuk Mahasiswa
+  Future<List<Map<String, dynamic>>> getTasksForMahasiswa(
+    String userId,
+    String? kelas,
+  ) async {
+    try {
       final personalTasks = await MongoDatabase.runSafe(
         () => MongoDatabase.tasksCollection
             .find(where.eq('id_user', _safeObjectId(userId)))
             .toList(),
       );
 
-      // 2. Ambil tugas Dosen berdasarkan Kelas Mahasiswa
+      // Ambil tugas Dosen berdasarkan Kelas Mahasiswa
       List<Map<String, dynamic>> dosenTasks = [];
       if (kelas != null && kelas.isNotEmpty) {
         // dosenTasks = await MongoDatabase.runSafe(
         //   () => MongoDatabase.tasksCollection
-        //       // 👇 Gunakan format .*kelas.* agar lebih aman mencari kata di tengah kalimat 👇
         //       .find(where.match('nama_mk_snapshot', '.*\\($kelas\\).*', caseInsensitive: true))
         //       .toList(),
         // );
         dosenTasks = await MongoDatabase.runSafe(
           () => MongoDatabase.tasksCollection
-              .find(where.match('nama_mk_snapshot', '.*$kelas.*', caseInsensitive: true))
+              .find(
+                where.match(
+                  'nama_mk_snapshot',
+                  '.*$kelas.*',
+                  caseInsensitive: true,
+                ),
+              )
               .toList(),
         );
-        print("📚 [TaskService] Tugas dari Dosen untuk kelas $kelas: ${dosenTasks.length}");
+        print(
+          "📚 [TaskService] Tugas dari Dosen untuk kelas $kelas: ${dosenTasks.length}",
+        );
       }
 
-      // Gabungkan keduanya
       return [...personalTasks, ...dosenTasks];
     } catch (e) {
-      print("🔥 Error Get Tasks For Mahasiswa (Mongo): $e");
+      print(" Error Get Tasks For Mahasiswa (Mongo): $e");
       return [];
     }
   }

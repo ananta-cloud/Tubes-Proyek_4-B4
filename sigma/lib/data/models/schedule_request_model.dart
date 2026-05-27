@@ -145,7 +145,10 @@ class ScheduleRequestModel {
           ? DateTime.tryParse(json['updated_at'].toString())
           : null,
       // embed dari jadwal
-      namaMk: jadwal?['nama_mk'],
+      namaMk:
+          jadwal?['nama_matkul'] ??
+          jadwal?['nama_mk'] ??
+          'Mata Kuliah Tidak Terdefinisi',
       kodeMk: jadwal?['kode_mk'],
       hariJadwal: jadwal?['hari'],
       jamMulaiJadwal: jadwal?['jam_mulai'],

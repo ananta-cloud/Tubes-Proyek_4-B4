@@ -5,6 +5,7 @@ import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:sigma/features/dosen/schedules/widgets/jadwal_card.dart';
 import 'package:sigma/data/models/dosen_model.dart';
+import 'package:sigma/features/dosen/requests/views/widgets/offline_banner.dart';
 
 class JadwalMengajarPage extends StatefulWidget {
   final UserModel user;
@@ -54,137 +55,117 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
     final ctrl = context.watch<DosenRequestController>();
     final filtered = _filtered(ctrl.mySchedules);
 
-    return Scaffold(
-      backgroundColor: AppColors.slate50,
-      appBar: AppBar(
-        title: const Text(
-          'Jadwal Mengajar',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1F1F3D),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          if (ctrl.isOffline)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Tooltip(
-                message: 'Mode Offline',
-                child: Icon(
-                  Icons.cloud_off,
-                  color: Colors.orange.shade700,
-                  size: 20,
-                ),
+    // Snackbar sync — sama seperti my_requests_page
+    if (ctrl.justSynced) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.cloud_done, color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Flexible(child: Text('Jadwal berhasil tersinkronisasi')),
+                ],
               ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Banner offline
-          if (ctrl.isOffline)
-            Container(
-              width: double.infinity,
-              color: Colors.orange.shade800,
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: const Text(
-                'Mode Offline — menampilkan data tersimpan',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+          );
+          ctrl.clearSyncFlag();
+        }
+      });
+    }
 
-          // Filter hari
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _hariList.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final hari = _hariList[i];
-                final isSelected = _filterHari == hari;
-                return GestureDetector(
-                  onTap: () => setState(() => _filterHari = hari),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
+    return Column(
+      children: [
+        // Banner offline — pakai widget yang sama
+        if (ctrl.isOffline)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: OfflineBanner(),
+          ),
+
+        // Filter hari
+        SizedBox(
+          height: 48,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: _hariList.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final hari = _hariList[i];
+              final isSelected = _filterHari == hari;
+              return GestureDetector(
+                onTap: () => setState(() => _filterHari = hari),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFF3F5DB3) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
                       color: isSelected
                           ? const Color(0xFF3F5DB3)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF3F5DB3)
-                            : AppColors.slate200,
-                      ),
-                    ),
-                    child: Text(
-                      hari == 'SEMUA' ? 'Semua' : _shortHari(hari),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : AppColors.slate500,
-                      ),
+                          : AppColors.slate200,
                     ),
                   ),
-                );
-              },
-            ),
+                  child: Text(
+                    hari == 'SEMUA' ? 'Semua' : _shortHari(hari),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : AppColors.slate500,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
+        ),
 
-          // Content
-          Expanded(
-            child: ctrl.isLoadingSchedules
-                ? const Center(child: CircularProgressIndicator())
-                : ctrl.mySchedules.isEmpty
-                ? _EmptyState(isOffline: ctrl.isOffline)
-                : filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 48,
-                          color: AppColors.slate300,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Tidak ada jadwal hari $_filterHari',
-                          style: TextStyle(color: AppColors.slate500),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => context
-                        .read<DosenRequestController>()
-                        .loadMySchedules(widget.dosen.kodeDosen),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, i) =>
-                          JadwalCard(jadwal: filtered[i]),
-                    ),
+        // Content
+        Expanded(
+          child: ctrl.isLoadingSchedules
+              ? const Center(child: CircularProgressIndicator())
+              : ctrl.mySchedules.isEmpty
+              ? _EmptyState(isOffline: ctrl.isOffline)
+              : filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.event_busy,
+                        size: 48,
+                        color: AppColors.slate300,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Tidak ada jadwal hari $_filterHari',
+                        style: TextStyle(color: AppColors.slate500),
+                      ),
+                    ],
                   ),
-          ),
-        ],
-      ),
+                )
+              : RefreshIndicator(
+                  onRefresh: () => context
+                      .read<DosenRequestController>()
+                      .loadMySchedules(widget.dosen.kodeDosen),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, i) =>
+                        JadwalCard(jadwal: filtered[i]),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 

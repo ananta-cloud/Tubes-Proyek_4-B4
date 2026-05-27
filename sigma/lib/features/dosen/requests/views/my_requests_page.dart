@@ -6,11 +6,19 @@ import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import '../views/request_form_page.dart';
 import 'package:sigma/data/models/dosen_model.dart';
+import 'widgets/offline_banner.dart';
+import 'widgets/pending_requests_card.dart';
 
 class MyRequestsPage extends StatefulWidget {
   final UserModel user;
   final DosenModel dosen;
-  const MyRequestsPage({super.key, required this.user, required this.dosen});
+  final bool isActive;
+  const MyRequestsPage({
+    super.key,
+    required this.user,
+    required this.dosen,
+    required this.isActive,
+  });
 
   @override
   State<MyRequestsPage> createState() => _MyRequestsPageState();
@@ -22,7 +30,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<DosenRequestController>().loadMyRequests(widget.user.id);
+        context.read<DosenRequestController>().loadMyRequests(widget.dosen.id);
       }
     });
   }
@@ -31,7 +39,29 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
   Widget build(BuildContext context) {
     final ctrl = context.watch<DosenRequestController>();
     final cancelIds = ctrl.cancelQueueIds;
-
+    if (ctrl.justSynced && widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.cloud_done, color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text('Semua permohonan berhasil tersinkronisasi'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          ctrl.clearSyncFlag();
+        }
+      });
+    }
     final isEmpty =
         ctrl.myRequests.isEmpty &&
         ctrl.pendingRequests.isEmpty &&
@@ -60,52 +90,21 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Banner offline
-                  if (ctrl.isOffline)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade800,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.cloud_off, color: Colors.white, size: 15),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Mode Offline — perubahan akan disinkronkan otomatis',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  if (ctrl.isOffline) const OfflineBanner(),
 
-                  // 1. Pending offline (belum terkirim)
                   if (ctrl.pendingRequests.isNotEmpty) ...[
-                    _SectionHeader(
+                    const _SectionHeader(
                       label: 'Menunggu Terkirim',
                       icon: Icons.cloud_upload_outlined,
-                      color: Colors.orange.shade700,
+                      color: Colors.orange,
                     ),
                     const SizedBox(height: 8),
                     ...ctrl.pendingRequests.map(
-                      (data) => _buildPendingCard(data),
+                      (data) => PendingRequestCard(data: data),
                     ),
                     const SizedBox(height: 16),
                   ],
 
-                  // 2. Daftar dari server
                   if (ctrl.myRequests.isNotEmpty) ...[
                     const _SectionHeader(
                       label: 'Riwayat Server',
@@ -115,15 +114,12 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                     const SizedBox(height: 8),
                     ...ctrl.myRequests.map((req) {
                       final willBeDeleted = cancelIds.contains(req.id);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _RequestCard(
-                          request: req,
-                          willBeDeleted: willBeDeleted,
-                          onCancel: req.isPending && !willBeDeleted
-                              ? () => _confirmCancel(context, ctrl, req)
-                              : null,
-                        ),
+                      return _RequestCard(
+                        request: req,
+                        willBeDeleted: willBeDeleted,
+                        onCancel: req.isPending && !willBeDeleted
+                            ? () => _confirmCancel(context, ctrl, req)
+                            : null,
                       );
                     }),
                   ],
@@ -131,6 +127,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
               ),
             ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_my_requests',
         onPressed: () => _goToForm(context),
         backgroundColor: const Color(0xFF3F5DB3),
         icon: const Icon(Icons.add, color: Colors.white),

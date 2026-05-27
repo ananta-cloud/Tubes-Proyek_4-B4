@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -62,7 +63,8 @@ void main() async {
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  final storage = FlutterSecureStorage();
+  await storage.deleteAll();
   // Initialize Hive
   await Hive.initFlutter();
 
@@ -125,7 +127,6 @@ void main() async {
 
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
 
-        // 4. Announcement ViewModel
         ChangeNotifierProvider(
           create: (_) => AnnouncementViewModel(AnnouncementService()),
         ),
@@ -154,10 +155,16 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sigma',
       debugShowCheckedModeBanner: false,
-      home: const LoginPage(),
-      builder: (context, child) => _ConnectivityListener(child: child!),
+      home: const _ConnectivityListenerWrapper(),
     );
   }
+}
+
+class _ConnectivityListenerWrapper extends StatelessWidget {
+  const _ConnectivityListenerWrapper();
+  @override
+  Widget build(BuildContext context) =>
+      const _ConnectivityListener(child: LoginPage());
 }
 
 // ── Connectivity Listener ──────────────────────────────────────────────────────

@@ -10,30 +10,29 @@ part 'dosen_model.g.dart';
 //  {
 //    "_id"        : ObjectId("..."),
 //    "user_id"    : ObjectId("..."),   ← referensi ke collection users
-//    "kode_dosen" : "KO009N",
-//    "nama_dosen" : "Santi Sundari, S.T., M.T.",
+//    "kode_dosen" : "Kode dosen",
+//    "nama_dosen" : "Nama dosen",
 //    "id_jurusan" : ObjectId("..."),
 //    "created_at" : ISODate("..."),
 //    "updated_at" : ISODate("...")
 //  }
 // ─────────────────────────────────────────────────────────────────────────────
-@HiveType(typeId: 7) // sesuaikan jika typeId ini sudah dipakai model lain
+@HiveType(typeId: 7)
 class DosenModel extends HiveObject {
   @HiveField(0)
   final String id;
 
   @HiveField(1)
-  final String userId; // hex ObjectId → referensi ke collection users
-  // kosong string jika dosen belum punya akun user
+  final String userId;
 
   @HiveField(2)
-  final String kodeDosen; // "KO009N" — primary key / referensi dari jadwal
+  final String kodeDosen;
 
   @HiveField(3)
-  final String namaDosen; // "Santi Sundari"
+  final String namaDosen;
 
   @HiveField(4)
-  final String idJurusan; // hex ObjectId → referensi ke collection jurusan
+  final String idJurusan;
 
   @HiveField(5)
   final DateTime createdAt;
@@ -51,7 +50,6 @@ class DosenModel extends HiveObject {
     required this.updatedAt,
   });
 
-  // ── Dari dokumen MongoDB ──────────────────────────────────────────────────
   factory DosenModel.fromMongo(Map<String, dynamic> map) {
     String parseId(dynamic v) {
       if (v == null) return '';
@@ -77,7 +75,6 @@ class DosenModel extends HiveObject {
     );
   }
 
-  // ── Ke format MongoDB ─────────────────────────────────────────────────────
   Map<String, dynamic> toMongoMap() {
     final map = <String, dynamic>{
       'kode_dosen': kodeDosen,
@@ -86,7 +83,6 @@ class DosenModel extends HiveObject {
       'updated_at': updatedAt,
     };
 
-    // Hanya include user_id & id_jurusan jika tidak kosong
     if (userId.isNotEmpty) {
       map['user_id'] = ObjectId.fromHexString(userId);
     }

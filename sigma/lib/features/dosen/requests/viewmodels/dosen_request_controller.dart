@@ -27,6 +27,9 @@ class DosenRequestController extends ChangeNotifier {
   String? errorMsg;
   String? _lastIdDosen;
   bool isOffline = false;
+  bool _justSynced = false;
+  bool get justSynced => _justSynced;
+
   List<Map<String, dynamic>> get pendingRequests => _pendingBox.values
       .map((e) => Map<String, dynamic>.from(e))
       .toList()
@@ -54,6 +57,7 @@ class DosenRequestController extends ChangeNotifier {
       }
     });
   }
+
   // ─────────────────────────────────────────────────
   // LOAD JADWAL MILIK DOSEN
   // ─────────────────────────────────────────────────
@@ -82,7 +86,7 @@ class DosenRequestController extends ChangeNotifier {
         bool isMengampu = false;
 
         if (kodes is List) {
-          // Normalisasi setiap elemen di dalam array (buang spasi & jadikan uppercase)
+          // Normalisasi setiap elemen di dalam array
           isMengampu = kodes.any(
             (k) => k.toString().trim().toUpperCase() == targetKode,
           );
@@ -102,7 +106,7 @@ class DosenRequestController extends ChangeNotifier {
       }
       mySchedules = _mergeJadwal(tempSchedules);
       print(
-        '🎯 Selesai menyaring! Jadwal lolos filter untuk $targetKode: ${mySchedules.length} data.',
+        'Selesai menyaring! Jadwal lolos filter untuk $targetKode: ${mySchedules.length} data.',
       );
     } catch (e) {
       errorMsg = e.toString();
@@ -427,10 +431,16 @@ class DosenRequestController extends ChangeNotifier {
 
       if (_pendingBox.isEmpty && _cancelQueue.isEmpty && _lastIdDosen != null) {
         await loadMyRequests(_lastIdDosen!);
+        _justSynced = true;
       }
     } finally {
       _isSyncing = false;
       notifyListeners();
     }
+  }
+
+  void clearSyncFlag() {
+    _justSynced = false;
+    notifyListeners();
   }
 }

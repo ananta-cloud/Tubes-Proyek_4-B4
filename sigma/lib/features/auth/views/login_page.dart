@@ -68,43 +68,62 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleLogin() async {
-    // Ambil ViewModel menggunakan read (karena berada di dalam fungsi on-tap)
     final viewModel = context.read<LoginViewModel>();
 
-    final user = await viewModel.login(
-      emailController.text,
-      passwordController.text,
-    );
+    await viewModel.login(emailController.text, passwordController.text);
 
-    // Cek apakah widget masih aktif (mounted) sebelum menggunakan context
     if (!mounted) return;
 
-    if (user != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login sukses: ${user.nama}")));
+    final currentUser = viewModel.user;
 
-      if (user.role.toUpperCase() == 'DOSEN') {
+    if (currentUser != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login sukses: ${currentUser.nama}")),
+      );
+
+      final role = currentUser.role.toUpperCase();
+
+      if (role == 'DOSEN') {
         final dosen = viewModel.dosen;
         if (dosen != null) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => HomePageDsn(user: user, dosen: dosen),
+              builder: (_) => HomePageDsn(user: currentUser, dosen: dosen),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Data dosen tidak ditemukan"),
+              backgroundColor: Colors.red,
             ),
           );
         }
-      } else if (user.role.toUpperCase() == 'MAHASISWA') {
+      } else if (role == 'MAHASISWA') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePageMhs()),
         );
-      } else if (user.role.toUpperCase() == 'ADMIN_TU') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminMainPage()),
-        );
-      } else if (user.role.toUpperCase() == 'MANAJEMEN') {
+      } else if (role == 'TIM_PENJADWALAN') {
+        final tim = viewModel.timPenjadwalan;
+        if (tim != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  PenjadwalanMainPage(user: currentUser, timPenjadwalan: tim),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Data tim penjadwalan tidak ditemukan"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else if (role == 'ADMIN_TU' || role == 'MANAJEMEN') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),

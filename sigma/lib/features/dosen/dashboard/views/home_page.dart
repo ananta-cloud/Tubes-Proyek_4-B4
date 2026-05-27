@@ -115,6 +115,7 @@ class _HomePageDsnState extends State<HomePageDsn> {
                     MyRequestsPage(
                       user: activeUser ?? widget.user,
                       dosen: activeDosen,
+                      isActive: currentIndex == 2,
                     ), // Tab 2: Permohonan
                     const TaskManagementPage(), // Tab 3: Tugas
                     _buildMainDashboard(
@@ -133,8 +134,11 @@ class _HomePageDsnState extends State<HomePageDsn> {
 
   // ================= HEADER =================
   Widget _header(BuildContext context) {
-    final namaLengkap = widget.user.nama.isNotEmpty
-        ? widget.user.nama
+    final activeUser = context.watch<LoginViewModel>().user;
+    final namaLengkap = (activeUser?.nama.isNotEmpty == true)
+        ? activeUser!.nama
+        : widget.dosen.namaDosen.isNotEmpty
+        ? widget.dosen.namaDosen
         : "Dosen SIGMA";
 
     return Container(
@@ -394,6 +398,8 @@ class _HomePageDsnState extends State<HomePageDsn> {
 
   // ================= PROFIL / MAIN DASHBOARD =================
   Widget _buildMainDashboard(BuildContext context) {
+    final activeUser = context.watch<LoginViewModel>().user;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
       children: [
@@ -426,9 +432,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.user.nama.isNotEmpty
-                              ? widget.user.nama
-                              : "Nama Tidak Tersedia",
+                          (activeUser?.nama.isNotEmpty == true)
+                              ? activeUser!.nama
+                              : widget.dosen.namaDosen,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

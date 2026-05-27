@@ -56,10 +56,9 @@ class TaskModel extends HiveObject {
     this.lampiran,
   });
 
-  // Jika idMk kosong/null, otomatis dianggap sebagai Tugas Personal.
+  // Jika idMk kosong/null, otomatis dianggap sebagai Tugas Personal
   bool get isPersonal => idMk == null || idMk!.isEmpty;
 
-  // Format dari mongo_dart: _id adalah ObjectId, date adalah DateTime langsung
   factory TaskModel.fromMongo(Map<String, dynamic> map) {
     return TaskModel(
       id: (map['_id'] as ObjectId).toHexString(),
@@ -73,7 +72,7 @@ class TaskModel extends HiveObject {
       isSynced:
           map['is_synced'] ??
           map['is_synced'] ??
-          true, // Default ke true karena ditarik dari Cloud // Default ke true karena ditarik dari Cloud
+          true, // Default ke true karena ditarik dari Cloud
       createdAt: map['created_at'] as DateTime,
       updatedAt: map['updated_at'] as DateTime,
       // Pada TaskModel.fromMongo:

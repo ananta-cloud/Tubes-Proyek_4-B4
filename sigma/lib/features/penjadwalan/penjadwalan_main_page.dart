@@ -3,6 +3,7 @@ import 'package:sigma/theme/app_colors.dart';
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/models/tpj_model.dart';
 import 'requests/views/request_index_page.dart';
+import 'package:sigma/features/admin_tu/main/views/admin_main_page.dart';
 
 class PenjadwalanMainPage extends StatefulWidget {
   final UserModel user;
@@ -36,8 +37,13 @@ class _PenjadwalanMainPageState extends State<PenjadwalanMainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.slate50,
-      body: _pages[_currentIndex],
+      backgroundColor: SigmaColors.bgPage,
+      body: Column(
+        children: [
+          SigmaPageHeader(title: 'Tim Penjadwalan', subtitle: widget.user.nama),
+          Expanded(child: _pages[_currentIndex]),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
