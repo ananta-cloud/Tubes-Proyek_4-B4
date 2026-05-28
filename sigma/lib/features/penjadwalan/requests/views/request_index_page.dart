@@ -45,28 +45,6 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
   Widget build(BuildContext context) {
     final ctrl = context.watch<ScheduleRequestController>();
 
-    if (ctrl.justSynced) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.cloud_done, color: Colors.white, size: 16),
-                  SizedBox(width: 8),
-                  Flexible(child: Text('Request berhasil tersinkronisasi')),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-          ctrl.clearSyncFlag();
-        }
-      });
-    }
-
     return Scaffold(
       backgroundColor: AppColors.slate50,
       appBar: AppBar(
