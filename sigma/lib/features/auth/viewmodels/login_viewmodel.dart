@@ -55,6 +55,16 @@ class LoginViewModel extends ChangeNotifier {
           _timPenjadwalan = await _authRepo.getTimPenjadwalanByUserId(
             result.id,
           );
+          if (_timPenjadwalan != null) {
+            _user = UserModel(
+              id: result.id,
+              nama: _timPenjadwalan!.nama,
+              email: result.email,
+              role: result.role,
+              deviceToken: result.deviceToken,
+              profilMahasiswa: result.profilMahasiswa,
+            );
+          }
         }
       }
 

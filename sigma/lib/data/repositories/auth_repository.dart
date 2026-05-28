@@ -89,6 +89,14 @@ class AuthRepository {
           await _storage.write(key: "dosen_kode", value: kodeDosen);
           await _storage.write(key: "dosen_nama", value: namaDosen);
         }
+      } else if (user["role"] == "TIM_PENJADWALAN") {
+        final tpjDoc = await MongoDatabase.timPenjadwalanCollection.findOne({
+          "user_id": user["_id"],
+        });
+        if (tpjDoc != null) {
+          final namaTpj = tpjDoc["nama"]?.toString() ?? '';
+          await _storage.write(key: "tpj_nama", value: namaTpj);
+        }
       }
 
       // Simpan ke Storage untuk Offline/Auto-Login
@@ -215,6 +223,10 @@ class AuthRepository {
           resolvedNama = dosenNama;
         }
       }
+      if (role == 'TIM_PENJADWALAN') {
+        final tpjNama = await _storage.read(key: "tpj_nama");
+        if (tpjNama != null && tpjNama.isNotEmpty) resolvedNama = tpjNama;
+      }
 
       return UserModel(
         id: userId,
@@ -245,6 +257,8 @@ class AuthRepository {
     await _storage.delete(key: "dosen_id");
     await _storage.delete(key: "dosen_kode");
     await _storage.delete(key: "dosen_nama");
+
+    await _storage.delete(key: "tpj_nama");
 
     // Bersihkan data Hive
     await Hive.box<ScheduleLocalModel>('schedules').clear();
