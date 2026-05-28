@@ -6,9 +6,11 @@ import 'package:sigma/shared/app_colors.dart';
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_matkul_viewmodel.dart';
 import '../models/matkul_model.dart';
-// import 'package:sigma/shared/widgets/empty_state.dart';
 import 'package:sigma/shared/widgets/page_header.dart';
 import 'package:sigma/shared/widgets/primary_button.dart';
+import '../widgets/matkul_sync_banner.dart';
+import '../widgets/matkul_card.dart';
+import '../widgets/modal_field_label.dart';
 
 class AdminMatkulPage extends StatefulWidget {
   const AdminMatkulPage({super.key});
@@ -60,7 +62,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
             ),
           ),
 
-          _SyncStatusBanner(
+          SyncStatusBanner(
             status: vm.syncStatus,
             pendingCount: vm.pendingMatkulCount,
           ),
@@ -135,7 +137,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                         delegate: SliverChildBuilderDelegate((context, i) {
                           final matkul = vm.matkulList[i];
                           final isPending = vm.isMatkulPending(matkul.id);
-                          return _MatkulCard(
+                          return MatkulCard(
                             matkul: matkul,
                             isPending: isPending,
                             onEdit: () =>
@@ -263,11 +265,11 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              const _ModalFieldLabel(label: 'Kode MK', required: true),
+              const ModalFieldLabel(label: 'Kode MK', required: true),
               const SizedBox(height: 6),
               _modalTextField(kodeCtrl, 'Cth: IF302'),
               const SizedBox(height: 12),
-              const _ModalFieldLabel(label: 'Nama Mata Kuliah', required: true),
+              const ModalFieldLabel(label: 'Nama Mata Kuliah', required: true),
               const SizedBox(height: 6),
               _modalTextField(namaCtrl, 'Cth: Basis Data'),
               const SizedBox(height: 12),
@@ -277,7 +279,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _ModalFieldLabel(label: 'SKS', required: true),
+                        const ModalFieldLabel(label: 'SKS', required: true),
                         const SizedBox(height: 6),
                         _modalTextField(
                           sksCtrl,
@@ -293,7 +295,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _ModalFieldLabel(label: 'Program Studi'),
+                        const ModalFieldLabel(label: 'Program Studi'),
                         const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -432,309 +434,6 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
           vertical: 12,
         ),
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Sync Status Banner
-// ─────────────────────────────────────────────────────────────────────────────
-class _SyncStatusBanner extends StatelessWidget {
-  const _SyncStatusBanner({required this.status, required this.pendingCount});
-
-  final SyncStatus status;
-  final int pendingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    if (status == SyncStatus.idle) return const SizedBox.shrink();
-
-    final (Color bg, Color fg, IconData icon, String text) = switch (status) {
-      SyncStatus.pending => (
-        const Color(0xFFFFF3CD),
-        const Color(0xFFB45309),
-        Icons.cloud_off_rounded,
-        '$pendingCount matkul tersimpan lokal — belum terkirim ke server',
-      ),
-      SyncStatus.syncing => (
-        AppColors.navy.withValues(alpha: 0.08),
-        AppColors.navy,
-        Icons.sync_rounded,
-        'Mengirim $pendingCount matkul ke server...',
-      ),
-      SyncStatus.synced => (
-        const Color(0xFFE8F5E9),
-        AppColors.success,
-        Icons.cloud_done_rounded,
-        'Semua matkul berhasil tersimpan ke server',
-      ),
-      SyncStatus.failed => (
-        AppColors.danger.withValues(alpha: 0.08),
-        AppColors.danger,
-        Icons.cloud_off_rounded,
-        'Gagal mengirim ke server — akan dicoba ulang saat online',
-      ),
-      SyncStatus.idle => (
-        Colors.transparent,
-        Colors.transparent,
-        Icons.check,
-        '',
-      ),
-    };
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: bg,
-      child: Row(
-        children: [
-          status == SyncStatus.syncing
-              ? SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
-                )
-              : Icon(icon, color: fg, size: 15),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: fg,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Matkul Card
-// ─────────────────────────────────────────────────────────────────────────────
-class _MatkulCard extends StatelessWidget {
-  const _MatkulCard({
-    required this.matkul,
-    required this.isPending,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final MatkulModel matkul;
-  final bool isPending;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isPending
-              ? const Color(0xFFB45309).withValues(alpha: 0.3)
-              : AppColors.cardBorder,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Baris 1: kode MK (kiri) + SKS badge + sync icon (kanan) ──
-            // FIX: Row dengan mainAxisAlignment spaceBetween agar
-            // badge SKS & sync icon SELALU menempel di kanan,
-            // tidak peduli panjang kode MK
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Kode MK — Flexible agar bisa ellipsis jika terlalu panjang
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.navy.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      matkul.kodeMk,
-                      style: const TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-
-                // Badge SKS + sync icon selalu di kanan, tidak ikut wrap
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.gold.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${matkul.sks} SKS',
-                        style: const TextStyle(
-                          color: Color(0xFFB87A00),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Tooltip(
-                      message: isPending
-                          ? 'Belum terkirim ke server'
-                          : 'Sudah di server',
-                      child: Icon(
-                        isPending
-                            ? Icons.cloud_off_rounded
-                            : Icons.cloud_done_rounded,
-                        size: 14,
-                        color: isPending
-                            ? const Color(0xFFB45309)
-                            : AppColors.success,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // ── Baris 2: Nama MK — wrap bebas ────────────────────────
-            Text(
-              matkul.namaMatkul,
-              style: const TextStyle(
-                color: AppColors.navy,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-              softWrap: true,
-            ),
-
-            const SizedBox(height: 2),
-
-            // ── Baris 3: Program Studi ────────────────────────────────
-            Text(
-              matkul.programStudi,
-              style: const TextStyle(color: AppColors.textSub, fontSize: 11),
-              softWrap: true,
-            ),
-
-            const SizedBox(height: 10),
-
-            // ── Baris 4: tombol Edit + Delete selalu rata kanan ───────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                GestureDetector(
-                  onTap: onEdit,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Edit',
-                      style: TextStyle(
-                        color: AppColors.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: onDelete,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.danger.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: AppColors.danger,
-                      size: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Modal Field Label
-// ─────────────────────────────────────────────────────────────────────────────
-class _ModalFieldLabel extends StatelessWidget {
-  const _ModalFieldLabel({required this.label, this.required = false});
-
-  final String label;
-  final bool required;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.navy,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        if (required)
-          const Text(
-            ' *',
-            style: TextStyle(
-              color: AppColors.danger,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-      ],
     );
   }
 }
