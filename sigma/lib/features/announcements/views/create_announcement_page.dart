@@ -182,7 +182,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
     if (!mounted) return;
 
-    // Susun target string: kalau MAHASISWA + prodi dipilih, tambahkan info prodi
+    // kalau MAHASISWA + prodi dipilih, tambahkan info prodi
     String targetFinal = _selectedTarget;
     if (_isTargetMahasiswa && _selectedProdi != null) {
       // Misal: "MAHASISWA - D4 Teknik Informatika"

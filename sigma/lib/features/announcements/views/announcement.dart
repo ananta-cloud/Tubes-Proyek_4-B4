@@ -10,17 +10,17 @@ class AnnouncementPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Ambil data user dari LoginViewModel untuk cek Role
+    // Ambil data user dari LoginViewModel untuk cek Role
     final authVm = context.watch<LoginViewModel>();
     final isLecturer = authVm.user?.role.toUpperCase() == 'DOSEN';
 
-    // 2. Ambil data pengumuman
+    // Ambil data pengumuman
     final vm = context.watch<AnnouncementViewModel>();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isLecturer ? "Manajemen Pengumuman" : "Pengumuman Kampus"),
-        // Warna dinamis berdasarkan Role
+        // Warna berdasarkan Role
         backgroundColor: isLecturer
             ? const Color(0xFF2A3F80)
             : const Color(0xFF3F5DB3),
@@ -28,7 +28,6 @@ class AnnouncementPage extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Filter tetap muncul untuk keduanya
           _buildFilterList(vm),
 
           Expanded(
@@ -43,7 +42,7 @@ class AnnouncementPage extends StatelessWidget {
                         final item = vm.announcements[index];
                         return AnnouncementCard(
                           announcement: item,
-                          isLecturer: isLecturer, // Kirim status ke card
+                          isLecturer: isLecturer,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -58,7 +57,7 @@ class AnnouncementPage extends StatelessWidget {
           ),
         ],
       ),
-      // 3. Tombol melayang (FAB) HANYA muncul untuk Dosen
+      // FAB HANYA muncul untuk Dosen
       floatingActionButton: isLecturer
           ? FloatingActionButton.extended(
               onPressed: () => _navigateToCreatePage(context),

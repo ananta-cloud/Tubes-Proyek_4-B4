@@ -71,9 +71,6 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                       child: Row(
                         children: [
-                          // SigmaStatCard tidak lagi punya Expanded di dalamnya
-                          // (sudah diperbaiki di admin_main_page.dart), jadi
-                          // Expanded ada di sini sebagai pemanggil
                           Expanded(
                             child: SigmaStatCard(
                               label: 'TOTAL',
@@ -258,7 +255,7 @@ class _SyncStatusBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Announcement Card — layout diperbaiki agar tidak overflow
+//  Announcement Card
 // ─────────────────────────────────────────────────────────────────────────────
 class _AnnouncementCard extends StatelessWidget {
   const _AnnouncementCard({required this.item, required this.isPending});
@@ -321,7 +318,6 @@ class _AnnouncementCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // FIX: batasi lebar badge agar tidak overflow
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 100),
                   child: Container(
@@ -394,7 +390,6 @@ class _AnnouncementCard extends StatelessWidget {
             const SizedBox(height: 10),
 
             // ── Footer: target + sync icon + tanggal ──────────────────
-            // FIX: pisah jadi dua baris jika target panjang
             // menggunakan Column agar tidak overflow secara horizontal
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

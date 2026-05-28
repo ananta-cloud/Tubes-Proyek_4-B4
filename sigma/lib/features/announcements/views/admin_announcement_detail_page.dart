@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sigma/data/models/announcement_model.dart';
-// import '../../admin_tu/main/views/admin_main_page.dart';
 import 'package:sigma/shared/app_colors.dart';
 
 class AdminAnnouncementDetailPage extends StatelessWidget {
@@ -179,8 +178,7 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
 
-                        // Meta info
-                        // ✅ SESUDAH - dua baris terpisah, tidak akan overflow
+                        // Meta info (target audience, tanggal, publisher)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

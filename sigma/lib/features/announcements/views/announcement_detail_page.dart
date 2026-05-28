@@ -7,14 +7,13 @@ class AnnouncementDetailPage extends StatelessWidget {
   final AnnouncementModel announcement;
   const AnnouncementDetailPage({super.key, required this.announcement});
 
-  static const primaryBlue  = Color(0xFF3F5DB3);
+  static const primaryBlue = Color(0xFF3F5DB3);
   static const accentOrange = Color(0xFFFF7A36);
-  static const bgColor      = Color(0xFFEAF3FA);
-  static const darkText     = Color(0xFF1F1F3D);
+  static const bgColor = Color(0xFFEAF3FA);
+  static const darkText = Color(0xFF1F1F3D);
 
   @override
   Widget build(BuildContext context) {
-    // Memanggil ViewModel gabungan kita
     final vm = context.watch<AnnouncementViewModel>();
     final isBookmarked = vm.isBookmarked(announcement.id);
 
@@ -29,7 +28,11 @@ class AnnouncementDetailPage extends StatelessWidget {
             elevation: 0,
             backgroundColor: primaryBlue,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 20,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
@@ -44,7 +47,11 @@ class AnnouncementDetailPage extends StatelessWidget {
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 48, right: 16, bottom: 16),
+              titlePadding: const EdgeInsets.only(
+                left: 48,
+                right: 16,
+                bottom: 16,
+              ),
               title: const Text(
                 "Detail Pengumuman",
                 style: TextStyle(
@@ -68,7 +75,11 @@ class AnnouncementDetailPage extends StatelessWidget {
                       bottom: -10,
                       child: Opacity(
                         opacity: 0.1,
-                        child: Icon(Icons.campaign_rounded, size: 110, color: Colors.white),
+                        child: Icon(
+                          Icons.campaign_rounded,
+                          size: 110,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
@@ -91,7 +102,11 @@ class AnnouncementDetailPage extends StatelessWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     child: Column(
@@ -100,26 +115,40 @@ class AnnouncementDetailPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Menggunakan Helper Format Teks dari ViewModel
+                            // Helper Format Teks dari ViewModel
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryBlue.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 vm.formatAudience(announcement.targetAudience),
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryBlue),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
+                                ),
                               ),
                             ),
-                            // Menggunakan Helper Format Tanggal dari ViewModel
+                            // Helper Format Tanggal dari ViewModel
                             Row(
                               children: [
-                                Icon(Icons.access_time, size: 14, color: Colors.grey.shade400),
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey.shade400,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   vm.formatDate(announcement.createdAt),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
                                 ),
                               ],
                             ),
@@ -131,16 +160,30 @@ class AnnouncementDetailPage extends StatelessWidget {
                             CircleAvatar(
                               radius: 18,
                               backgroundColor: accentOrange.withOpacity(0.1),
-                              child: const Icon(Icons.person, size: 20, color: accentOrange),
+                              child: const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: accentOrange,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Diterbitkan oleh:', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                const Text(
+                                  'Diterbitkan oleh:',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 Text(
                                   announcement.namaPublisher,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkText),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: darkText,
+                                  ),
                                 ),
                               ],
                             ),
@@ -168,23 +211,38 @@ class AnnouncementDetailPage extends StatelessWidget {
                             child: Wrap(
                               spacing: 8,
                               children: announcement.kategori.map((kat) {
-                                return Text("#$kat", style: const TextStyle(color: accentOrange, fontWeight: FontWeight.bold, fontSize: 13));
+                                return Text(
+                                  "#$kat",
+                                  style: const TextStyle(
+                                    color: accentOrange,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                );
                               }).toList(),
                             ),
                           ),
                         Text(
                           announcement.judul,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkText),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: darkText,
+                          ),
                         ),
                         const SizedBox(height: 15),
                         Text(
                           announcement.isi,
-                          style: TextStyle(fontSize: 15, color: Colors.grey.shade800, height: 1.7),
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey.shade800,
+                            height: 1.7,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 100), // Spasi bawah
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
