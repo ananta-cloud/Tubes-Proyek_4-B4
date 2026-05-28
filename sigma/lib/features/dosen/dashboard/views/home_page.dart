@@ -50,6 +50,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
       if (userId.isNotEmpty) {
         context.read<AnnouncementViewModel>().syncBookmarks(userId);
       }
+
+      context.read<AnnouncementViewModel>().setUserRole('DOSEN');
+      context.read<AnnouncementViewModel>().syncAnnouncements();
     });
   }
 

@@ -12,8 +12,8 @@ class AnnouncementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // 1. Ambil data user dari LoginViewModel untuk cek Role
     final authVm = context.watch<LoginViewModel>();
-    final isLecturer = authVm.user?.role?.toUpperCase() == 'DOSEN';
-    
+    final isLecturer = authVm.user?.role.toUpperCase() == 'DOSEN';
+
     // 2. Ambil data pengumuman
     final vm = context.watch<AnnouncementViewModel>();
 
@@ -21,47 +21,52 @@ class AnnouncementPage extends StatelessWidget {
       appBar: AppBar(
         title: Text(isLecturer ? "Manajemen Pengumuman" : "Pengumuman Kampus"),
         // Warna dinamis berdasarkan Role
-        backgroundColor: isLecturer ? const Color(0xFF2A3F80) : const Color(0xFF3F5DB3),
+        backgroundColor: isLecturer
+            ? const Color(0xFF2A3F80)
+            : const Color(0xFF3F5DB3),
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
           // Filter tetap muncul untuk keduanya
           _buildFilterList(vm),
-          
+
           Expanded(
-            child: vm.isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: vm.syncAnnouncements,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: vm.announcements.length,
-                    itemBuilder: (context, index) {
-                      final item = vm.announcements[index];
-                      return AnnouncementCard(
-                        announcement: item,
-                        isLecturer: isLecturer, // Kirim status ke card
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => AnnouncementDetailPage(announcement: item)),
-                        ),
-                      );
-                    },
+            child: vm.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: vm.syncAnnouncements,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: vm.announcements.length,
+                      itemBuilder: (context, index) {
+                        final item = vm.announcements[index];
+                        return AnnouncementCard(
+                          announcement: item,
+                          isLecturer: isLecturer, // Kirim status ke card
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AnnouncementDetailPage(announcement: item),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
           ),
         ],
       ),
       // 3. Tombol melayang (FAB) HANYA muncul untuk Dosen
-      floatingActionButton: isLecturer 
-        ? FloatingActionButton.extended(
-            onPressed: () => _navigateToCreatePage(context),
-            backgroundColor: const Color(0xFFFF7A36),
-            icon: const Icon(Icons.add),
-            label: const Text("Buat Pengumuman"),
-          )
-        : null,
+      floatingActionButton: isLecturer
+          ? FloatingActionButton.extended(
+              onPressed: () => _navigateToCreatePage(context),
+              backgroundColor: const Color(0xFFFF7A36),
+              icon: const Icon(Icons.add),
+              label: const Text("Buat Pengumuman"),
+            )
+          : null,
     );
   }
 
@@ -88,7 +93,9 @@ class AnnouncementPage extends StatelessWidget {
               selected: isSelected,
               onSelected: (_) => vm.setFilter(filter),
               selectedColor: const Color(0xFF3F5DB3),
-              labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
+              ),
             ),
           );
         },

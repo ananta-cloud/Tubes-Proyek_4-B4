@@ -5,6 +5,7 @@ import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:sigma/data/models/dosen_model.dart';
+import 'package:sigma/shared/widgets/offline_banner.dart';
 
 class RequestFormPage extends StatefulWidget {
   final UserModel user;
@@ -57,20 +58,7 @@ class _RequestFormPageState extends State<RequestFormPage> {
         child: Column(
           children: [
             if (context.watch<DosenRequestController>().isOffline)
-              Container(
-                width: double.infinity,
-                color: Colors.orange.shade800,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: const Text(
-                  "Mode Offline: Permohonan akan disimpan lokal & sync otomatis",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              const OfflineBanner(),
             _buildStepper(),
             Expanded(
               child: SingleChildScrollView(

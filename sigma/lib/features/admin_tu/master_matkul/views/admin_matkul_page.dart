@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_matkul_viewmodel.dart';
 import '../models/matkul_model.dart';
+// import 'package:sigma/shared/widgets/empty_state.dart';
+import 'package:sigma/shared/widgets/page_header.dart';
+import 'package:sigma/shared/widgets/primary_button.dart';
 
 class AdminMatkulPage extends StatefulWidget {
   const AdminMatkulPage({super.key});
@@ -44,12 +48,12 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     final vm = context.watch<AdminMatkulViewModel>();
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
-          SigmaPageHeader(
+          PageHeader(
             title: 'Master Matkul',
-            action: SigmaPrimaryButton(
+            action: PrimaryButton(
               label: 'Tambah',
               icon: Icons.add_rounded,
               onTap: () => _showMatkulForm(context, vm),
@@ -63,7 +67,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
 
           Expanded(
             child: RefreshIndicator(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               onRefresh: () => vm.fetchMatkul(),
               child: CustomScrollView(
                 slivers: [
@@ -74,14 +78,14 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                         children: [
                           const Icon(
                             Icons.storage_rounded,
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                             size: 18,
                           ),
                           const SizedBox(width: 8),
                           const Text(
                             'Master Data Mata Kuliah',
                             style: TextStyle(
-                              color: SigmaColors.navy,
+                              color: AppColors.navy,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -93,13 +97,13 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: SigmaColors.navy.withOpacity(0.08),
+                              color: AppColors.navy.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
                               '${vm.matkulList.length} MK',
                               style: const TextStyle(
-                                color: SigmaColors.navy,
+                                color: AppColors.navy,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -113,9 +117,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                   if (vm.isLoading && vm.matkulList.isEmpty)
                     const SliverFillRemaining(
                       child: Center(
-                        child: CircularProgressIndicator(
-                          color: SigmaColors.navy,
-                        ),
+                        child: CircularProgressIndicator(color: AppColors.navy),
                       ),
                     )
                   else if (vm.matkulList.isEmpty)
@@ -164,21 +166,21 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
         title: const Text(
           'Hapus Mata Kuliah?',
           style: TextStyle(
-            color: SigmaColors.navy,
+            color: AppColors.navy,
             fontWeight: FontWeight.w800,
             fontSize: 16,
           ),
         ),
         content: Text(
           'Yakin ingin menghapus "${matkul.namaMatkul}" (${matkul.kodeMk})?',
-          style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+          style: const TextStyle(color: AppColors.textSub, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'Batal',
-              style: TextStyle(color: SigmaColors.textSub),
+              style: TextStyle(color: AppColors.textSub),
             ),
           ),
           TextButton(
@@ -189,7 +191,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
             child: const Text(
               'Hapus',
               style: TextStyle(
-                color: SigmaColors.danger,
+                color: AppColors.danger,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -208,7 +210,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Data prodi belum dimuat, coba refresh halaman.'),
-          backgroundColor: SigmaColors.danger,
+          backgroundColor: AppColors.danger,
         ),
       );
       return;
@@ -234,7 +236,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
           ),
           decoration: const BoxDecoration(
-            color: SigmaColors.white,
+            color: AppColors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -246,7 +248,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: SigmaColors.cardBorder,
+                    color: AppColors.cardBorder,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
@@ -255,7 +257,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
               Text(
                 existing == null ? 'Tambah Mata Kuliah' : 'Edit Mata Kuliah',
                 style: const TextStyle(
-                  color: SigmaColors.navy,
+                  color: AppColors.navy,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -296,9 +298,9 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
-                            color: SigmaColors.bgPage,
+                            color: AppColors.bgPage,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: SigmaColors.cardBorder),
+                            border: Border.all(color: AppColors.cardBorder),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
@@ -307,10 +309,10 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                                   : vm.prodiMap.keys.first,
                               isExpanded: true,
                               style: const TextStyle(
-                                color: SigmaColors.navy,
+                                color: AppColors.navy,
                                 fontSize: 13,
                               ),
-                              dropdownColor: SigmaColors.white,
+                              dropdownColor: AppColors.white,
                               items: vm.prodiMap.entries
                                   .map(
                                     (e) => DropdownMenuItem<String>(
@@ -340,7 +342,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Kode MK dan Nama tidak boleh kosong.'),
-                          backgroundColor: SigmaColors.danger,
+                          backgroundColor: AppColors.danger,
                         ),
                       );
                       return;
@@ -350,7 +352,7 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('SKS harus berupa angka lebih dari 0.'),
-                          backgroundColor: SigmaColors.danger,
+                          backgroundColor: AppColors.danger,
                         ),
                       );
                       return;
@@ -376,14 +378,14 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: SigmaColors.navy,
+                      color: AppColors.navy,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: Text(
                         existing == null ? 'Tambah Matkul' : 'Simpan Perubahan',
                         style: const TextStyle(
-                          color: SigmaColors.white,
+                          color: AppColors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -407,23 +409,23 @@ class _AdminMatkulPageState extends State<AdminMatkulPage> {
     return TextField(
       controller: ctrl,
       keyboardType: type,
-      style: const TextStyle(fontSize: 14, color: SigmaColors.navy),
+      style: const TextStyle(fontSize: 14, color: AppColors.navy),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+        hintStyle: const TextStyle(color: AppColors.textSub, fontSize: 13),
         filled: true,
-        fillColor: SigmaColors.bgPage,
+        fillColor: AppColors.bgPage,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: SigmaColors.cardBorder),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: SigmaColors.cardBorder),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: SigmaColors.navy, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.navy, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
@@ -455,20 +457,20 @@ class _SyncStatusBanner extends StatelessWidget {
         '$pendingCount matkul tersimpan lokal — belum terkirim ke server',
       ),
       SyncStatus.syncing => (
-        SigmaColors.navy.withValues(alpha: 0.08),
-        SigmaColors.navy,
+        AppColors.navy.withValues(alpha: 0.08),
+        AppColors.navy,
         Icons.sync_rounded,
         'Mengirim $pendingCount matkul ke server...',
       ),
       SyncStatus.synced => (
         const Color(0xFFE8F5E9),
-        SigmaColors.success,
+        AppColors.success,
         Icons.cloud_done_rounded,
         'Semua matkul berhasil tersimpan ke server',
       ),
       SyncStatus.failed => (
-        SigmaColors.danger.withValues(alpha: 0.08),
-        SigmaColors.danger,
+        AppColors.danger.withValues(alpha: 0.08),
+        AppColors.danger,
         Icons.cloud_off_rounded,
         'Gagal mengirim ke server — akan dicoba ulang saat online',
       ),
@@ -532,12 +534,12 @@ class _MatkulCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: SigmaColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isPending
               ? const Color(0xFFB45309).withValues(alpha: 0.3)
-              : SigmaColors.cardBorder,
+              : AppColors.cardBorder,
         ),
         boxShadow: const [
           BoxShadow(
@@ -568,13 +570,13 @@ class _MatkulCard extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: SigmaColors.navy.withOpacity(0.08),
+                      color: AppColors.navy.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       matkul.kodeMk,
                       style: const TextStyle(
-                        color: SigmaColors.navy,
+                        color: AppColors.navy,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -594,7 +596,7 @@ class _MatkulCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: SigmaColors.gold.withOpacity(0.12),
+                        color: AppColors.gold.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -618,7 +620,7 @@ class _MatkulCard extends StatelessWidget {
                         size: 14,
                         color: isPending
                             ? const Color(0xFFB45309)
-                            : SigmaColors.success,
+                            : AppColors.success,
                       ),
                     ),
                   ],
@@ -632,7 +634,7 @@ class _MatkulCard extends StatelessWidget {
             Text(
               matkul.namaMatkul,
               style: const TextStyle(
-                color: SigmaColors.navy,
+                color: AppColors.navy,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -644,7 +646,7 @@ class _MatkulCard extends StatelessWidget {
             // ── Baris 3: Program Studi ────────────────────────────────
             Text(
               matkul.programStudi,
-              style: const TextStyle(color: SigmaColors.textSub, fontSize: 11),
+              style: const TextStyle(color: AppColors.textSub, fontSize: 11),
               softWrap: true,
             ),
 
@@ -662,13 +664,13 @@ class _MatkulCard extends StatelessWidget {
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: SigmaColors.accent.withOpacity(0.1),
+                      color: AppColors.accent.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
                       'Edit',
                       style: TextStyle(
-                        color: SigmaColors.accent,
+                        color: AppColors.accent,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -684,12 +686,12 @@ class _MatkulCard extends StatelessWidget {
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: SigmaColors.danger.withOpacity(0.08),
+                      color: AppColors.danger.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.delete_outline_rounded,
-                      color: SigmaColors.danger,
+                      color: AppColors.danger,
                       size: 16,
                     ),
                   ),
@@ -719,7 +721,7 @@ class _ModalFieldLabel extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: SigmaColors.navy,
+            color: AppColors.navy,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -728,7 +730,7 @@ class _ModalFieldLabel extends StatelessWidget {
           const Text(
             ' *',
             style: TextStyle(
-              color: SigmaColors.danger,
+              color: AppColors.danger,
               fontWeight: FontWeight.w700,
             ),
           ),

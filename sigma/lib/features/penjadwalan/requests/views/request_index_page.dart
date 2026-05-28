@@ -3,15 +3,18 @@ import 'package:provider/provider.dart';
 import 'package:sigma/features/penjadwalan/viewmodels/schedule_request_controller.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
 import 'request_detail_page.dart';
-import 'package:sigma/features/dosen/requests/views/widgets/offline_banner.dart';
+import 'package:sigma/shared/widgets/offline_banner.dart';
 
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/shared/app_colors.dart';
 
 import '../../widgets/status_badge.dart';
 import '../../widgets/tipe_badge.dart';
-import '../../widgets/stat_card.dart';
-import '../../widgets/empty_state.dart';
+// import '../../widgets/stat_card.dart';
+// import '../../widgets/empty_state.dart';
+
+import 'package:sigma/shared/widgets/empty_state.dart';
+import 'package:sigma/shared/widgets/stat_card.dart';
 
 class RequestsIndexPage extends StatefulWidget {
   final String idJurusan;
@@ -170,46 +173,54 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
           Expanded(
             child: ctrl.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : ctrl.requests.isEmpty
-                ? EmptyState(filter: ctrl.filterStatus)
-                : RefreshIndicator(
-                    onRefresh: () => ctrl.loadRequests(widget.idJurusan),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-                      itemCount:
-                          ctrl.requests.length + (ctrl.isOffline ? 1 : 0),
-                      separatorBuilder: (_, i) => i == 0 && ctrl.isOffline
-                          ? const SizedBox.shrink()
-                          : const SizedBox(height: 8),
-                      itemBuilder: (_, i) {
-                        if (ctrl.isOffline && i == 0) {
-                          return const Padding(
-                            padding: EdgeInsets.only(bottom: 4),
-                            child: OfflineBanner(),
-                          );
-                        }
-                        final req = ctrl.requests[ctrl.isOffline ? i - 1 : i];
-                        return _RequestCard(
-                          request: req,
-                          onDetail: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChangeNotifierProvider.value(
-                                value: ctrl,
-                                child: RequestDetailPage(
-                                  request: req,
-                                  user: widget.user,
-                                  idJurusan: widget.idJurusan,
+                : (ctrl.requests.isEmpty
+                      ? SharedEmptyState(
+                          icon: Icons.inbox_rounded,
+                          message: ctrl.filterStatus == 'SEMUA'
+                              ? 'Belum ada request masuk'
+                              : 'Tidak ada request ${ctrl.filterStatus.toLowerCase()}',
+                          sub: 'Data akan muncul setelah tersinkronisasi',
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () => ctrl.loadRequests(widget.idJurusan),
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+                            itemCount:
+                                ctrl.requests.length + (ctrl.isOffline ? 1 : 0),
+                            separatorBuilder: (_, i) => i == 0 && ctrl.isOffline
+                                ? const SizedBox.shrink()
+                                : const SizedBox(height: 8),
+                            itemBuilder: (_, i) {
+                              if (ctrl.isOffline && i == 0) {
+                                return const Padding(
+                                  padding: EdgeInsets.only(bottom: 4),
+                                  child: OfflineBanner(),
+                                );
+                              }
+                              final req =
+                                  ctrl.requests[ctrl.isOffline ? i - 1 : i];
+                              return _RequestCard(
+                                request: req,
+                                onDetail: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ChangeNotifierProvider.value(
+                                          value: ctrl,
+                                          child: RequestDetailPage(
+                                            request: req,
+                                            user: widget.user,
+                                            idJurusan: widget.idJurusan,
+                                          ),
+                                        ),
+                                  ),
                                 ),
-                              ),
-                            ),
+                                onApprove: () => _showApproveDialog(ctrl, req),
+                                onReject: () => _showRejectDialog(ctrl, req),
+                              );
+                            },
                           ),
-                          onApprove: () => _showApproveDialog(ctrl, req),
-                          onReject: () => _showRejectDialog(ctrl, req),
-                        );
-                      },
-                    ),
-                  ),
+                        )),
           ),
         ],
       ),

@@ -29,7 +29,7 @@ import 'data/models/tpj_model.dart';
 import 'data/services/announcement_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/services/schedule_request_service.dart';
-import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
+import 'data/services/dosen_cache_service.dart';
 import 'package:sigma/data/services/dosen_request_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
@@ -134,6 +134,7 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => ScheduleRequestController(ScheduleRequestService()),
         ),
+        ChangeNotifierProvider(create: (_) => AdminAnnouncementViewModel()),
       ],
       child: const MyApp(),
     ),
@@ -189,24 +190,26 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
   Future<void> _syncAll() async {
     if (!mounted) return;
     await MongoDatabase.ensureConnected();
-
     await DosenCacheService.warmUp();
 
-    await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
-    await context.read<AdminMatkulViewModel>().onConnectionRestored();
-    await context.read<AdminScheduleViewModel>().onConnectionRestored();
-
     final user = context.read<LoginViewModel>().user;
+
+    if (user != null && (user.role == 'ADMIN_TU' || user.role == 'MANAJEMEN')) {
+      await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
+      await context.read<AdminMatkulViewModel>().onConnectionRestored();
+      await context.read<AdminScheduleViewModel>().onConnectionRestored();
+    }
+
     if (user != null && user.role == 'MAHASISWA') {
       final announcementVM = context.read<AnnouncementViewModel>();
       final taskVM = context.read<TaskViewModel>();
       final scheduleVM = context.read<ScheduleViewModel>();
-
       await announcementVM.syncOfflineActions();
       await announcementVM.syncAnnouncements();
       await taskVM.syncTasks(user);
       await scheduleVM.syncSchedules();
     }
+
     if (user != null && user.role == 'TIM_PENJADWALAN') {
       await context.read<ScheduleRequestController>().onConnectionRestored();
     }

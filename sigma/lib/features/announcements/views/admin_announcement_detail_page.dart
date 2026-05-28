@@ -2,15 +2,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sigma/data/models/announcement_model.dart';
-import '../../admin_tu/main/views/admin_main_page.dart';
+// import '../../admin_tu/main/views/admin_main_page.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 class AdminAnnouncementDetailPage extends StatelessWidget {
   final AnnouncementModel announcement;
   const AdminAnnouncementDetailPage({super.key, required this.announcement});
 
   static const _kategoriColors = <String, Color>{
-    'Akademik': SigmaColors.navy,
-    'Beasiswa': SigmaColors.success,
+    'Akademik': AppColors.navy,
+    'Beasiswa': AppColors.success,
     'Lomba': Color(0xFFF59E0B),
     'UKM': Color(0xFF8B5CF6),
     'Karir': Color(0xFF0EA5E9),
@@ -20,9 +21,9 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
   };
 
   static const _tingkatColors = <String, Color>{
-    'BIASA': SigmaColors.textSub,
+    'BIASA': AppColors.textSub,
     'PENTING': Color(0xFFF59E0B),
-    'SANGAT PENTING': SigmaColors.danger,
+    'SANGAT PENTING': AppColors.danger,
   };
 
   static const _tingkatIcons = <String, IconData>{
@@ -36,9 +37,9 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
     final kategori = announcement.kategori.isNotEmpty
         ? announcement.kategori.first
         : 'Umum';
-    final kategoriColor = _kategoriColors[kategori] ?? SigmaColors.accent;
+    final kategoriColor = _kategoriColors[kategori] ?? AppColors.accent;
     final tingkatColor =
-        _tingkatColors[announcement.tingkatKepentingan] ?? SigmaColors.textSub;
+        _tingkatColors[announcement.tingkatKepentingan] ?? AppColors.textSub;
     final tingkatIcon =
         _tingkatIcons[announcement.tingkatKepentingan] ??
         Icons.info_outline_rounded;
@@ -48,12 +49,12 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
     ).format(announcement.createdAt);
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
           // ── Header ──
           Container(
-            color: SigmaColors.white,
+            color: AppColors.white,
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top + 12,
               left: 16,
@@ -67,12 +68,12 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: SigmaColors.bgPage,
+                      color: AppColors.bgPage,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.arrow_back_rounded,
-                      color: SigmaColors.navy,
+                      color: AppColors.navy,
                       size: 20,
                     ),
                   ),
@@ -82,7 +83,7 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                   child: Text(
                     'Detail Pengumuman',
                     style: TextStyle(
-                      color: SigmaColors.navy,
+                      color: AppColors.navy,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -104,9 +105,9 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: SigmaColors.white,
+                      color: AppColors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: SigmaColors.cardBorder),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,7 +171,7 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                         Text(
                           announcement.judul,
                           style: const TextStyle(
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             height: 1.3,
@@ -188,13 +189,13 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                                 const Icon(
                                   Icons.people_outline_rounded,
                                   size: 13,
-                                  color: SigmaColors.textSub,
+                                  color: AppColors.textSub,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Target: ${announcement.targetAudience}',
                                   style: const TextStyle(
-                                    color: SigmaColors.textSub,
+                                    color: AppColors.textSub,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -206,14 +207,14 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                                 const Icon(
                                   Icons.calendar_today_outlined,
                                   size: 12,
-                                  color: SigmaColors.textSub,
+                                  color: AppColors.textSub,
                                 ),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     tanggal,
                                     style: const TextStyle(
-                                      color: SigmaColors.textSub,
+                                      color: AppColors.textSub,
                                       fontSize: 12,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -229,13 +230,13 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                             const Icon(
                               Icons.person_outline_rounded,
                               size: 13,
-                              color: SigmaColors.textSub,
+                              color: AppColors.textSub,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Oleh: ${announcement.namaPublisher}',
                               style: const TextStyle(
-                                color: SigmaColors.textSub,
+                                color: AppColors.textSub,
                                 fontSize: 12,
                               ),
                             ),
@@ -243,14 +244,14 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                         ),
 
                         const SizedBox(height: 16),
-                        const Divider(color: SigmaColors.cardBorder),
+                        const Divider(color: AppColors.cardBorder),
                         const SizedBox(height: 16),
 
                         // Isi pengumuman
                         Text(
                           announcement.isi,
                           style: const TextStyle(
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                             fontSize: 14,
                             height: 1.7,
                           ),
@@ -266,9 +267,9 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: SigmaColors.white,
+                        color: AppColors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: SigmaColors.cardBorder),
+                        border: Border.all(color: AppColors.cardBorder),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,14 +278,14 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                             children: [
                               const Icon(
                                 Icons.attach_file_rounded,
-                                color: SigmaColors.navy,
+                                color: AppColors.navy,
                                 size: 16,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 'Lampiran (${announcement.attachments.length})',
                                 style: const TextStyle(
-                                  color: SigmaColors.navy,
+                                  color: AppColors.navy,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -336,9 +337,9 @@ class _AttachmentItemState extends State<_AttachmentItem> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: SigmaColors.bgPage,
+        color: AppColors.bgPage,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: SigmaColors.cardBorder),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +353,7 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                   isImage
                       ? Icons.image_outlined
                       : Icons.picture_as_pdf_outlined,
-                  color: isImage ? SigmaColors.accent : SigmaColors.danger,
+                  color: isImage ? AppColors.accent : AppColors.danger,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
@@ -363,7 +364,7 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                       Text(
                         name,
                         style: const TextStyle(
-                          color: SigmaColors.navy,
+                          color: AppColors.navy,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -372,7 +373,7 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                       Text(
                         '${sizeKb.toStringAsFixed(1)} KB',
                         style: const TextStyle(
-                          color: SigmaColors.textSub,
+                          color: AppColors.textSub,
                           fontSize: 11,
                         ),
                       ),
@@ -391,13 +392,13 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: SigmaColors.accent.withOpacity(0.1),
+                        color: AppColors.accent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _imageExpanded ? 'Tutup' : 'Lihat',
                         style: const TextStyle(
-                          color: SigmaColors.accent,
+                          color: AppColors.accent,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -413,13 +414,13 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: SigmaColors.danger.withOpacity(0.08),
+                      color: AppColors.danger.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
                       'PDF',
                       style: TextStyle(
-                        color: SigmaColors.danger,
+                        color: AppColors.danger,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -443,7 +444,7 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                   padding: EdgeInsets.all(12),
                   child: Text(
                     'Gagal memuat gambar.',
-                    style: TextStyle(color: SigmaColors.danger),
+                    style: TextStyle(color: AppColors.danger),
                   ),
                 ),
               ),

@@ -8,6 +8,9 @@ import '../viewmodels/admin_announcement_viewmodel.dart';
 import 'create_announcement_page.dart';
 import 'package:sigma/data/models/announcement_model.dart';
 import 'admin_announcement_detail_page.dart';
+import 'package:sigma/shared/app_colors.dart';
+import 'package:sigma/shared/widgets/page_header.dart';
+import 'package:sigma/shared/widgets/primary_button.dart';
 
 class AdminAnnouncementPage extends StatefulWidget {
   const AdminAnnouncementPage({super.key});
@@ -47,10 +50,10 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
     final vm = context.watch<AdminAnnouncementViewModel>();
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
-          SigmaPageHeader(title: 'Pengumuman'),
+          PageHeader(title: 'Pengumuman'),
 
           _SyncStatusBanner(
             status: vm.syncStatus,
@@ -59,7 +62,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
 
           Expanded(
             child: RefreshIndicator(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               onRefresh: () => vm.init(),
               child: CustomScrollView(
                 slivers: [
@@ -76,7 +79,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                               label: 'TOTAL',
                               value: '${vm.announcements.length}',
                               sublabel: 'Semua pengumuman',
-                              accentColor: SigmaColors.navy,
+                              accentColor: AppColors.navy,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -85,7 +88,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                               label: 'BULAN INI',
                               value: '${vm.thisMonthCount}',
                               sublabel: 'Diterbitkan bulan ini',
-                              accentColor: SigmaColors.success,
+                              accentColor: AppColors.success,
                             ),
                           ),
                         ],
@@ -100,7 +103,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                         children: [
                           const Icon(
                             Icons.campaign_rounded,
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                             size: 18,
                           ),
                           const SizedBox(width: 8),
@@ -108,13 +111,13 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                             child: Text(
                               'Daftar Pengumuman',
                               style: TextStyle(
-                                color: SigmaColors.navy,
+                                color: AppColors.navy,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                          SigmaPrimaryButton(
+                          PrimaryButton(
                             label: 'Buat',
                             icon: Icons.add_rounded,
                             onTap: () => Navigator.push(
@@ -132,9 +135,7 @@ class _AdminAnnouncementPageState extends State<AdminAnnouncementPage> {
                   if (vm.isLoading && vm.announcements.isEmpty)
                     const SliverFillRemaining(
                       child: Center(
-                        child: CircularProgressIndicator(
-                          color: SigmaColors.navy,
-                        ),
+                        child: CircularProgressIndicator(color: AppColors.navy),
                       ),
                     )
                   else if (vm.announcements.isEmpty)
@@ -200,20 +201,20 @@ class _SyncStatusBanner extends StatelessWidget {
         '$pendingCount pengumuman tersimpan lokal — belum terkirim ke server',
       ),
       SyncStatus.syncing => (
-        SigmaColors.navy.withValues(alpha: 0.08),
-        SigmaColors.navy,
+        AppColors.navy.withValues(alpha: 0.08),
+        AppColors.navy,
         Icons.sync_rounded,
         'Mengirim $pendingCount pengumuman ke server...',
       ),
       SyncStatus.synced => (
         const Color(0xFFE8F5E9),
-        SigmaColors.success,
+        AppColors.success,
         Icons.cloud_done_rounded,
         'Semua pengumuman berhasil tersimpan ke server',
       ),
       SyncStatus.failed => (
-        SigmaColors.danger.withValues(alpha: 0.08),
-        SigmaColors.danger,
+        AppColors.danger.withValues(alpha: 0.08),
+        AppColors.danger,
         Icons.cloud_off_rounded,
         'Gagal mengirim ke server — akan dicoba ulang saat online',
       ),
@@ -266,8 +267,8 @@ class _AnnouncementCard extends StatelessWidget {
   final bool isPending;
 
   static const _kategoriColors = <String, Color>{
-    'Akademik': SigmaColors.navy,
-    'Beasiswa': SigmaColors.success,
+    'Akademik': AppColors.navy,
+    'Beasiswa': AppColors.success,
     'Lomba': Color(0xFFF59E0B),
     'UKM': Color(0xFF8B5CF6),
     'Karir': Color(0xFF0EA5E9),
@@ -279,18 +280,18 @@ class _AnnouncementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kategori = item.kategori.isNotEmpty ? item.kategori.first : 'Umum';
-    final color = _kategoriColors[kategori] ?? SigmaColors.accent;
+    final color = _kategoriColors[kategori] ?? AppColors.accent;
     final tanggal = DateFormat('d MMM yyyy', 'id_ID').format(item.createdAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: SigmaColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isPending
               ? const Color(0xFFB45309).withValues(alpha: 0.3)
-              : SigmaColors.cardBorder,
+              : AppColors.cardBorder,
         ),
         boxShadow: const [
           BoxShadow(
@@ -313,7 +314,7 @@ class _AnnouncementCard extends StatelessWidget {
                   child: Text(
                     item.judul,
                     style: const TextStyle(
-                      color: SigmaColors.navy,
+                      color: AppColors.navy,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -353,7 +354,7 @@ class _AnnouncementCard extends StatelessWidget {
                 spacing: 4,
                 runSpacing: 4,
                 children: item.kategori.skip(1).map((k) {
-                  final c = _kategoriColors[k] ?? SigmaColors.accent;
+                  final c = _kategoriColors[k] ?? AppColors.accent;
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -383,13 +384,13 @@ class _AnnouncementCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: SigmaColors.textSub,
+                color: AppColors.textSub,
                 fontSize: 12,
                 height: 1.5,
               ),
             ),
             const SizedBox(height: 10),
-            const Divider(color: SigmaColors.cardBorder, height: 1),
+            const Divider(color: AppColors.cardBorder, height: 1),
             const SizedBox(height: 10),
 
             // ── Footer: target + sync icon + tanggal ──────────────────
@@ -404,14 +405,14 @@ class _AnnouncementCard extends StatelessWidget {
                     const Icon(
                       Icons.people_outline_rounded,
                       size: 13,
-                      color: SigmaColors.textSub,
+                      color: AppColors.textSub,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         item.targetAudience,
                         style: const TextStyle(
-                          color: SigmaColors.textSub,
+                          color: AppColors.textSub,
                           fontSize: 11,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -437,20 +438,20 @@ class _AnnouncementCard extends StatelessWidget {
                         size: 13,
                         color: isPending
                             ? const Color(0xFFB45309)
-                            : SigmaColors.success,
+                            : AppColors.success,
                       ),
                     ),
                     const SizedBox(width: 8),
                     const Icon(
                       Icons.calendar_today_outlined,
                       size: 12,
-                      color: SigmaColors.textSub,
+                      color: AppColors.textSub,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       tanggal,
                       style: const TextStyle(
-                        color: SigmaColors.textSub,
+                        color: AppColors.textSub,
                         fontSize: 11,
                       ),
                     ),

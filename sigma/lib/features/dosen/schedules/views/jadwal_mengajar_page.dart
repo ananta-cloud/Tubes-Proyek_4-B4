@@ -5,7 +5,8 @@ import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:sigma/features/dosen/schedules/widgets/jadwal_card.dart';
 import 'package:sigma/data/models/dosen_model.dart';
-import 'package:sigma/features/dosen/requests/views/widgets/offline_banner.dart';
+import 'package:sigma/shared/widgets/offline_banner.dart';
+import 'package:sigma/shared/widgets/empty_state.dart';
 
 class JadwalMengajarPage extends StatefulWidget {
   final UserModel user;
@@ -134,7 +135,11 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
           child: ctrl.isLoadingSchedules
               ? const Center(child: CircularProgressIndicator())
               : ctrl.mySchedules.isEmpty
-              ? _EmptyState(isOffline: ctrl.isOffline)
+              ? SharedEmptyState(
+                  icon: Icons.event_busy,
+                  message: 'Belum ada jadwal mengajar',
+                  sub: 'Jadwal yang diampu akan muncul di sini',
+                )
               : filtered.isEmpty
               ? Center(
                   child: Column(
@@ -182,38 +187,38 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final bool isOffline;
-  const _EmptyState({required this.isOffline});
+// class _EmptyState extends StatelessWidget {
+//   final bool isOffline;
+//   const _EmptyState({required this.isOffline});
 
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          isOffline ? Icons.cloud_off : Icons.event_busy,
-          size: 52,
-          color: AppColors.slate300,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          isOffline ? 'Tidak ada data tersimpan' : 'Belum ada jadwal mengajar',
-          style: TextStyle(
-            color: AppColors.slate500,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          isOffline
-              ? 'Buka halaman ini saat online untuk menyimpan data'
-              : 'Jadwal yang diampu akan muncul di sini',
-          style: TextStyle(color: AppColors.slate400, fontSize: 12),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
-  );
-}
+//   @override
+//   Widget build(BuildContext context) => Center(
+//     child: Column(
+//       mainAxisAlignment: MainAxisAlignment.center,
+//       children: [
+//         Icon(
+//           isOffline ? Icons.cloud_off : Icons.event_busy,
+//           size: 52,
+//           color: AppColors.slate300,
+//         ),
+//         const SizedBox(height: 12),
+//         Text(
+//           isOffline ? 'Tidak ada data tersimpan' : 'Belum ada jadwal mengajar',
+//           style: TextStyle(
+//             color: AppColors.slate500,
+//             fontWeight: FontWeight.w600,
+//             fontSize: 14,
+//           ),
+//         ),
+//         const SizedBox(height: 6),
+//         Text(
+//           isOffline
+//               ? 'Buka halaman ini saat online untuk menyimpan data'
+//               : 'Jadwal yang diampu akan muncul di sini',
+//           style: TextStyle(color: AppColors.slate400, fontSize: 12),
+//           textAlign: TextAlign.center,
+//         ),
+//       ],
+//     ),
+//   );
+// }

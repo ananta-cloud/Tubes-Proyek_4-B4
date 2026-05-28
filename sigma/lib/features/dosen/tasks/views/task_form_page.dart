@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+// import 'package:file_picker/file_picker.dart';
 import '../viewmodels/task_form_viewmodel.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 class TaskFormPage extends StatefulWidget {
   final TaskModel? taskToEdit;
@@ -17,10 +18,10 @@ class TaskFormPage extends StatefulWidget {
 
 class _TaskFormPageState extends State<TaskFormPage> {
   // Warna Tema SIGMA
-  static const primaryBlue = Color(0xFF1F1F3D);
+  // static const navyDark = Color(0xFF1F1F3D);
   static const secondaryBlue = Color(0xFF3F5DB3);
-  static const accentOrange = Color(0xFFFF7A36);
-  static const bgColor = Color(0xFFEAF3FA);
+
+  // static const bgColor = Color(0xFFEAF3FA);
 
   late TaskFormViewModel _viewModel;
 
@@ -168,7 +169,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back_ios_new,
-              color: primaryBlue,
+              color: AppColors.navyDark,
               size: 20,
             ),
             onPressed: () => Navigator.pop(context),
@@ -176,7 +177,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
           title: Text(
             isEditMode ? "Edit Tugas" : "Buat Tugas Baru",
             style: const TextStyle(
-              color: primaryBlue,
+              color: AppColors.navyDark,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -339,7 +340,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? Colors.white
-                                        : primaryBlue,
+                                        : AppColors.navyDark,
                                     fontWeight: isSelected
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -385,7 +386,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       labelText: "Deadline Tugas",
                       prefixIcon: const Icon(
                         Icons.access_time_filled,
-                        color: accentOrange,
+                        color: AppColors.gold,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -397,7 +398,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                           : "Pilih Tanggal & Waktu",
                       style: TextStyle(
                         color: viewModel.selectedDeadline != null
-                            ? primaryBlue
+                            ? AppColors.navyDark
                             : Colors.grey.shade600,
                         fontSize: 16,
                       ),
@@ -415,7 +416,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: primaryBlue,
+                        color: AppColors.navyDark,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -446,7 +447,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                             icon: const Icon(Icons.link, size: 14),
                             label: const Text("Link"),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: accentOrange,
+                              backgroundColor: AppColors.gold,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -475,7 +476,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: primaryBlue,
+                          color: AppColors.navyDark,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -503,11 +504,20 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                     final Uri url = Uri.parse(uriString);
                                     if (await canLaunchUrl(url)) {
                                       // Buka di browser bawaan HP
-                                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                                      await launchUrl(
+                                        url,
+                                        mode: LaunchMode.externalApplication,
+                                      );
                                     } else {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text("Tidak dapat membuka tautan ini.")),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "Tidak dapat membuka tautan ini.",
+                                          ),
+                                        ),
                                       );
                                     }
                                   } else {
@@ -515,15 +525,17 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text("📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini."),
+                                        content: Text(
+                                          "📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini.",
+                                        ),
                                         duration: Duration(seconds: 3),
-                                        backgroundColor: secondaryBlue,
+                                        backgroundColor: AppColors.accent,
                                       ),
                                     );
                                   }
                                 },
+
                                 // =======================================================
-                                
                                 leading: Icon(
                                   attachment['type'] == 'file'
                                       ? Icons.insert_drive_file
@@ -531,7 +543,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   size: 18,
                                   color: attachment['type'] == 'file'
                                       ? secondaryBlue
-                                      : accentOrange,
+                                      : AppColors.gold,
                                 ),
                                 title: Text(
                                   attachment['title'] ?? '',
@@ -540,7 +552,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 subtitle: Text(
-                                  attachment['type'] == 'file' ? 'File' : 'Link',
+                                  attachment['type'] == 'file'
+                                      ? 'File'
+                                      : 'Link',
                                   style: const TextStyle(fontSize: 11),
                                 ),
                                 trailing: SizedBox(
@@ -551,7 +565,8 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                       color: Colors.red,
                                       size: 18,
                                     ),
-                                    onPressed: () => viewModel.removeAttachment(index),
+                                    onPressed: () =>
+                                        viewModel.removeAttachment(index),
                                     padding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -581,7 +596,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
             padding: const EdgeInsets.all(24),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: accentOrange,
+                backgroundColor: AppColors.gold,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -591,8 +606,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 // UBAH BAGIAN INI MENJADI .isNotEmpty
                 if (_viewModel.namaTugasController.text.isNotEmpty &&
                     _viewModel.selectedDeadline != null &&
-                    _viewModel.selectedTargetKelas.isNotEmpty) { 
-                  
+                    _viewModel.selectedTargetKelas.isNotEmpty) {
                   final userId = context.read<LoginViewModel>().user?.id ?? "";
 
                   bool success;

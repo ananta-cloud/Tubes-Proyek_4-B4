@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../main/views/admin_main_page.dart';
-import '../services/schedule_excel_parser.dart';
+// import '../../main/views/admin_main_page.dart';
+import '../../../../data/services/schedule_excel_parser.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
 import '../models/schedule_model.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 class ImportSchedulePage extends StatefulWidget {
   const ImportSchedulePage({super.key});
@@ -73,7 +74,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${_parsedSchedules.length} jadwal berhasil diimport!'),
-          backgroundColor: SigmaColors.success,
+          backgroundColor: AppColors.success,
         ),
       );
       Navigator.pop(context);
@@ -87,7 +88,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     final hasData = _parsedSchedules.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
           _buildHeader(),
@@ -132,7 +133,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
 
   Widget _buildHeader() {
     return Container(
-      color: SigmaColors.white,
+      color: AppColors.white,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
         left: 16,
@@ -146,12 +147,12 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: SigmaColors.bgPage,
+                color: AppColors.bgPage,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.arrow_back_rounded,
-                color: SigmaColors.navy,
+                color: AppColors.navy,
                 size: 20,
               ),
             ),
@@ -164,14 +165,14 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                 Text(
                   'Import Jadwal dari Excel',
                   style: TextStyle(
-                    color: SigmaColors.navy,
+                    color: AppColors.navy,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 Text(
                   'Format: .xlsx / .xls / .csv',
-                  style: TextStyle(color: SigmaColors.textSub, fontSize: 11),
+                  style: TextStyle(color: AppColors.textSub, fontSize: 11),
                 ),
               ],
             ),
@@ -185,9 +186,9 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: SigmaColors.navy.withValues(alpha: 0.05),
+        color: AppColors.navy.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: SigmaColors.navy.withValues(alpha: 0.12)),
+        border: Border.all(color: AppColors.navy.withValues(alpha: 0.12)),
       ),
       // NAMA MK dan NAMA DOSEN dihapus dari daftar
       // Nama akan diambil otomatis dari MongoDB berdasarkan kode
@@ -196,16 +197,12 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: SigmaColors.navy,
-                size: 16,
-              ),
+              Icon(Icons.info_outline_rounded, color: AppColors.navy, size: 16),
               SizedBox(width: 8),
               Text(
                 'Format Kolom yang Dibutuhkan',
                 style: TextStyle(
-                  color: SigmaColors.navy,
+                  color: AppColors.navy,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -233,12 +230,12 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: SigmaColors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: hasData
-                ? SigmaColors.success
-                : SigmaColors.navy.withValues(alpha: 0.3),
+                ? AppColors.success
+                : AppColors.navy.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),
@@ -248,7 +245,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
               hasData
                   ? Icons.check_circle_outline_rounded
                   : Icons.upload_file_rounded,
-              color: hasData ? SigmaColors.success : SigmaColors.navy,
+              color: hasData ? AppColors.success : AppColors.navy,
               size: 32,
             ),
             const SizedBox(height: 8),
@@ -259,7 +256,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                   ? _fileName ?? 'File dipilih'
                   : 'Pilih File Excel',
               style: TextStyle(
-                color: hasData ? SigmaColors.success : SigmaColors.navy,
+                color: hasData ? AppColors.success : AppColors.navy,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -269,7 +266,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                 padding: EdgeInsets.only(top: 6),
                 child: Text(
                   'Mengambil nama MK & dosen dari database...',
-                  style: TextStyle(color: SigmaColors.textSub, fontSize: 11),
+                  style: TextStyle(color: AppColors.textSub, fontSize: 11),
                 ),
               ),
             if (hasData)
@@ -277,7 +274,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                 padding: EdgeInsets.only(top: 4),
                 child: Text(
                   'Tap untuk ganti file',
-                  style: TextStyle(color: SigmaColors.textSub, fontSize: 11),
+                  style: TextStyle(color: AppColors.textSub, fontSize: 11),
                 ),
               ),
           ],
@@ -290,23 +287,23 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: SigmaColors.danger.withValues(alpha: 0.08),
+        color: AppColors.danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: SigmaColors.danger.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.error_outline_rounded,
-            color: SigmaColors.danger,
+            color: AppColors.danger,
             size: 16,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _parseError!,
-              style: const TextStyle(color: SigmaColors.danger, fontSize: 12),
+              style: const TextStyle(color: AppColors.danger, fontSize: 12),
             ),
           ),
         ],
@@ -317,17 +314,13 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
   Widget _buildPreviewHeader() {
     return Row(
       children: [
-        const Icon(
-          Icons.table_chart_outlined,
-          color: SigmaColors.navy,
-          size: 16,
-        ),
+        const Icon(Icons.table_chart_outlined, color: AppColors.navy, size: 16),
         const SizedBox(width: 8),
         Text(
           'Preview: ${_parsedSchedules.length} jadwal '
           'dari ${_kelasSummary.length} kelas',
           style: const TextStyle(
-            color: SigmaColors.navy,
+            color: AppColors.navy,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -344,13 +337,13 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: SigmaColors.navy.withValues(alpha: 0.08),
+            color: AppColors.navy.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(99),
           ),
           child: Text(
             '${e.key}: ${e.value} jadwal',
             style: const TextStyle(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -398,9 +391,9 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
   Widget _buildPreviewTable() {
     return Container(
       decoration: BoxDecoration(
-        color: SigmaColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: SigmaColors.cardBorder),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -410,20 +403,17 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
             // Tabel preview tetap menampilkan nama MK & dosen
             // yang sudah di-resolve dari MongoDB oleh parser
             headingRowColor: WidgetStateProperty.all(
-              SigmaColors.navy.withValues(alpha: 0.06),
+              AppColors.navy.withValues(alpha: 0.06),
             ),
             dataRowMinHeight: 36,
             dataRowMaxHeight: 52,
             columnSpacing: 16,
             headingTextStyle: const TextStyle(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
-            dataTextStyle: const TextStyle(
-              color: SigmaColors.navy,
-              fontSize: 11,
-            ),
+            dataTextStyle: const TextStyle(color: AppColors.navy, fontSize: 11),
             columns: const [
               DataColumn(label: Text('Kelas')),
               DataColumn(label: Text('Kode MK')),
@@ -487,7 +477,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
       padding: const EdgeInsets.only(top: 8),
       child: Text(
         '... dan ${_parsedSchedules.length - 20} jadwal lainnya',
-        style: const TextStyle(color: SigmaColors.textSub, fontSize: 12),
+        style: const TextStyle(color: AppColors.textSub, fontSize: 12),
       ),
     );
   }
@@ -502,14 +492,14 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: SigmaColors.navy,
+              color: AppColors.navy,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               vm.importStatus,
-              style: const TextStyle(color: SigmaColors.textSub, fontSize: 12),
+              style: const TextStyle(color: AppColors.textSub, fontSize: 12),
             ),
           ),
         ],
@@ -525,7 +515,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 15),
           decoration: BoxDecoration(
-            color: vm.isImporting ? SigmaColors.textSub : SigmaColors.navy,
+            color: vm.isImporting ? AppColors.textSub : AppColors.navy,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Center(
@@ -535,7 +525,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: SigmaColors.white,
+                      color: AppColors.white,
                     ),
                   )
                 : Row(
@@ -543,14 +533,14 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                     children: [
                       const Icon(
                         Icons.save_rounded,
-                        color: SigmaColors.white,
+                        color: AppColors.white,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Simpan ${_parsedSchedules.length} Jadwal',
                         style: const TextStyle(
-                          color: SigmaColors.white,
+                          color: AppColors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -577,12 +567,12 @@ class _InfoChip extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 3),
       child: Row(
         children: [
-          const Icon(Icons.check_rounded, color: SigmaColors.success, size: 13),
+          const Icon(Icons.check_rounded, color: AppColors.success, size: 13),
           const SizedBox(width: 6),
           Text(
             label,
             style: const TextStyle(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               fontSize: 12,
               fontFamily: 'monospace',
             ),

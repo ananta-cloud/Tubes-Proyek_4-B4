@@ -1,28 +1,41 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // ===== PALET SLATE (Tailwind) =====
+  // ── Slate (Tailwind) ───────────────────────────────
   static const Color slate50 = Color(0xFFF8FAFC);
-  static const Color slate100 = Color(0xFFF1F5F9); // bg DRAFT
-  static const Color slate200 = Color(0xFFE2E8F0); // border DRAFT
+  static const Color slate100 = Color(0xFFF1F5F9);
+  static const Color slate200 = Color(0xFFE2E8F0);
   static const Color slate300 = Color(0xFFCBD5E1);
   static const Color slate400 = Color(0xFF94A3B8);
   static const Color slate500 = Color(0xFF64748B);
-  static const Color slate600 = Color(0xFF475569); // text DRAFT
+  static const Color slate600 = Color(0xFF475569);
   static const Color slate700 = Color(0xFF334155);
   static const Color slate800 = Color(0xFF1E293B);
 
-  // ===== WARNA UTAMA (Indigo) =====
+  // ── Indigo ─────────────────────────────────────────
   static const Color indigo700 = Color(0xFF4338CA);
   static const Color indigo900 = Color(0xFF312E81);
 
-  // ===== WARNA STATUS: FINAL (Yellow) =====
-  static const Color yellow100 = Color(0xFFFEF9C3); // bg FINAL
-  static const Color yellow200 = Color(0xFFFEF08A); // border FINAL
-  static const Color yellow700 = Color(0xFFA16207); // text FINAL
+  // ── Emerald ────────────────────────────────────────
+  static const Color emerald100 = Color(0xFFD1FAE5);
+  static const Color emerald200 = Color(0xFFA7F3D0);
+  static const Color emerald700 = Color(0xFF047857);
 
-  // ===== WARNA STATUS: PUBLISHED (Emerald) =====
-  static const Color emerald100 = Color(0xFFD1FAE5); // bg PUBLISHED
-  static const Color emerald200 = Color(0xFFA7F3D0); // border PUBLISHED
-  static const Color emerald700 = Color(0xFF047857); // text PUBLISHED
+  // ── Yellow ─────────────────────────────────────────
+  static const Color yellow100 = Color(0xFFFEF9C3);
+  static const Color yellow200 = Color(0xFFFEF08A);
+  static const Color yellow700 = Color(0xFFA16207);
+
+  // ── Navy (admin/TPJ theme) ─────────────────────────
+  static const Color navy = Color(0xFF1E2A6E);
+  static const Color navyDark = Color(0xFF151E55);
+  static const Color navyLight = Color(0xFF2D3E8C);
+  static const Color gold = Color(0xFFF5A623);
+  static const Color accent = Color(0xFF5C6BC0);
+  static const Color bgPage = Color(0xFFF4F6FA);
+  static const Color textSub = Color(0xFF8A94AD);
+  static const Color success = Color(0xFF00897B);
+  static const Color danger = Color(0xFFE53935);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color cardBorder = Color(0xFFE8ECF4);
 }

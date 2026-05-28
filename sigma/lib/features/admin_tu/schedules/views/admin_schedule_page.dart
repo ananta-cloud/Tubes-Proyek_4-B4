@@ -8,6 +8,10 @@ import '../models/schedule_model.dart';
 import 'import_schedule_page.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
+// import 'package:sigma/shared/widgets/empty_state.dart';
+import 'package:sigma/shared/app_colors.dart';
+import 'package:sigma/shared/widgets/page_header.dart';
+import 'package:sigma/shared/widgets/primary_button.dart';
 
 class AdminSchedulePage extends StatefulWidget {
   const AdminSchedulePage({super.key});
@@ -135,10 +139,10 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
         .toList();
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
-          SigmaPageHeader(title: 'Kelola Jadwal', action: _LogoutButton()),
+          PageHeader(title: 'Kelola Jadwal', action: _LogoutButton()),
 
           // ── Sync status banner ────────────────────────────────────────────
           _SyncStatusBanner(
@@ -148,7 +152,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
 
           Expanded(
             child: RefreshIndicator(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               onRefresh: () => vm.fetchSchedules(),
               child: CustomScrollView(
                 slivers: [
@@ -168,7 +172,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                             label: 'KELAS',
                             value: '${allKelas.length}',
                             sublabel: 'kelas terdaftar',
-                            accentColor: SigmaColors.accent,
+                            accentColor: AppColors.accent,
                           ),
                         ],
                       ),
@@ -209,14 +213,14 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                         children: [
                           const Icon(
                             Icons.format_list_bulleted_rounded,
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                             size: 16,
                           ),
                           const SizedBox(width: 6),
                           const Text(
                             'Daftar Jadwal',
                             style: TextStyle(
-                              color: SigmaColors.navy,
+                              color: AppColors.navy,
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
@@ -225,12 +229,12 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                           Text(
                             '${schedules.length} jadwal',
                             style: const TextStyle(
-                              color: SigmaColors.textSub,
+                              color: AppColors.textSub,
                               fontSize: 12,
                             ),
                           ),
                           const Spacer(),
-                          SigmaPrimaryButton(
+                          PrimaryButton(
                             label: 'Import',
                             icon: Icons.upload_file_rounded,
                             onTap: () => Navigator.push(
@@ -250,9 +254,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                     const SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
-                        child: CircularProgressIndicator(
-                          color: SigmaColors.navy,
-                        ),
+                        child: CircularProgressIndicator(color: AppColors.navy),
                       ),
                     )
                   else if (schedules.isEmpty)
@@ -272,7 +274,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                                     ? Icons.calendar_today_outlined
                                     : Icons.search_off_rounded,
                                 size: 48,
-                                color: SigmaColors.cardBorder,
+                                color: AppColors.cardBorder,
                               ),
                               const SizedBox(height: 14),
                               Text(
@@ -280,7 +282,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                                     ? 'Belum ada data jadwal.\nTap "Import" untuk mengunggah.'
                                     : 'Tidak ada jadwal yang cocok\ndengan filter yang dipilih.',
                                 style: const TextStyle(
-                                  color: SigmaColors.textSub,
+                                  color: AppColors.textSub,
                                   fontSize: 14,
                                   height: 1.5,
                                 ),
@@ -325,7 +327,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
       builder: (_) => Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
         decoration: const BoxDecoration(
-          color: SigmaColors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -337,7 +339,7 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: SigmaColors.cardBorder,
+                  color: AppColors.cardBorder,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -359,13 +361,13 @@ class _AdminSchedulePageState extends State<AdminSchedulePage> {
             Text(
               s.namaMatkul,
               style: const TextStyle(
-                color: SigmaColors.navy,
+                color: AppColors.navy,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 16),
-            const Divider(color: SigmaColors.cardBorder),
+            const Divider(color: AppColors.cardBorder),
             const SizedBox(height: 12),
             _DetailRow(
               icon: Icons.person_outline_rounded,
@@ -427,20 +429,20 @@ class _SyncStatusBanner extends StatelessWidget {
         '$pendingCount jadwal tersimpan lokal — belum terkirim ke server',
       ),
       SyncStatus.syncing => (
-        SigmaColors.navy.withValues(alpha: 0.08),
-        SigmaColors.navy,
+        AppColors.navy.withValues(alpha: 0.08),
+        AppColors.navy,
         Icons.sync_rounded,
         'Mengirim $pendingCount jadwal ke server...',
       ),
       SyncStatus.synced => (
         const Color(0xFFE8F5E9),
-        SigmaColors.success,
+        AppColors.success,
         Icons.cloud_done_rounded,
         'Semua jadwal berhasil tersimpan ke server',
       ),
       SyncStatus.failed => (
-        SigmaColors.danger.withValues(alpha: 0.08),
-        SigmaColors.danger,
+        AppColors.danger.withValues(alpha: 0.08),
+        AppColors.danger,
         Icons.cloud_off_rounded,
         'Gagal mengirim ke server — akan dicoba ulang saat online',
       ),
@@ -507,7 +509,7 @@ class _SyncIndicatorBadge extends StatelessWidget {
             Icon(
               isPending ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
               size: 13,
-              color: isPending ? const Color(0xFFB45309) : SigmaColors.success,
+              color: isPending ? const Color(0xFFB45309) : AppColors.success,
             ),
             const SizedBox(width: 5),
             Text(
@@ -515,9 +517,7 @@ class _SyncIndicatorBadge extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isPending
-                    ? const Color(0xFFB45309)
-                    : SigmaColors.success,
+                color: isPending ? const Color(0xFFB45309) : AppColors.success,
               ),
             ),
           ],
@@ -531,7 +531,7 @@ class _SyncIndicatorBadge extends StatelessWidget {
       child: Icon(
         isPending ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
         size: 14,
-        color: isPending ? const Color(0xFFB45309) : SigmaColors.success,
+        color: isPending ? const Color(0xFFB45309) : AppColors.success,
       ),
     );
   }
@@ -581,9 +581,9 @@ class _FilterPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: SigmaColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: SigmaColors.cardBorder),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,14 +597,14 @@ class _FilterPanel extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.tune_rounded,
-                    color: SigmaColors.navy,
+                    color: AppColors.navy,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
                   const Text(
                     'Filter Jadwal',
                     style: TextStyle(
-                      color: SigmaColors.navy,
+                      color: AppColors.navy,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -617,13 +617,13 @@ class _FilterPanel extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: SigmaColors.navy,
+                        color: AppColors.navy,
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text(
                         '$activeCount aktif',
                         style: const TextStyle(
-                          color: SigmaColors.white,
+                          color: AppColors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -637,7 +637,7 @@ class _FilterPanel extends StatelessWidget {
                       child: const Text(
                         'Reset',
                         style: TextStyle(
-                          color: SigmaColors.danger,
+                          color: AppColors.danger,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -648,7 +648,7 @@ class _FilterPanel extends StatelessWidget {
                     expanded
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
-                    color: SigmaColors.textSub,
+                    color: AppColors.textSub,
                     size: 20,
                   ),
                 ],
@@ -656,7 +656,7 @@ class _FilterPanel extends StatelessWidget {
             ),
           ),
           if (expanded) ...[
-            const Divider(color: SigmaColors.cardBorder, height: 1),
+            const Divider(color: AppColors.cardBorder, height: 1),
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
@@ -665,24 +665,24 @@ class _FilterPanel extends StatelessWidget {
                   // Search
                   Container(
                     decoration: BoxDecoration(
-                      color: SigmaColors.bgPage,
+                      color: AppColors.bgPage,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: TextField(
                       controller: searchCtrl,
                       style: const TextStyle(
                         fontSize: 13,
-                        color: SigmaColors.navy,
+                        color: AppColors.navy,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama MK, dosen, ruangan...',
                         hintStyle: TextStyle(
                           fontSize: 13,
-                          color: SigmaColors.textSub,
+                          color: AppColors.textSub,
                         ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
-                          color: SigmaColors.textSub,
+                          color: AppColors.textSub,
                           size: 18,
                         ),
                         border: InputBorder.none,
@@ -788,13 +788,13 @@ class _ScheduleCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: SigmaColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           //  Border sedikit berbeda untuk jadwal pending
           color: isPending
               ? const Color(0xFFB45309).withValues(alpha: 0.3)
-              : SigmaColors.cardBorder,
+              : AppColors.cardBorder,
         ),
         boxShadow: const [
           BoxShadow(
@@ -827,7 +827,7 @@ class _ScheduleCard extends StatelessWidget {
             Text(
               schedule.namaMatkul,
               style: const TextStyle(
-                color: SigmaColors.navy,
+                color: AppColors.navy,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -844,14 +844,14 @@ class _ScheduleCard extends StatelessWidget {
                       ? Icons.group_outlined
                       : Icons.person_outline_rounded,
                   size: 13,
-                  color: SigmaColors.textSub,
+                  color: AppColors.textSub,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     dosenDisplay,
                     style: const TextStyle(
-                      color: SigmaColors.textSub,
+                      color: AppColors.textSub,
                       fontSize: 12,
                     ),
                     softWrap: true,
@@ -867,14 +867,14 @@ class _ScheduleCard extends StatelessWidget {
                 const Icon(
                   Icons.access_time_rounded,
                   size: 13,
-                  color: SigmaColors.textSub,
+                  color: AppColors.textSub,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   '${_capitalizeFirst(schedule.hari)}, '
                   '${schedule.jamMulai}–${schedule.jamSelesai}',
                   style: const TextStyle(
-                    color: SigmaColors.textSub,
+                    color: AppColors.textSub,
                     fontSize: 12,
                   ),
                 ),
@@ -886,13 +886,13 @@ class _ScheduleCard extends StatelessWidget {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: SigmaColors.bgPage,
+                      color: AppColors.bgPage,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       'Jam ke-${schedule.jamKe}',
                       style: const TextStyle(
-                        color: SigmaColors.textSub,
+                        color: AppColors.textSub,
                         fontSize: 10,
                       ),
                     ),
@@ -909,14 +909,14 @@ class _ScheduleCard extends StatelessWidget {
                 const Icon(
                   Icons.room_outlined,
                   size: 13,
-                  color: SigmaColors.textSub,
+                  color: AppColors.textSub,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     schedule.ruangan,
                     style: const TextStyle(
-                      color: SigmaColors.textSub,
+                      color: AppColors.textSub,
                       fontSize: 12,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -943,13 +943,13 @@ class _KelasChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: SigmaColors.accent.withValues(alpha: 0.12),
+      color: AppColors.accent.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(6),
     ),
     child: Text(
       kelas,
       style: const TextStyle(
-        color: SigmaColors.accent,
+        color: AppColors.accent,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
@@ -964,14 +964,14 @@ class _KodeMkChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: SigmaColors.bgPage,
+      color: AppColors.bgPage,
       borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: SigmaColors.cardBorder),
+      border: Border.all(color: AppColors.cardBorder),
     ),
     child: Text(
       kode,
       style: const TextStyle(
-        color: SigmaColors.textSub,
+        color: AppColors.textSub,
         fontSize: 11,
         fontFamily: 'monospace',
       ),
@@ -990,13 +990,13 @@ class _TePrChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: isTE
             ? const Color(0xFFFFF3E0)
-            : SigmaColors.navy.withValues(alpha: 0.08),
+            : AppColors.navy.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         tePr.isEmpty ? '–' : tePr.toUpperCase(),
         style: TextStyle(
-          color: isTE ? const Color(0xFFE65100) : SigmaColors.navy,
+          color: isTE ? const Color(0xFFE65100) : AppColors.navy,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -1012,12 +1012,12 @@ class _FilterLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Icon(icon, size: 13, color: SigmaColors.textSub),
+      Icon(icon, size: 13, color: AppColors.textSub),
       const SizedBox(width: 5),
       Text(
         label,
         style: const TextStyle(
-          color: SigmaColors.textSub,
+          color: AppColors.textSub,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -1050,16 +1050,16 @@ class _ChipGroup extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isActive ? SigmaColors.navy : SigmaColors.bgPage,
+            color: isActive ? AppColors.navy : AppColors.bgPage,
             borderRadius: BorderRadius.circular(99),
             border: Border.all(
-              color: isActive ? SigmaColors.navy : SigmaColors.cardBorder,
+              color: isActive ? AppColors.navy : AppColors.cardBorder,
             ),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: isActive ? SigmaColors.white : SigmaColors.textSub,
+              color: isActive ? AppColors.white : AppColors.textSub,
               fontSize: 12,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
             ),
@@ -1083,20 +1083,20 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(icon, size: 16, color: SigmaColors.textSub),
+      Icon(icon, size: 16, color: AppColors.textSub),
       const SizedBox(width: 10),
       SizedBox(
         width: 80,
         child: Text(
           label,
-          style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+          style: const TextStyle(color: AppColors.textSub, fontSize: 13),
         ),
       ),
       Expanded(
         child: Text(
           value,
           style: const TextStyle(
-            color: SigmaColors.navy,
+            color: AppColors.navy,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -1120,21 +1120,21 @@ class _LogoutButton extends StatelessWidget {
             title: const Text(
               'Logout?',
               style: TextStyle(
-                color: SigmaColors.navy,
+                color: AppColors.navy,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
             ),
             content: const Text(
               'Yakin ingin keluar dari akun ini?',
-              style: TextStyle(color: SigmaColors.textSub, fontSize: 13),
+              style: TextStyle(color: AppColors.textSub, fontSize: 13),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text(
                   'Batal',
-                  style: TextStyle(color: SigmaColors.textSub),
+                  style: TextStyle(color: AppColors.textSub),
                 ),
               ),
               TextButton(
@@ -1142,7 +1142,7 @@ class _LogoutButton extends StatelessWidget {
                 child: const Text(
                   'Logout',
                   style: TextStyle(
-                    color: SigmaColors.danger,
+                    color: AppColors.danger,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1161,18 +1161,18 @@ class _LogoutButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: SigmaColors.danger.withValues(alpha: 0.08),
+          color: AppColors.danger.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.logout_rounded, color: SigmaColors.danger, size: 15),
+            Icon(Icons.logout_rounded, color: AppColors.danger, size: 15),
             SizedBox(width: 5),
             Text(
               'Logout',
               style: TextStyle(
-                color: SigmaColors.danger,
+                color: AppColors.danger,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),

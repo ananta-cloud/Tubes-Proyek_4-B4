@@ -6,8 +6,9 @@ import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import '../views/request_form_page.dart';
 import 'package:sigma/data/models/dosen_model.dart';
-import 'widgets/offline_banner.dart';
+import 'package:sigma/shared/widgets/offline_banner.dart';
 import 'widgets/pending_requests_card.dart';
+import 'package:sigma/shared/widgets/section_header.dart';
 
 class MyRequestsPage extends StatefulWidget {
   final UserModel user;
@@ -93,7 +94,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                   if (ctrl.isOffline) const OfflineBanner(),
 
                   if (ctrl.pendingRequests.isNotEmpty) ...[
-                    const _SectionHeader(
+                    const SectionHeader(
                       label: 'Menunggu Terkirim',
                       icon: Icons.cloud_upload_outlined,
                       color: Colors.orange,
@@ -106,7 +107,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                   ],
 
                   if (ctrl.myRequests.isNotEmpty) ...[
-                    const _SectionHeader(
+                    const SectionHeader(
                       label: 'Riwayat Server',
                       icon: Icons.history,
                       color: Color(0xFF3F5DB3),
@@ -245,33 +246,33 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
 
 // ── Section Header ────────────────────────────────────────
 
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  const _SectionHeader({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
+// class _SectionHeader extends StatelessWidget {
+//   final String label;
+//   final IconData icon;
+//   final Color color;
+//   const _SectionHeader({
+//     required this.label,
+//     required this.icon,
+//     required this.color,
+//   });
 
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, size: 14, color: color),
-      const SizedBox(width: 6),
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: color,
-          letterSpacing: 0.3,
-        ),
-      ),
-    ],
-  );
-}
+//   @override
+//   Widget build(BuildContext context) => Row(
+//     children: [
+//       Icon(icon, size: 14, color: color),
+//       const SizedBox(width: 6),
+//       Text(
+//         label,
+//         style: TextStyle(
+//           fontSize: 12,
+//           fontWeight: FontWeight.bold,
+//           color: color,
+//           letterSpacing: 0.3,
+//         ),
+//       ),
+//     ],
+//   );
+// }
 
 // ── Request Card ──────────────────────────────────────────
 
