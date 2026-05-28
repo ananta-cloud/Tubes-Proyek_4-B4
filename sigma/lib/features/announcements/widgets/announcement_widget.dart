@@ -112,6 +112,25 @@ class AnnouncementCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 5),
+                        if (announcement.attachments.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.attach_file_rounded, size: 16, color: Colors.blueGrey.shade400),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${announcement.attachments.length} Lampiran",
+                                  style: TextStyle(
+                                    fontSize: 12, 
+                                    fontWeight: FontWeight.w600, 
+                                    color: Colors.blueGrey.shade600
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 5),
                         // Kategori (Hashtags)
                         if (announcement.kategori.isNotEmpty)
                           Wrap(
