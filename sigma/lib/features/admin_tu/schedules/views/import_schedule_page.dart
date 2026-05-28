@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
-// import '../../main/views/admin_main_page.dart';
 import '../../../../data/services/schedule_excel_parser.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
 import '../models/schedule_model.dart';
 import 'package:sigma/shared/app_colors.dart';
+import '../widgets/info_chip.dart';
 
 class ImportSchedulePage extends StatefulWidget {
   const ImportSchedulePage({super.key});
@@ -22,7 +22,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
   List<ScheduleModel> _parsedSchedules = [];
   Map<String, int> _kelasSummary = {};
 
-  // ── Pick file & parse ─────────────────────────────────────────────────────
   Future<void> _pickAndParse() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -63,7 +62,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     }
   }
 
-  // ── Submit ke ViewModel ───────────────────────────────────────────────────
   Future<void> _submit() async {
     final vm = context.read<AdminScheduleViewModel>();
     await vm.importSchedules(_parsedSchedules);
@@ -81,7 +79,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminScheduleViewModel>();
@@ -128,8 +125,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
       ),
     );
   }
-
-  // ── Widget builders ───────────────────────────────────────────────────────
 
   Widget _buildHeader() {
     return Container(
@@ -190,8 +185,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.navy.withValues(alpha: 0.12)),
       ),
-      // NAMA MK dan NAMA DOSEN dihapus dari daftar
-      // Nama akan diambil otomatis dari MongoDB berdasarkan kode
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -210,14 +203,14 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
             ],
           ),
           SizedBox(height: 8),
-          _InfoChip('HARI'),
-          _InfoChip('JAM KE'),
-          _InfoChip('WAKTU'),
-          _InfoChip('KODE MK'),
-          _InfoChip('TE/PR'),
-          _InfoChip('KODE DOSEN'),
-          _InfoChip('RUANGAN'),
-          _InfoChip('KELAS'),
+          InfoChip('HARI'),
+          InfoChip('JAM KE'),
+          InfoChip('WAKTU'),
+          InfoChip('KODE MK'),
+          InfoChip('TE/PR'),
+          InfoChip('KODE DOSEN'),
+          InfoChip('RUANGAN'),
+          InfoChip('KELAS'),
         ],
       ),
     );
@@ -400,8 +393,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
-            // Tabel preview tetap menampilkan nama MK & dosen
-            // yang sudah di-resolve dari MongoDB oleh parser
             headingRowColor: WidgetStateProperty.all(
               AppColors.navy.withValues(alpha: 0.06),
             ),
@@ -549,35 +540,6 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
                   ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  _InfoChip
-// ─────────────────────────────────────────────────────────────────────────────
-class _InfoChip extends StatelessWidget {
-  const _InfoChip(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
-      child: Row(
-        children: [
-          const Icon(Icons.check_rounded, color: AppColors.success, size: 13),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.navy,
-              fontSize: 12,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
       ),
     );
   }
