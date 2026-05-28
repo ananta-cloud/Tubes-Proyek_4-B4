@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bcrypt/bcrypt.dart';
 import '../models/user_model.dart';
+import '../models/pengajaran_model.dart';
 import '../models/schedule_local_model.dart';
 import '../models/announcement_model.dart';
 import 'dart:convert';
@@ -9,7 +10,6 @@ import '../../core/network/mongo_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
-
 
 class AuthRepository {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -51,31 +51,84 @@ class AuthRepository {
         await MongoDatabase.db.open();
       }
 
+      // 1. Cek Akun di Tabel Users
       final user = await MongoDatabase.usersCollection.findOne({
         "email": email,
       });
       if (user == null) return null;
 
+      // 2. Cek Password
       final hashedPassword = user["password"];
       final isValid = BCrypt.checkpw(password, hashedPassword);
       if (!isValid) return null;
 
-      await _storage.write(key: "user_id", value: user["_id"].oid);
-      await _storage.write(key: "user_nama", value: user["nama"]);
-      await _storage.write(key: "user_role", value: user["role"]);
-      await _storage.write(key: "user_email", value: user["email"]);
+      // 3. Persiapan Variabel Aman (Default/Fallback)
+      final String cleanId = (user["_id"] as ObjectId).toHexString();
+      final String role = user["role"]?.toString() ?? "MAHASISWA";
 
-      if (user["kelas"] != null) {
-        await _storage.write(key: "user_kelas", value: user["kelas"]);
+      String namaPengguna = "Pengguna Tanpa Nama";
+      String? kelasPengguna;
+      String? idJurusan;
+      String? kodeDosenAktif; // 🔥 Tambahan: Menampung kode dosen
+
+      // =========================================================
+      // 4. AMBIL DATA NAMA & KELAS DARI TABEL SPESIFIK (MHS / DOSEN)
+      // =========================================================
+      if (role == 'MAHASISWA') {
+        final mhs = await MongoDatabase.db.collection('mahasiswa').findOne({
+          "email": user["email"],
+        });
+        if (mhs != null) {
+          // Ambil nama dari tabel mahasiswa
+          namaPengguna = mhs["nama"]?.toString() ?? namaPengguna;
+
+          // Ambil nama kelas jika ID kelas tersedia
+          if (mhs["id_kelas"] != null) {
+            final kls = await MongoDatabase.kelasCollection.findOne({
+              "_id": mhs["id_kelas"],
+            });
+            if (kls != null) {
+              kelasPengguna = kls["nama_kelas"]?.toString();
+            }
+          }
+        }
+      } else if (role == 'DOSEN') {
+        final dosen = await MongoDatabase.dosenCollection.findOne({
+          "email": user["email"],
+        });
+        if (dosen != null) {
+          namaPengguna = dosen["nama_dosen"]?.toString() ?? namaPengguna;
+          kodeDosenAktif = dosen["kode_dosen"]?.toString();
+        }
       }
 
+      // 5. Simpan ke Brankas Lokal (Secure Storage)
+      await _storage.write(key: "user_id", value: cleanId);
+      await _storage.write(key: "user_nama", value: namaPengguna);
+      await _storage.write(key: "user_role", value: role);
+      await _storage.write(
+        key: "user_email",
+        value: user["email"]?.toString() ?? "",
+      );
+
+      // Simpan kelas jika dia mahasiswa
+      if (kelasPengguna != null) {
+        await _storage.write(key: "user_kelas", value: kelasPengguna);
+      }
+
+      // 🔥 Simpan kode dosen jika dia dosen
+      if (kodeDosenAktif != null) {
+        await _storage.write(key: "user_kode_dosen", value: kodeDosenAktif);
+      }
+
+      // 6. Kembalikan Model dengan Aman
       return UserModel(
-        id: user["_id"].oid,
-        nama: user["nama"],
-        email: user["email"],
-        role: user["role"] ?? "MAHASISWA",
-        idJurusan: user["id_jurusan"]?.toString(),
-        kelas: user["kelas"],
+        id: cleanId,
+        nama: namaPengguna,
+        email: user["email"]?.toString() ?? "",
+        role: role,
+        idJurusan: idJurusan,
+        kelas: kelasPengguna,
       );
     } catch (e) {
       debugPrint("LOGIN ERROR: $e");
@@ -124,13 +177,12 @@ class AuthRepository {
       final kelas = await _storage.read(key: "user_kelas");
 
       return UserModel(
-        id: userId, 
-        nama: nama, 
-        email: email, 
-        role: role, 
+        id: userId,
+        nama: nama,
+        email: email,
+        role: role,
         kelas: kelas,
       );
-
     } catch (e) {
       print("AUTO-LOGIN ERROR: $e");
       return null;
@@ -148,6 +200,7 @@ class AuthRepository {
     // Bersihkan data Hive
     await Hive.box<ScheduleLocalModel>('schedules').clear();
     await Hive.box<AnnouncementModel>('announcements').clear();
+    await Hive.box<PengajaranModel>('pengajaran').clear();
     if (Hive.isBoxOpen('bookmarks')) {
       await Hive.box<AnnouncementModel>('bookmarks').clear();
     }
@@ -157,11 +210,10 @@ class AuthRepository {
   // 4. FUNGSI GANTI PASSWORD
   // ===============================================
   Future<bool> changePassword(
-    
     String userId,
-   
+
     String oldPassword,
-   
+
     String newPassword,
   ) async {
     try {

@@ -4,6 +4,7 @@ import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
 import 'package:provider/provider.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/views/admin_main_page.dart';
+import 'package:sigma/features/manajemen/views/manajemen_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -78,13 +79,10 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),
-        );
-      } else if (user.role?.toUpperCase() == 'MANAJEMEN') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminMainPage()),
-        );
-      }
+        );  
+      } else if (user.role.toUpperCase() == 'MANAJEMEN') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ManajemenMainPage()));
+      } 
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -41,8 +41,8 @@ class TaskModel extends HiveObject {
   @HiveField(11)
   List<Map<String, String>>? lampiran;
 
-  @HiveField(12) 
-  String? kelas; 
+  @HiveField(12)
+  String? kelas;
 
   @HiveField(13)
   String? namaDosen;
@@ -79,14 +79,20 @@ class TaskModel extends HiveObject {
       deadline: map['deadline'] as DateTime,
       status: map['status'] ?? 'BELUM',
       isSynced:
-       map['is_synced'] ??    map['is_synced'] ?? true, // Default ke true karena ditarik dari Cloud // Default ke true karena ditarik dari Cloud
+          map['is_synced'] ??
+          map['is_synced'] ??
+          true, // Default ke true karena ditarik dari Cloud // Default ke true karena ditarik dari Cloud
       createdAt: map['created_at'] as DateTime,
       updatedAt: map['updated_at'] as DateTime,
       // Pada TaskModel.fromMongo:
       lampiran: map['lampiran'] != null
-          ? (map['lampiran'] as List).map((e) => Map<String, String>.from(e as Map)).toList()
+          ? (map['lampiran'] as List)
+                .map((e) => Map<String, String>.from(e as Map))
+                .toList()
           : null,
-      kelas: map['kelas'],
+      kelas: map['kelas'] is List
+          ? (map['kelas'] as List).join(', ')
+          : map['kelas']?.toString(),
       namaDosen: map['nama_dosen'],
     );
   }

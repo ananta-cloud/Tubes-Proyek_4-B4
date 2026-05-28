@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:mongo_dart/mongo_dart.dart' show ObjectId;
+import 'package:mongo_dart/mongo_dart.dart' show ObjectId, where;
 import 'package:file_picker/file_picker.dart';
 import 'dart:io' show Platform;
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../data/models/task_model.dart';
 import '../../../../data/models/user_model.dart';
+import '../../../../data/models/dosen_model.dart';
 import '../../../../data/models/pengajaran_model.dart';
 import '../../../../data/repositories/pengajaran_repository.dart';
 import '../../../../data/services/task_service.dart';
+import '../../../../data/services/pengajaran_service.dart';
+import '../../../../core/network/mongo_database.dart';
 
 class TaskFormViewModel extends ChangeNotifier {
   final TaskService _taskService = TaskService();
@@ -29,37 +32,137 @@ class TaskFormViewModel extends ChangeNotifier {
   DateTime? selectedDeadline;
   List<Map<String, String>> lampiran = [];
   bool isLoadingPengajaran = false;
+  bool isLoading = false;
+  bool isDisposed = false;
 
-  void initializeForEdit(TaskModel? task) {
-    if (task != null) {
-      namaTugasController.text = task.namaTugas;
-      deskripsiController.text = task.deskripsi ?? '';
-      selectedDeadline = task.deadline;
-      lampiran = task.lampiran ?? [];
+  final PengajaranService _pengajaranService = PengajaranService();
+
+  final Map<String, String> _kelasCacheNames = {};
+
+  // Di dalam TaskFormViewModel.dart
+  // Di dalam TaskFormViewModel.dart
+  void initializeForEdit(TaskModel task) {
+    print("DEBUG: Memulai inisialisasi edit untuk tugas: ${task.namaTugas}");
+    
+    // 1. Set teks
+    namaTugasController.text = task.namaTugas;
+    deskripsiController.text = task.deskripsi ?? '';
+    
+    // 2. Set deadline & lampiran
+    selectedDeadline = task.deadline;
+    lampiran = task.lampiran ?? [];
+
+    // Catatan: selectedMatkulDisplay dan selectedTargetKelas JANGAN di-set di sini, 
+    // karena uniqueMatkulList belum tersedia. Biarkan _initDropdownsForEdit yang mengerjakannya.
+
+    notifyListeners();
+  }
+
+  // ====================================================================
+  // PERBAIKAN: RESOLVE NAMA KELAS DENGAN PRODI (Menjadi "2B-D3")
+  // ====================================================================
+  Future<String> _resolveNamaKelas(String idKelasHex) async {
+    // Pengaman: Jika data sudah berupa teks biasa (bukan ID 24 karakter), kembalikan langsung
+    if (idKelasHex.length != 24) return idKelasHex;
+
+    // Ambil dari memori lokal jika sudah pernah di-fetch sebelumnya
+    if (_kelasCacheNames.containsKey(idKelasHex)) {
+      return _kelasCacheNames[idKelasHex]!;
+    }
+
+    try {
+      final kelasDoc = await MongoDatabase.kelasCollection.findOne(
+        where.id(ObjectId.fromHexString(idKelasHex)),
+      );
+
+      if (kelasDoc != null && kelasDoc.containsKey('nama_kelas')) {
+        String name = kelasDoc['nama_kelas'].toString(); // Dapat "2B"
+
+        // Tarik data prodi agar namanya kembali menjadi "2B-D3"
+        if (kelasDoc['id_prodi'] != null) {
+          final dynamic rawProdiId = kelasDoc['id_prodi'];
+          final ObjectId prodiObjId = rawProdiId is ObjectId
+              ? rawProdiId
+              : ObjectId.fromHexString(rawProdiId.toString());
+
+          final prodiDoc = await MongoDatabase.db
+              .collection('prodi')
+              .findOne(where.id(prodiObjId));
+
+          if (prodiDoc != null && prodiDoc['nama_prodi'] != null) {
+            String namaProdi = prodiDoc['nama_prodi'].toString().toUpperCase();
+            if (namaProdi.contains('D3') || namaProdi.contains('D-III')) {
+              name += "-D3";
+            } else if (namaProdi.contains('D4') ||
+                namaProdi.contains('D-IV') ||
+                namaProdi.contains('SARJANA TERAPAN')) {
+              name += "-D4";
+            }
+          }
+        }
+
+        _kelasCacheNames[idKelasHex] = name; // Simpan ke cache
+        return name;
+      }
+      return "Unknown";
+    } catch (e) {
+      return "Error";
     }
   }
 
-  Future<void> loadPengajaran(String idDosen, {TaskModel? taskToEdit}) async {
+  Future<void> loadPengajaran(
+    DosenModel currentDosen, {
+    TaskModel? taskToEdit,
+  }) async {
+    // Cek apakah ViewModel masih aktif sebelum memulai
+    if (isDisposed) return;
+
     isLoadingPengajaran = true;
     notifyListeners();
 
     try {
-      listPengajaran = _pengajaranRepo.getLocalPengajaran(idDosen);
-      _generateUniqueMatkul();
-      if (taskToEdit != null) _initDropdownsForEdit(taskToEdit);
-      notifyListeners();
+      String kodeDosenLogin = currentDosen.kodeDosen;
 
-      await _pengajaranRepo.syncPengajaran(idDosen);
+      // 1. Ambil data dari Hive (Lokal)
+      listPengajaran = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
-      listPengajaran = _pengajaranRepo.getLocalPengajaran(idDosen);
-      _generateUniqueMatkul();
-      if (taskToEdit != null) _initDropdownsForEdit(taskToEdit);
+      if (listPengajaran.isNotEmpty && !isDisposed) {
+        print(
+          "⚡ [LOKAL] Memuat ${listPengajaran.length} mata kuliah dari Hive.",
+        );
+        _generateUniqueMatkul();
+        if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
+        notifyListeners();
+      }
+
+      print("☁️ [CLOUD] Mencoba sinkronisasi jadwal mata kuliah ke MongoDB...");
+
+      // 2. Sinkronisasi dari Cloud
+      await _pengajaranRepo.syncPengajaran(kodeDosenLogin);
+
+      // 3. Ambil data yang sudah terupdate
+      final updatedList = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
+
+      // Gunakan pengecekan !isDisposed sebelum notifyListeners()
+      if (!isDisposed &&
+          (updatedList.length != listPengajaran.length ||
+              listPengajaran.isEmpty)) {
+        listPengajaran = updatedList;
+        _generateUniqueMatkul();
+        if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
+
+        print("✅ [SYNC] Dropdown diperbarui dengan data terbaru dari Cloud.");
+        notifyListeners();
+      }
     } catch (e) {
-      print('Error loading pengajaran: $e');
+      print('❌ Error loading pengajaran: $e');
+    } finally {
+      // Pastikan status loading dimatikan jika ViewModel belum disposed
+      if (!isDisposed) {
+        isLoadingPengajaran = false;
+        notifyListeners();
+      }
     }
-
-    isLoadingPengajaran = false;
-    notifyListeners();
   }
 
   void _generateUniqueMatkul() {
@@ -69,37 +172,67 @@ class TaskFormViewModel extends ChangeNotifier {
         .toList();
   }
 
-  // ====================================================================
-  // PERBAIKAN: MEMBACA SEMUA TUGAS KELOMPOK UNTUK CENTANG BIRU
-  // ====================================================================
-  void _initDropdownsForEdit(TaskModel task) {
+  Future<void> _initDropdownsForEdit(TaskModel task) async {
     try {
-      final matched = listPengajaran.firstWhere((p) => p.id == task.idMk);
+      // 1. CARI MATA KULIAH BERDASARKAN KODE MK (Bukan berdasarkan ID lagi)
+      final int matchIndex = listPengajaran.indexWhere((p) {
+        if (task.namaMkSnapshot == null) return false;
+        // Mengecek apakah snapshot teks "KODE - NAMA" diawali dengan kodeMk dari list pengajaran
+        return task.namaMkSnapshot!.startsWith(p.kodeMk);
+      });
+
+      if (matchIndex == -1) {
+         print("Warning: Mata Kuliah untuk tugas '${task.namaTugas}' tidak ditemukan dalam jadwal Dosen saat ini.");
+         return; // Hentikan proses dropdown, biarkan form teks saja yang terisi
+      }
+
+      // Ambil data yang cocok
+      final matched = listPengajaran[matchIndex];
+
+      // 2. SET DROPDOWN MATA KULIAH
       selectedMatkulDisplay = "${matched.kodeMk} - ${matched.namaMk}";
-      _updateAvailableKelas();
-      
-      // Cari SEMUA tugas yang tergabung dalam 1 grup (nama & deadline sama)
+      print("DEBUG: Dropdown diset ke: $selectedMatkulDisplay");
+
+      // 3. UPDATE LIST KELAS BERDASARKAN MATKUL YANG TERPILIH
+      await _updateAvailableKelas();
+
+      // 4. SET TARGET KELAS YANG SUDAH DICENTANG
       final taskBox = Hive.box<TaskModel>('tasks');
-      final listTugasSejenis = taskBox.values.where((t) => 
-        t.namaTugas == task.namaTugas && 
-        t.deadline.isAtSameMomentAs(task.deadline) &&
-        t.idMk == task.idMk
+      final listTugasSejenis = taskBox.values.where(
+        (t) =>
+            t.namaTugas == task.namaTugas &&
+            t.deadline.isAtSameMomentAs(task.deadline) &&
+            // Ubah juga pencarian tugas sejenis agar mencocokkan kode/nama snapshot, bukan idMk
+            t.namaMkSnapshot != null && t.namaMkSnapshot!.startsWith(matched.kodeMk),
       );
 
       List<String> semuaKelasTercentang = [];
-      
       for (var t in listTugasSejenis) {
-        if (t.namaMkSnapshot != null && t.namaMkSnapshot!.contains('(')) {
-          String kelas = t.namaMkSnapshot!.split('(').last.replaceAll(')', '').trim();
-          if (availableKelasList.contains(kelas) && !semuaKelasTercentang.contains(kelas)) {
-            semuaKelasTercentang.add(kelas);
-          }
+        if (t.kelas != null && t.kelas!.isNotEmpty) {
+           semuaKelasTercentang.add(t.kelas!);
+        } else if (t.namaMkSnapshot != null && t.namaMkSnapshot!.contains('(')) {
+          // Fallback jika field kelas kosong, ekstrak dari snapshot
+          String kelas = t.namaMkSnapshot!
+              .split('(')
+              .last
+              .replaceAll(')', '')
+              .trim();
+          semuaKelasTercentang.add(kelas);
         }
       }
 
-      // Masukkan ke List State UI agar menyala biru di form!
-      selectedTargetKelas = semuaKelasTercentang;
-    } catch (_) {}
+      // Filter agar yang dicentang hanya kelas yang memang valid ada di mata kuliah tersebut
+      selectedTargetKelas = semuaKelasTercentang
+          .where((k) => availableKelasList.contains(k))
+          .toSet()
+          .toList();
+
+      print("DEBUG: Target kelas diset ke: $selectedTargetKelas");
+      notifyListeners();
+
+    } catch (e) {
+      print('Error init dropdown edit: $e');
+    }
   }
 
   void selectMatkul(String? matkulDisplay) {
@@ -109,31 +242,36 @@ class TaskFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _updateAvailableKelas() {
+  // 🔥 PERBAIKAN: Ubah menjadi Future<void>
+  Future<void> _updateAvailableKelas() async {
     if (selectedMatkulDisplay == null) {
       availableKelasList = [];
-    } else {
-      try {
-        final matchedDocs = listPengajaran.where(
-          (p) => "${p.kodeMk} - ${p.namaMk}" == selectedMatkulDisplay,
-        );
+      notifyListeners();
+      return;
+    }
 
-        Set<String> combinedKelas = {};
-        for (var doc in matchedDocs) {
-          combinedKelas.addAll(doc.targetKelas);
-        }
-        availableKelasList = combinedKelas.toList();
-      } catch (e) {
-        availableKelasList = [];
+    final matchedDocs = listPengajaran.where(
+      (p) => "${p.kodeMk} - ${p.namaMk}" == selectedMatkulDisplay,
+    );
+
+    Set<String> tempKelasNames = {};
+
+    for (var doc in matchedDocs) {
+      for (var id in doc.targetKelas) {
+        String nama = await _resolveNamaKelas(id);
+        tempKelasNames.add(nama);
       }
     }
+
+    availableKelasList = tempKelasNames.toList();
+    notifyListeners();
   }
 
   void toggleKelas(String kelas) {
     if (selectedTargetKelas.contains(kelas)) {
-      selectedTargetKelas.remove(kelas); 
+      selectedTargetKelas.remove(kelas);
     } else {
-      selectedTargetKelas.add(kelas); 
+      selectedTargetKelas.add(kelas);
     }
     notifyListeners();
   }
@@ -172,8 +310,6 @@ class TaskFormViewModel extends ChangeNotifier {
         if (!photosStatus.isGranted) await Permission.photos.request();
       }
 
-      // 2. BUKA SISTEM FILE MANAGER BAWAAN HP
-      // Kita kembalikan ke FileType.any agar sistem HP tidak crash (invalid_format_type)
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
@@ -187,25 +323,31 @@ class TaskFormViewModel extends ChangeNotifier {
   }
 
   // =========================================================================
-  // FUNGSI CREATE (UPDATE: Menyimpan targetKelas & namaDosen)
+  // FUNGSI CREATE (Menyimpan targetKelas & namaDosen)
   // =========================================================================
   Future<bool> createTaskForStudents(UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
+    if (namaTugasController.text.isEmpty ||
+        selectedDeadline == null ||
+        selectedTargetKelas.isEmpty)
+      return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
 
-    final String cleanUserId = currentUser.id.replaceAll('ObjectId("', '').replaceAll('")', '');
+    final String cleanUserId = currentUser.id
+        .replaceAll('ObjectId("', '')
+        .replaceAll('")', '');
     bool allSuccess = true;
 
-    // LOOPING untuk setiap kelas
     for (String kelas in selectedTargetKelas) {
       final String newTaskId = ObjectId().toHexString();
       final newTask = TaskModel(
         id: newTaskId,
         idUser: cleanUserId,
         namaTugas: namaTugasController.text,
-        deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
+        deskripsi: deskripsiController.text.isNotEmpty
+            ? deskripsiController.text
+            : null,
         idMk: matched.id,
         namaMkSnapshot: "${matched.kodeMk} - ${matched.namaMk} ($kelas)",
         deadline: selectedDeadline!,
@@ -232,10 +374,18 @@ class TaskFormViewModel extends ChangeNotifier {
   }
 
   // =========================================================================
-  // FUNGSI EDIT (UPDATE: Menyimpan targetKelas & namaDosen)
+  // FUNGSI EDIT (Menyimpan targetKelas & namaDosen)
   // =========================================================================
-  Future<bool> updateTaskForStudents(TaskModel taskLama, UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
+  // =========================================================================
+  // FUNGSI EDIT (Pencarian Menggunakan Data Lama agar Tidak Duplikat)
+  // =========================================================================
+  Future<bool> updateTaskForStudents(
+    TaskModel taskLama,
+    UserModel currentUser,
+  ) async {
+    if (namaTugasController.text.isEmpty ||
+        selectedDeadline == null ||
+        selectedTargetKelas.isEmpty) return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
@@ -243,45 +393,55 @@ class TaskFormViewModel extends ChangeNotifier {
     try {
       final taskBox = Hive.box<TaskModel>('tasks');
 
-      final listTugasSejenis = taskBox.values.where((t) =>
-          t.namaTugas == taskLama.namaTugas &&
-          t.deadline.isAtSameMomentAs(taskLama.deadline) &&
-          t.idMk == taskLama.idMk).toList();
+      // 1. CARI TUGAS LAMA DI DATABASE
+      // WAJIB menggunakan data dari 'taskLama', bukan data yang baru diketik di form!
+      final listTugasSejenis = taskBox.values.where((t) {
+        bool isNameSame = t.namaTugas == taskLama.namaTugas;
+        // Pengecekan waktu kebal terhadap perbedaan detik/milidetik dari server
+        bool isTimeSame = t.deadline.year == taskLama.deadline.year &&
+                          t.deadline.month == taskLama.deadline.month &&
+                          t.deadline.day == taskLama.deadline.day &&
+                          t.deadline.hour == taskLama.deadline.hour &&
+                          t.deadline.minute == taskLama.deadline.minute;
+        bool isMatkulSame = t.idMk == taskLama.idMk;
 
-      Map<String, TaskModel> existingTasksByClass = {};
-      for (var t in listTugasSejenis) {
-        if (t.kelas != null) { // Gunakan field kelas yang baru
-          existingTasksByClass[t.kelas!] = t;
-        }
-      }
+        return isNameSame && isTimeSame && isMatkulSame;
+      }).toList();
 
-      for (String kelas in selectedTargetKelas) {
-        if (existingTasksByClass.containsKey(kelas)) {
-          // A. UPDATE TUGAS YANG SUDAH ADA
-          TaskModel tToUpdate = existingTasksByClass[kelas]!;
-          tToUpdate.namaTugas = namaTugasController.text;
-          tToUpdate.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
-          tToUpdate.idMk = matched.id;
+      // 2. TIMPA TUGAS LAMA SECARA BERURUTAN
+      int i = 0;
+      for (; i < selectedTargetKelas.length; i++) {
+        String kelas = selectedTargetKelas[i];
+
+        if (i < listTugasSejenis.length) {
+          // A. REUSE TUGAS LAMA (Gunakan ID yang sama, timpa datanya)
+          TaskModel tToUpdate = listTugasSejenis[i];
+          
+          tToUpdate.namaTugas = namaTugasController.text; // Timpa nama
+          tToUpdate.deskripsi = deskripsiController.text.isNotEmpty
+              ? deskripsiController.text
+              : null;
+          tToUpdate.idMk = matched.id; // Timpa Matkul
           tToUpdate.namaMkSnapshot = "${matched.kodeMk} - ${matched.namaMk} ($kelas)";
-          tToUpdate.deadline = selectedDeadline!;
+          tToUpdate.deadline = selectedDeadline!; // Timpa Deadline
           tToUpdate.lampiran = lampiran.isNotEmpty ? lampiran : null;
           tToUpdate.updatedAt = DateTime.now();
           tToUpdate.isSynced = false;
-          
-          tToUpdate.kelas = kelas;
+          tToUpdate.kelas = kelas; // Timpa Kelas
           tToUpdate.namaDosen = currentUser.nama;
 
-          await tToUpdate.save();
+          await tToUpdate.save(); // Simpan perubahan ke ID yang sama!
           _backgroundSync(tToUpdate, isCreate: false);
-          existingTasksByClass.remove(kelas); 
         } else {
-          // B. BUAT TUGAS BARU JIKA DOSEN MENCENTANG KELAS TAMBAHAN
+          // B. BUAT TUGAS BARU HANYA JIKA KELAS DITAMBAH (Misal awalnya 1 kelas, jadi 2 kelas)
           final String newTaskId = ObjectId().toHexString();
           final newTask = TaskModel(
             id: newTaskId,
             idUser: taskLama.idUser,
             namaTugas: namaTugasController.text,
-            deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
+            deskripsi: deskripsiController.text.isNotEmpty
+                ? deskripsiController.text
+                : null,
             idMk: matched.id,
             namaMkSnapshot: "${matched.kodeMk} - ${matched.namaMk} ($kelas)",
             deadline: selectedDeadline!,
@@ -298,10 +458,11 @@ class TaskFormViewModel extends ChangeNotifier {
         }
       }
 
-      // Hapus sisa tugas jika Dosen menghilangkan centang
-      for (var tToDelete in existingTasksByClass.values) {
+      // 3. HAPUS SISA TUGAS JIKA KELAS DIKURANGI (Misal awalnya 2 kelas, dikurangi jadi 1)
+      for (; i < listTugasSejenis.length; i++) {
+        TaskModel tToDelete = listTugasSejenis[i];
         await taskBox.delete(tToDelete.id);
-        _taskService.deleteTask(tToDelete.id); 
+        _taskService.deleteTask(tToDelete.id);
       }
 
       notifyListeners();
@@ -315,7 +476,9 @@ class TaskFormViewModel extends ChangeNotifier {
   Future<void> _backgroundSync(TaskModel task, {required bool isCreate}) async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOnline = !(connectivityResult as List).contains(ConnectivityResult.none);
+      bool isOnline = !(connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
 
       if (isOnline) {
         bool cloudSuccess = isCreate

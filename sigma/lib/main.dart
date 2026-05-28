@@ -17,6 +17,7 @@ import 'features/auth/views/login_page.dart';
 // ================= IMPORT MODELS =================
 import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
+import 'data/models/dosen_model.dart';
 import 'data/models/task_model.dart';
 import 'features/admin_tu/master_matkul/models/matkul_model.dart';
 import 'features/admin_tu/schedules/models/schedule_model.dart';
@@ -30,6 +31,7 @@ import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
+import 'features/dosen/tasks/viewmodels/task_form_viewmodel.dart';
 import 'features/dosen/schedules/viewmodels/schedule_controller.dart';
 import 'features/mahasiswa/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
@@ -51,16 +53,16 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
 
-  if (!Hive.isAdapterRegistered(1))
-    Hive.registerAdapter(ScheduleLocalModelAdapter());
-  if (!Hive.isAdapterRegistered(2))
-    Hive.registerAdapter(AnnouncementModelAdapter());
+  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(ScheduleLocalModelAdapter());
+  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(AnnouncementModelAdapter());
   if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(TaskModelAdapter());
   if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(MatkulModelAdapter());
-  if (!Hive.isAdapterRegistered(5))
-    Hive.registerAdapter(ScheduleModelAdapter());
+  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(ScheduleModelAdapter());
   if (!Hive.isAdapterRegistered(6)) {
     Hive.registerAdapter(PengajaranModelAdapter());
+  }
+  if (!Hive.isAdapterRegistered(7)) {
+    Hive.registerAdapter(DosenModelAdapter());
   }
 
   // ── MongoDB ────────────────────────────────────────────────────────────────
@@ -86,6 +88,7 @@ void main() async {
   await Hive.openBox<ScheduleModel>('admin_schedules');
   await Hive.openBox<Map>('schedule_queue');
   await Hive.openBox<PengajaranModel>('pengajaran');
+  await Hive.openBox<DosenModel>('dosen_box');
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();
@@ -101,6 +104,7 @@ void main() async {
           create: (_) => ScheduleController(ScheduleService()),
         ),
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
+        ChangeNotifierProvider(create: (_) => TaskFormViewModel()),
         ChangeNotifierProvider(
           create: (_) => AnnouncementViewModel(AnnouncementService()),
         ),

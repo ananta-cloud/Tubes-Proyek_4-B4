@@ -9,7 +9,7 @@ class PengajaranRepository {
 
   // Ambil data dari lokal (Instan)
   List<PengajaranModel> getLocalPengajaran(String idDosen) {
-    return _box.values.where((p) => p.idDosen == idDosen).toList();
+    return _box.values.where((p) => p.kodeDosen == idDosen).toList();
   }
 
   // Sinkronisasi dari Cloud ke Lokal (Background)

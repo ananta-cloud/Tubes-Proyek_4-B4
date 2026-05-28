@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 
 import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
+import '../../auth/viewmodels/login_viewmodel.dart';
+import 'package:mongo_dart/mongo_dart.dart' show ObjectId;
 
 class CreateAnnouncementPage extends StatefulWidget {
   const CreateAnnouncementPage({super.key});
@@ -45,7 +47,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
   static const _targetList = ['SEMUA', 'MAHASISWA', 'DOSEN'];
 
-  // Pilihan prodi berdasarkan data MongoDB
+  // Pilihan prodi statis (Jika target MAHASISWA oleh Admin TU)
   static const _prodiList = ['D3 Teknik Informatika', 'D4 Teknik Informatika'];
 
   static const _tingkatColors = {
@@ -57,6 +59,28 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   static const int _maxFileSizeBytes = 5 * 1024 * 1024;
 
   bool get _isTargetMahasiswa => _selectedTarget == 'MAHASISWA';
+
+  // ===========================================================================
+  // INIT STATE (Memuat jurusan jika role MANAJEMEN)
+  // ===========================================================================
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = context.read<LoginViewModel>().user;
+      // Jika user MANAJEMEN, load list jurusan dari MongoDB
+      if (user?.role.toUpperCase() == 'MANAJEMEN') {
+        context.read<AdminAnnouncementViewModel>().fetchJurusan();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _judulCtrl.dispose();
+    _isiCtrl.dispose();
+    super.dispose();
+  }
 
   // ─── Deadline → auto tingkat kepentingan ─────────────────────────────────
   void _onDeadlineChanged(DateTime? date) {
@@ -99,13 +123,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   }
 
   void _clearDeadline() => _onDeadlineChanged(null);
-
-  @override
-  void dispose() {
-    _judulCtrl.dispose();
-    _isiCtrl.dispose();
-    super.dispose();
-  }
 
   // ─── Pick File ────────────────────────────────────────────────────────────
   Future<void> _pickFile() async {
@@ -182,14 +199,18 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
     if (!mounted) return;
 
+    final currentUser = context.read<LoginViewModel>().user;
+    final isManajemen = currentUser?.role.toUpperCase() == 'MANAJEMEN';
+
     // Susun target string: kalau MAHASISWA + prodi dipilih, tambahkan info prodi
     String targetFinal = _selectedTarget;
     if (_isTargetMahasiswa && _selectedProdi != null) {
-      // Misal: "MAHASISWA - D4 Teknik Informatika"
       targetFinal = 'MAHASISWA - $_selectedProdi';
     }
 
     final vm = context.read<AdminAnnouncementViewModel>();
+    
+    // Panggil fungsi create yang sudah dilengkapi publisher & jurusan/prodi
     await vm.createAnnouncement(
       judul: _judulCtrl.text.trim(),
       isi: _isiCtrl.text.trim(),
@@ -200,9 +221,17 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       tingkatKepentingan: _selectedTingkat,
       deadline: _selectedDeadline,
       attachments: attachments,
+      // Parameter identitas pengirim
+      idPublisher: currentUser?.id ?? '',
+      namaPublisher: currentUser?.nama ?? 'Admin',
+      rolePublisher: currentUser?.role ?? 'ADMIN_TU',
+      // Parameter khusus Manajemen
+      idJurusan: isManajemen ? vm.selectedJurusanId : null,
+      idProdi: isManajemen ? vm.selectedProdiId : null,
     );
 
     if (mounted) {
+      if (isManajemen) vm.clearManajemenSelections(); // Bersihkan pilihan
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pengumuman berhasil diterbitkan!'),
@@ -217,6 +246,8 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminAnnouncementViewModel>();
+    final currentUser = context.read<LoginViewModel>().user;
+    final bool isManajemen = currentUser?.role.toUpperCase() == 'MANAJEMEN';
 
     return Scaffold(
       backgroundColor: SigmaColors.bgPage,
@@ -309,7 +340,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             ),
                             const SizedBox(width: 10),
                             const Text(
-                              'Form Pengumuman Jurusan',
+                              'Form Pengumuman',
                               style: TextStyle(
                                 color: SigmaColors.navy,
                                 fontSize: 14,
@@ -320,7 +351,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Pengumuman akan dikirim via Push Notification ke mahasiswa sesuai target.',
+                          'Pengumuman akan dikirim via Push Notification ke target audiens.',
                           style: TextStyle(
                             color: SigmaColors.textSub,
                             fontSize: 11,
@@ -406,7 +437,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // ── Target + Prodi (2 kolom) ───────────────────────
+                        // ── Target + Prodi (2 kolom untuk Admin TU) ───────────
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -424,7 +455,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                     labelBuilder: (e) => e,
                                     onChanged: (v) => setState(() {
                                       _selectedTarget = v ?? 'SEMUA';
-                                      // Reset prodi jika target bukan MAHASISWA
                                       if (_selectedTarget != 'MAHASISWA') {
                                         _selectedProdi = null;
                                       }
@@ -433,59 +463,114 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Sub-field Prodi
-                            Expanded(
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: _isTargetMahasiswa ? 1.0 : 0.35,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            // Jika Role MANAJEMEN, kita sembunyikan dropdown prodi statis ini
+                            // karena mereka akan punya Dropdown khusus di bawah.
+                            if (!isManajemen) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 200),
+                                  opacity: _isTargetMahasiswa ? 1.0 : 0.35,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const _FieldLabel(label: 'Prodi (Opsional)'),
+                                          const SizedBox(width: 4),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _SigmaDropdown<String>(
+                                        value: _selectedProdi,
+                                        hint: 'Semua prodi',
+                                        items: _prodiList,
+                                        labelBuilder: (e) => e,
+                                        onChanged: _isTargetMahasiswa
+                                            ? (v) => setState(
+                                                  () => _selectedProdi = v,
+                                                )
+                                            : null,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ]
+                          ],
+                        ),
+
+                        // ─── DROPDOWN JURUSAN & PRODI KHUSUS MANAJEMEN ───
+                        if (isManajemen) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: SigmaColors.navy.withOpacity(0.04),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: SigmaColors.navy.withOpacity(0.1)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        const _FieldLabel(label: 'Prodi'),
-                                        const SizedBox(width: 4),
-                                        if (!_isTargetMahasiswa)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: SigmaColors.textSub
-                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              'nonaktif',
-                                              style: TextStyle(
-                                                color: SigmaColors.textSub,
-                                                fontSize: 9,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _SigmaDropdown<String>(
-                                      value: _selectedProdi,
-                                      hint: 'Semua prodi',
-                                      items: _prodiList,
-                                      labelBuilder: (e) => e,
-                                      onChanged: _isTargetMahasiswa
-                                          ? (v) => setState(
-                                              () => _selectedProdi = v,
-                                            )
-                                          : null,
+                                    Icon(Icons.business_rounded, size: 16, color: SigmaColors.navy),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Target Spesifik (Khusus Manajemen)',
+                                      style: TextStyle(
+                                        color: SigmaColors.navy,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 12),
+                                const _FieldLabel(label: 'Jurusan'),
+                                const SizedBox(height: 6),
+                                _SigmaDropdown<String>(
+                                  value: vm.selectedJurusanId,
+                                  hint: 'Pilih Jurusan...',
+                                  items: vm.listJurusan.map((j) => (j['_id'] as ObjectId).toHexString()).toList(),
+                                  labelBuilder: (id) {
+                                    try {
+                                      return vm.listJurusan.firstWhere(
+                                        (j) => (j['_id'] as ObjectId).toHexString() == id
+                                      )['nama_jurusan'].toString();
+                                    } catch (e) {
+                                      return 'Unknown';
+                                    }
+                                  },
+                                  onChanged: (val) => context.read<AdminAnnouncementViewModel>().setJurusan(val),
+                                ),
+                                const SizedBox(height: 12),
+                                const _FieldLabel(label: 'Program Studi'),
+                                const SizedBox(height: 6),
+                                _SigmaDropdown<String>(
+                                  value: vm.selectedProdiId,
+                                  hint: vm.listProdi.isEmpty ? 'Pilih Jurusan dahulu...' : 'Semua Prodi di Jurusan ini...',
+                                  items: vm.listProdi.map((p) => (p['_id'] as ObjectId).toHexString()).toList(),
+                                  labelBuilder: (id) {
+                                    try {
+                                      return vm.listProdi.firstWhere(
+                                        (p) => (p['_id'] as ObjectId).toHexString() == id
+                                      )['nama_prodi'].toString();
+                                    } catch (e) {
+                                      return 'Unknown';
+                                    }
+                                  },
+                                  onChanged: vm.listProdi.isEmpty
+                                      ? null
+                                      : (val) => context.read<AdminAnnouncementViewModel>().setProdi(val),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
+                        // ────────────────────────────────────────────────────────
+
                         const SizedBox(height: 16),
 
                         // ── Deadline (opsional) ────────────────────────────
@@ -878,18 +963,20 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         color: SigmaColors.navy.withOpacity(0.12),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.info_outline_rounded,
                           color: SigmaColors.navy,
                           size: 15,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
-                            style: TextStyle(
+                            isManajemen
+                                ? 'Pengumuman ini dapat difilter spesifik untuk Jurusan dan Prodi yang Anda pilih di atas.'
+                                : 'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
+                            style: const TextStyle(
                               color: SigmaColors.navy,
                               fontSize: 11,
                               height: 1.5,

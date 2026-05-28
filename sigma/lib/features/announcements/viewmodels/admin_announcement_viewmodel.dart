@@ -14,9 +14,18 @@ const _kBoxQueue = 'announcement_queue';
 enum SyncStatus { idle, pending, syncing, synced, failed }
 
 class AdminAnnouncementViewModel extends ChangeNotifier {
+  List<Map<String, dynamic>> _listJurusan = [];
+  List<Map<String, dynamic>> _listProdi = [];
+  String? _selectedJurusanId;
+  String? _selectedProdiId;
   List<AnnouncementModel> _announcements = [];
   bool _isLoading = false;
   bool _isSyncing = false;
+
+  List<Map<String, dynamic>> get listJurusan => _listJurusan;
+  List<Map<String, dynamic>> get listProdi => _listProdi;
+  String? get selectedJurusanId => _selectedJurusanId;
+  String? get selectedProdiId => _selectedProdiId;
 
   SyncStatus _syncStatus = SyncStatus.idle;
   Set<String> _pendingIds = {};
@@ -30,6 +39,64 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   int get pendingQueueCount => _queueBox.length;
   int get pendingAnnouncementCount => _pendingIds.length;
   bool isAnnouncementPending(String id) => _pendingIds.contains(id);
+
+  Future<void> fetchJurusan() async {
+    try {
+      final docs = await MongoDatabase.runSafe(
+        () => MongoDatabase.db.collection('jurusan').find().toList(),
+      );
+      _listJurusan = docs;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Error fetchJurusan: $e');
+    }
+  }
+
+  Future<void> fetchProdiByJurusan(String idJurusanHex) async {
+    try {
+      _selectedProdiId = null; // Reset prodi tiap kali jurusan diganti
+      
+      // Bersihkan string dari spasi tersembunyi
+      final cleanId = idJurusanHex.trim(); 
+      final objId = ObjectId.parse(cleanId);
+
+      // Gunakan query builder 'where.eq' asli dari mongo_dart
+      final docs = await MongoDatabase.runSafe(
+        // PASTIKAN NAMA COLLECTION DI BAWAH INI SAMA PERSIS DENGAN DI MONGODB COMPASS ANDA
+        () => MongoDatabase.db.collection('program_studi').find(
+          where.eq('id_jurusan', objId)
+        ).toList(),
+      );
+      
+      _listProdi = docs;
+      debugPrint('✅ Ditemukan ${docs.length} prodi untuk jurusan $cleanId');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Error fetchProdi: $e');
+    }
+  }
+
+  void setJurusan(String? id) {
+    _selectedJurusanId = id;
+    if (id != null) {
+      fetchProdiByJurusan(id);
+    } else {
+      _listProdi = [];
+      _selectedProdiId = null;
+    }
+    notifyListeners();
+  }
+
+  void setProdi(String? id) {
+    _selectedProdiId = id;
+    notifyListeners();
+  }
+
+  void clearManajemenSelections() {
+    _selectedJurusanId = null;
+    _selectedProdiId = null;
+    _listProdi = [];
+  }
 
   int get thisMonthCount {
     final now = DateTime.now();
@@ -112,54 +179,66 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     required List<String> kategoriList,
     required String target,
     required String tingkatKepentingan,
-    String namaPublisher = 'Ibu Admin TU',
-    String rolePublisher = 'ADMIN_TU',
-    List<Map<String, String>> attachments = const [],
     DateTime? deadline,
+    List<Map<String, String>> attachments = const [],
+    // ─── TAMBAHKAN 5 PARAMETER INI ───
+    String idPublisher = '',
+    String namaPublisher = 'Admin',
+    String rolePublisher = 'ADMIN_TU',
+    String? idJurusan,
+    String? idProdi,
   }) async {
-    final now = DateTime.now();
     final newId = ObjectId().toHexString();
+    final now = DateTime.now();
 
-    final model = AnnouncementModel(
+    // 1. Update UI secara lokal (agar terasa cepat tanpa loading)
+    final newAnnouncement = AnnouncementModel(
       id: newId,
       judul: judul,
       isi: isi,
       kategori: kategoriList,
       targetAudience: target,
-      idPublisher: ObjectId().toHexString(),
-      namaPublisher: namaPublisher,
-      rolePublisher: rolePublisher,
       tingkatKepentingan: tingkatKepentingan,
+      attachments: attachments,
       createdAt: now,
       updatedAt: now,
-      attachments: attachments,
+      // Masukkan data publisher & jurusan/prodi ke model lokal
+      idPublisher: idPublisher,
+      namaPublisher: namaPublisher,
+      rolePublisher: rolePublisher,
+      idJurusan: idJurusan,
+      idProdi: idProdi,
     );
-    await _announcementsBox.put(newId, model);
-    _loadFromLocal();
 
-    await _queueBox.add({
-      'operation': 'create',
-      'id': newId,
-      'judul': judul,
-      'isi': isi,
-      'kategoriList': kategoriList,
-      'target': target,
-      'tingkatKepentingan': tingkatKepentingan,
-      'namaPublisher': namaPublisher,
-      'rolePublisher': rolePublisher,
-      'createdAt': now.toIso8601String(),
-      'deadline': deadline?.toIso8601String(),
-      'attachments': attachments,
-    });
-
+    _announcements.insert(0, newAnnouncement);
     _pendingIds.add(newId);
-    _syncStatus = SyncStatus.pending;
     notifyListeners();
 
-    await _drainQueue();
+    // 2. Simpan ke Queue (Antrean Hive) untuk background sync
+    await _queueBox.put(newId, {
+      'id': newId,
+      'action': 'create',
+      'judul': judul,
+      'isi': isi,
+      'kategori': kategoriList,
+      'target': target,
+      'tingkat_kepentingan': tingkatKepentingan,
+      if (deadline != null) 'deadline': deadline.toIso8601String(),
+      'attachments': attachments,
+      'timestamp': now.toIso8601String(),
+
+      // ─── SIMPAN DATA INI KE QUEUE ───
+      'id_publisher': idPublisher,
+      'nama_publisher': namaPublisher,
+      'role_publisher': rolePublisher,
+      'id_jurusan': idJurusan,
+      'id_prodi': idProdi,
+    });
+
+    // 3. Panggil proses upload
+    _drainQueue();
   }
 
-  // ─── Queue drain ──────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -180,7 +259,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       final op = Map<String, dynamic>.from(raw);
 
       try {
-        if (op['operation'] == 'create') {
+        if (op['operation'] == 'create' || op['action'] == 'create') {
           List<String> kategoriList = [];
           if (op['kategoriList'] is List) {
             kategoriList = List<String>.from(op['kategoriList']);
@@ -188,39 +267,72 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             kategoriList = [op['kategori'].toString()];
           }
 
+          final doc = {
+            // ─── GANTI MENJADI ObjectId.parse ───
+            '_id': ObjectId.parse(op['id']),
+            'judul': op['judul'],
+            'isi': op['isi'],
+            'kategori': kategoriList,
+            'target_audience': op['target'] ?? op['target_audience'],
+            'tingkat_kepentingan':
+                op['tingkat_kepentingan'] ??
+                op['tingkatKepentingan'] ??
+                'BIASA',
+            'created_at': DateTime.parse(op['timestamp'] ?? op['createdAt']),
+            'updated_at': DateTime.parse(op['timestamp'] ?? op['createdAt']),
+            'attachments': op['attachments'] ?? [],
+            if (op['deadline'] != null)
+              'deadline': DateTime.parse(op['deadline']),
+
+            // ─── GANTI MENJADI ObjectId.parse ───
+            'id_publisher':
+                (op['id_publisher'] != null &&
+                    op['id_publisher'].toString().isNotEmpty)
+                ? ObjectId.parse(op['id_publisher'])
+                : (op['idPublisher'] != null &&
+                      op['idPublisher'].toString().isNotEmpty)
+                ? ObjectId.parse(op['idPublisher'])
+                : ObjectId(),
+            'nama_publisher':
+                op['nama_publisher'] ?? op['namaPublisher'] ?? 'Admin',
+            'role_publisher':
+                op['role_publisher'] ?? op['rolePublisher'] ?? 'ADMIN_TU',
+          };
+
+          // ─── GANTI MENJADI ObjectId.parse ───
+          if (op['id_jurusan'] != null &&
+              op['id_jurusan'].toString().isNotEmpty) {
+            doc['id_jurusan'] = ObjectId.parse(op['id_jurusan']);
+          } else if (op['idJurusan'] != null &&
+              op['idJurusan'].toString().isNotEmpty) {
+            doc['id_jurusan'] = ObjectId.parse(op['idJurusan']);
+          }
+
+          if (op['id_prodi'] != null && op['id_prodi'].toString().isNotEmpty) {
+            doc['id_prodi'] = ObjectId.parse(op['id_prodi']);
+          } else if (op['idProdi'] != null &&
+              op['idProdi'].toString().isNotEmpty) {
+            doc['id_prodi'] = ObjectId.parse(op['idProdi']);
+          }
+
           await MongoDatabase.runSafe(
-            () => MongoDatabase.announcementsCollection.insertOne({
-              '_id': ObjectId.fromHexString(op['id']),
-              'judul': op['judul'],
-              'isi': op['isi'],
-              'kategori': kategoriList,
-              'target_audience': op['target'],
-              'id_publisher': ObjectId(),
-              'nama_publisher': op['namaPublisher'],
-              'role_publisher': op['rolePublisher'],
-              'tingkat_kepentingan': op['tingkatKepentingan'] ?? 'BIASA',
-              'created_at': DateTime.parse(op['createdAt']),
-              'updated_at': DateTime.parse(op['createdAt']),
-              'attachments': op['attachments'] ?? [],
-              if (op['deadline'] != null)
-                'deadline': DateTime.parse(op['deadline']),
-            }),
+            () => MongoDatabase.announcementsCollection.insertOne(doc),
           );
 
           await FcmSenderService.sendNotificationToTarget(
             judul: op['judul'],
             isi: op['isi'],
             module: 'pengumuman',
-            targetAudience: op['target'],
+            targetAudience: op['target'] ?? op['target_audience'],
           );
         }
 
         await _queueBox.delete(key);
         final syncedId = op['id']?.toString();
         if (syncedId != null) _pendingIds.remove(syncedId);
-        debugPrint(' Announcement queue item $key synced');
+        debugPrint(' ✅ Announcement queue item $key synced');
       } catch (e) {
-        debugPrint(' AdminAnnouncementViewModel._drainQueue key=$key: $e');
+        debugPrint(' ❌ AdminAnnouncementViewModel._drainQueue key=$key: $e');
         allSuccess = false;
         break;
       }

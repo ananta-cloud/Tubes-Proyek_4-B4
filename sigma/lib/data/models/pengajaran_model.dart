@@ -9,64 +9,74 @@ class PengajaranModel extends HiveObject {
   final String id;
 
   @HiveField(1)
-  final String idDosen;
+  final String kodeDosen;
 
   @HiveField(2)
-  final String idMk;
+  final String kodeMk;
 
   @HiveField(3)
   final String namaMk;
 
   @HiveField(4)
-  final String kodeMk;
-
-  @HiveField(5)
   final List<String> targetKelas;
 
   PengajaranModel({
     required this.id,
-    required this.idDosen,
-    required this.idMk,
-    required this.namaMk,
+    required this.kodeDosen,
     required this.kodeMk,
+    required this.namaMk,
     required this.targetKelas,
   });
 
   factory PengajaranModel.fromMongo(Map<String, dynamic> json) {
+    // Helper ekstraksi ID yang lebih tangguh (kebal terhadap format aneh)
     String extractId(dynamic field) {
       if (field == null) return '';
       if (field is ObjectId) return field.toHexString();
-      if (field is Map && field.containsKey('\$oid')) return field['\$oid'];
-      return field
-          .toString()
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '')
-          .trim();
+      return field.toString().replaceAll('ObjectId("', '').replaceAll('")', '').trim();
     }
 
-    // 🔥 LOGIKA PARSING ARRAY OF OBJECTID
     List<String> parsedKelasIds = [];
     var targetData = json['target_kelas'];
 
-    try {
-      if (targetData is List) {
-        // Looping isi array dan ekstrak OID-nya satu per satu
-        parsedKelasIds = targetData.map((e) => extractId(e)).toList();
-      } else if (targetData != null) {
-        parsedKelasIds = [extractId(targetData)];
+    if (targetData is List) {
+      for (var item in targetData) {
+        if (item is ObjectId) {
+          parsedKelasIds.add(item.toHexString()); // Ubah ObjectId ke String Hex
+        } else if (item != null) {
+          parsedKelasIds.add(item.toString());
+        }
       }
-    } catch (e) {
-      print("⚠️ Gagal parsing kelas: $e");
     }
 
     return PengajaranModel(
       id: extractId(json['_id']),
-      idDosen: extractId(json['id_dosen']),
-      idMk: extractId(json['id_mk']),
-      namaMk: json['nama_mk']?.toString() ?? '',
+      kodeDosen: json['kode_dosen']?.toString() ?? '',
       kodeMk: json['kode_mk']?.toString() ?? '',
-      targetKelas:
-          parsedKelasIds, // Sekarang ini berisi List ID Kelas, bukan nama kelas!
+      namaMk: json['nama_mk']?.toString() ?? '',
+      targetKelas: parsedKelasIds, // Menyimpan kumpulan ID kelas berbentuk String Hex
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      // Sangat disarankan menyertakan _id jika toJson ini dipakai untuk UPDATE data ke MongoDB
+      if (id.isNotEmpty && id.length == 24) 
+        '_id': ObjectId.fromHexString(id),
+        
+      'kode_dosen': kodeDosen,
+      'kode_mk': kodeMk,
+      'nama_mk': namaMk,
+      'target_kelas': targetKelas.map((kelasId) {
+        try {
+          if (kelasId.length == 24) {
+            return ObjectId.fromHexString(kelasId);
+          }
+          return kelasId; 
+        } catch (e) {
+          return kelasId; 
+        }
+      }).toList(),
+    };
   }
 }
