@@ -95,19 +95,40 @@ class ScheduleRequestService {
       final cleanId = idJurusan
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
-      final schedules = await _schCol
+      print('DEBUG idJurusan=$cleanId');
+
+      // Step 1: ambil dosen dari jurusan
+      final dosenList = await MongoDatabase.db
+          .collection('dosen')
           .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanId)))
           .toList();
+      print('DEBUG dosenList=${dosenList.length}');
+      if (dosenList.isEmpty) return _loadCache(idJurusan, statusKey);
 
-      final scheduleIds = schedules.map((s) => s['_id']).toList();
-      if (scheduleIds.isEmpty) return [];
+      final kodeDosens = dosenList
+          .map((d) => d['kode_dosen']?.toString())
+          .where((k) => k != null)
+          .toList();
+      print('DEBUG kodeDosens=$kodeDosens');
 
-      final selector = where.oneFrom('id_schedule', scheduleIds);
+      // Step 2: ambil schedules milik dosen tersebut
+      final schedules = await _schCol
+          .find(where.oneFrom('kode_dosen', kodeDosens))
+          .toList();
+      print('DEBUG schedules=${schedules.length}');
+      if (schedules.isEmpty) return _loadCache(idJurusan, statusKey);
+
+      final objectIdList = schedules.map((s) => s['_id'] as ObjectId).toList();
+      final scheduleMap = {for (var s in schedules) s['_id'].toString(): s};
+      print('DEBUG scheduleIds count=${objectIdList.length}');
+
+      // Step 3: ambil requests
+      final selector = where.oneFrom('id_schedule', objectIdList);
       if (status != null && status != 'SEMUA') selector.eq('status', status);
       selector.sortBy('created_at', descending: true);
 
       final requests = await _reqCol.find(selector).toList();
-      final scheduleMap = {for (var s in schedules) s['_id'].toString(): s};
+      print('DEBUG requests=${requests.length}');
 
       final result = requests.map((r) {
         final jadwal = scheduleMap[r['id_schedule']?.toString()];
@@ -117,6 +138,7 @@ class ScheduleRequestService {
       _saveCache(idJurusan, statusKey, result);
       return result;
     } catch (e) {
+      print('getRequests ERROR: $e');
       return _loadCache(idJurusan, statusKey);
     }
   }
