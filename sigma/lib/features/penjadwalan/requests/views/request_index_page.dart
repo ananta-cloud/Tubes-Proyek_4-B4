@@ -89,6 +89,11 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
       ),
       body: Column(
         children: [
+          if (ctrl.isOffline)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: OfflineBanner(),
+            ),
           // ── Stats Cards ──────────────────────────────
           Container(
             color: Colors.white,

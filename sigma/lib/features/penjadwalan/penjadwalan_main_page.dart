@@ -8,6 +8,8 @@ import 'package:sigma/shared/app_colors.dart';
 import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:provider/provider.dart';
+import 'package:sigma/features/penjadwalan/viewmodels/schedule_request_controller.dart';
+import 'package:sigma/shared/widgets/offline_banner.dart';
 
 class PenjadwalanMainPage extends StatefulWidget {
   final UserModel user;
@@ -40,10 +42,17 @@ class _PenjadwalanMainPageState extends State<PenjadwalanMainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = context.watch<ScheduleRequestController>();
+
     return Scaffold(
       backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
+          if (ctrl.isOffline)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: OfflineBanner(),
+            ),
           PageHeader(
             title: 'Tim Penjadwalan',
             subtitle: widget.user.nama,
