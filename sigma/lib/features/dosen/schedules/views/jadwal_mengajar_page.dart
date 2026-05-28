@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sigma/theme/app_colors.dart';
+import 'package:sigma/shared/app_colors.dart';
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'package:sigma/features/dosen/schedules/widgets/jadwal_card.dart';

@@ -8,17 +8,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'package:sigma/data/services/dosen_request_service.dart';
-import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
-import 'package:intl/date_symbol_data_local.dart';
-
 // ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';
 
 // ================= IMPORT UI =================
 import 'features/auth/views/login_page.dart';
-import 'package:sigma/features/dosen/schedules/views/jadwal_mengajar_page.dart';
-import 'features/auth/views/auth_gate.dart';
 
 // ================= IMPORT MODELS =================
 import 'data/models/schedule_local_model.dart';
@@ -32,15 +26,14 @@ import 'data/models/dosen_model.dart';
 import 'data/models/tpj_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
-import 'data/services/schedule_service.dart';
 import 'data/services/announcement_service.dart';
 import 'data/repositories/auth_repository.dart';
-import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
 import 'data/services/schedule_request_service.dart';
+import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
+import 'package:sigma/data/services/dosen_request_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
-// import 'features/dosen/schedules/viewmodels/schedule_viewmodel.dart';
 import 'features/mahasiswa/tasks/viewmodels/task_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart';
@@ -48,11 +41,7 @@ import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_view
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/viewmodels/admin_announcement_viewmodel.dart';
 import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_viewmodel.dart';
-// import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
-import 'package:sigma/features/admin_tu/main/viewmodels/admin_main_viewodel.dart';
-import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_viewmodel.dart';
-// import 'features/admin_tu/announcements/viewmodels/announcement_viewmodel.dart';
-import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_viewmodel.dart';
+import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'features/penjadwalan/viewmodels/schedule_request_controller.dart';
 
 void main() async {
@@ -113,11 +102,11 @@ void main() async {
   await Hive.openBox<ScheduleModel>('admin_schedules');
   await Hive.openBox<Map>('schedule_queue');
   await Hive.openBox<PengajaranModel>('pengajaran');
+  await ScheduleRequestService.openBoxes();
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();
 
-  // Isi cache dosen dari MongoDB (best-effort — tidak fatal jika offline)
   await DosenCacheService.warmUp();
   await MongoDatabase.connect();
   runApp(
@@ -140,6 +129,10 @@ void main() async {
 
         ChangeNotifierProvider(
           create: (_) => DosenRequestController(DosenRequestService()),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => ScheduleRequestController(ScheduleRequestService()),
         ),
       ],
       child: const MyApp(),
@@ -213,6 +206,9 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
       await announcementVM.syncAnnouncements();
       await taskVM.syncTasks(user);
       await scheduleVM.syncSchedules();
+    }
+    if (user != null && user.role == 'TIM_PENJADWALAN') {
+      await context.read<ScheduleRequestController>().onConnectionRestored();
     }
   }
 

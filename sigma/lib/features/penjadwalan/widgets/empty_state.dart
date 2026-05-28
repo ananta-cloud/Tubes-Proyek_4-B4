@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sigma/theme/app_colors.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 class EmptyState extends StatelessWidget {
   final String filter;

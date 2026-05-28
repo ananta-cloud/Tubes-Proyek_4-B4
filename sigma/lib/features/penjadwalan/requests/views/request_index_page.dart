@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:sigma/features/penjadwalan/viewmodels/schedule_request_controller.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
 import 'request_detail_page.dart';
+import 'package:sigma/features/dosen/requests/views/widgets/offline_banner.dart';
 
 import 'package:sigma/data/models/user_model.dart';
-import 'package:sigma/theme/app_colors.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 import '../../widgets/status_badge.dart';
 import '../../widgets/tipe_badge.dart';
@@ -41,6 +42,28 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
   Widget build(BuildContext context) {
     final ctrl = context.watch<ScheduleRequestController>();
 
+    if (ctrl.justSynced) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.cloud_done, color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Flexible(child: Text('Request berhasil tersinkronisasi')),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          ctrl.clearSyncFlag();
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.slate50,
       appBar: AppBar(
@@ -63,7 +86,7 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
       ),
       body: Column(
         children: [
-          // ── Stats Cards ────────────────────────────────────
+          // ── Stats Cards ──────────────────────────────
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -96,7 +119,7 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
             ),
           ),
 
-          // ── Filter Tabs ────────────────────────────────────
+          // ── Filter Tabs ──────────────────────────────
           Container(
             color: Colors.white,
             padding: const EdgeInsets.only(left: 12, bottom: 12, top: 4),
@@ -143,7 +166,7 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
 
           const SizedBox(height: 4),
 
-          // ── List ──────────────────────────────────────────
+          // ── List ─────────────────────────────────────
           Expanded(
             child: ctrl.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -153,10 +176,19 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
                     onRefresh: () => ctrl.loadRequests(widget.idJurusan),
                     child: ListView.separated(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-                      itemCount: ctrl.requests.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemCount:
+                          ctrl.requests.length + (ctrl.isOffline ? 1 : 0),
+                      separatorBuilder: (_, i) => i == 0 && ctrl.isOffline
+                          ? const SizedBox.shrink()
+                          : const SizedBox(height: 8),
                       itemBuilder: (_, i) {
-                        final req = ctrl.requests[i];
+                        if (ctrl.isOffline && i == 0) {
+                          return const Padding(
+                            padding: EdgeInsets.only(bottom: 4),
+                            child: OfflineBanner(),
+                          );
+                        }
+                        final req = ctrl.requests[ctrl.isOffline ? i - 1 : i];
                         return _RequestCard(
                           request: req,
                           onDetail: () => Navigator.push(
