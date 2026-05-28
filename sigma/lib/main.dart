@@ -179,8 +179,15 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     Connectivity().onConnectivityChanged.listen((result) {
       final isOffline = (result as List).contains(ConnectivityResult.none);
 
+      if (isOffline) {
+        MongoDatabase.isOffline = true;
+        if (mounted) {
+          context.read<ScheduleRequestController>().setOffline(true);
+        }
+      }
+
       if (_wasOffline && !isOffline) {
-        debugPrint(' Koneksi kembali online, memulai sync...');
+        debugPrint('Koneksi kembali online, memulai sync...');
         _syncAll();
       }
       _wasOffline = isOffline;

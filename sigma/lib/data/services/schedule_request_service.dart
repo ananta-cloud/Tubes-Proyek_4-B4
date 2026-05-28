@@ -35,13 +35,10 @@ class ScheduleRequestService {
     final raw = box.get(key);
     if (raw == null) return [];
     final list = (raw['data'] as List?) ?? [];
-    return list
-        .map(
-          (m) => ScheduleRequestModel.fromJson(
-            Map<String, dynamic>.from(m as Map),
-          ),
-        )
-        .toList();
+    return list.map((m) {
+      final map = Map<String, dynamic>.from(m as Map);
+      return ScheduleRequestModel.fromJson(map, jadwal: map);
+    }).toList();
   }
 
   Map<String, dynamic> _modelToMap(ScheduleRequestModel r) => {
@@ -59,7 +56,9 @@ class ScheduleRequestService {
     'is_late': r.isLate,
     'created_at': r.createdAt?.toIso8601String(),
     'updated_at': r.updatedAt?.toIso8601String(),
+    // field jadwal
     'nama_matkul': r.namaMk,
+    'nama_mk': r.namaMk,
     'kode_mk': r.kodeMk,
     'hari': r.hariJadwal,
     'jam_mulai': r.jamMulaiJadwal,
@@ -95,6 +94,8 @@ class ScheduleRequestService {
       final cleanId = idJurusan
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
+      await MongoDatabase.ensureConnected();
+
       print('DEBUG idJurusan=$cleanId');
 
       // Step 1: ambil dosen dari jurusan
@@ -134,7 +135,16 @@ class ScheduleRequestService {
         final jadwal = scheduleMap[r['id_schedule']?.toString()];
         return ScheduleRequestModel.fromJson(r, jadwal: jadwal);
       }).toList();
-
+      if (requests.isNotEmpty) {
+        final r = requests.first;
+        final idSch = r['id_schedule'];
+        print('DEBUG id_schedule=$idSch type=${idSch.runtimeType}');
+        print(
+          'DEBUG scheduleMap keys sample=${scheduleMap.keys.take(3).toList()}',
+        );
+        final jadwal = scheduleMap[idSch?.toString()];
+        print('DEBUG jadwal lookup=$jadwal');
+      }
       _saveCache(idJurusan, statusKey, result);
       return result;
     } catch (e) {

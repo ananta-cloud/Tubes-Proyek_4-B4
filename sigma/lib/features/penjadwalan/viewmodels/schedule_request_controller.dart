@@ -9,7 +9,7 @@ class ScheduleRequestController extends ChangeNotifier {
 
   List<ScheduleRequestModel> requests = [];
   bool isLoading = false;
-  bool isOffline = false;
+  bool isOffline = MongoDatabase.isOffline;
   bool justSynced = false;
   String? errorMsg;
 
@@ -28,6 +28,7 @@ class ScheduleRequestController extends ChangeNotifier {
     _setLoading(true);
     errorMsg = null;
     isOffline = MongoDatabase.isOffline;
+    debugPrint('DEBUG loadRequests isOffline=$isOffline');
 
     try {
       requests = await service.getRequests(
@@ -39,6 +40,8 @@ class ScheduleRequestController extends ChangeNotifier {
       await _loadStats(idJurusan);
     } catch (e) {
       isOffline = true;
+      debugPrint('DEBUG loadRequests catch isOffline=$isOffline');
+
       errorMsg = e.toString();
     }
 
@@ -104,6 +107,14 @@ class ScheduleRequestController extends ChangeNotifier {
   // SYNC (dipanggil dari _ConnectivityListener)
   // ─────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
+    int retries = 0;
+    while (MongoDatabase.isOffline && retries < 5) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      retries++;
+    }
+
+    if (MongoDatabase.isOffline) return;
+
     final synced = await service.flushQueue();
     if (_lastIdJurusan != null) {
       await loadRequests(_lastIdJurusan!);
@@ -121,6 +132,12 @@ class ScheduleRequestController extends ChangeNotifier {
 
   void _setLoading(bool val) {
     isLoading = val;
+    notifyListeners();
+  }
+
+  void setOffline(bool value) {
+    if (isOffline == value) return;
+    isOffline = value;
     notifyListeners();
   }
 }

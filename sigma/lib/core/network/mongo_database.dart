@@ -66,17 +66,20 @@ class MongoDatabase {
 
   static Future<void> ensureConnected() async {
     try {
-      if (db.state != State.OPEN) {
-        await db.close().catchError((_) {});
-        await db.open();
+      if (db.state == State.OPEN) {
+        await db.serverStatus();
+        isOffline = false;
         return;
       }
-      await db.serverStatus();
+
+      await connect();
     } catch (e) {
       try {
-        await db.close().catchError((_) {});
-      } catch (_) {}
-      await db.open();
+        await connect();
+        isOffline = false;
+      } catch (_) {
+        isOffline = true;
+      }
     }
   }
 
