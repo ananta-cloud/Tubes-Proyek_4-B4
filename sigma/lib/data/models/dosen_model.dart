@@ -3,22 +3,36 @@ import 'package:mongo_dart/mongo_dart.dart' hide Box;
 
 part 'dosen_model.g.dart';
 
-@HiveType(typeId: 7) 
+// ─────────────────────────────────────────────────────────────────────────────
+//  DosenModel
+//
+//  Sesuai struktur collection `dosen` di MongoDB:
+//  {
+//    "_id"        : ObjectId("..."),
+//    "user_id"    : ObjectId("..."),   ← referensi ke collection users
+//    "kode_dosen" : "Kode dosen",
+//    "nama_dosen" : "Nama dosen",
+//    "id_jurusan" : ObjectId("..."),
+//    "created_at" : ISODate("..."),
+//    "updated_at" : ISODate("...")
+//  }
+// ─────────────────────────────────────────────────────────────────────────────
+@HiveType(typeId: 7)
 class DosenModel extends HiveObject {
   @HiveField(0)
   final String id;
 
   @HiveField(1)
-  final String userId; 
+  final String userId;
 
   @HiveField(2)
-  final String kodeDosen; 
+  final String kodeDosen;
 
   @HiveField(3)
-  final String namaDosen; 
+  final String namaDosen;
 
   @HiveField(4)
-  final String idJurusan; 
+  final String idJurusan;
 
   @HiveField(5)
   final DateTime createdAt;
@@ -40,7 +54,6 @@ class DosenModel extends HiveObject {
     this.email = '', 
   });
 
-  // ── Dari dokumen MongoDB ──────────────────────────────────────────────────
   factory DosenModel.fromMongo(Map<String, dynamic> map) {
     String parseId(dynamic v) {
       if (v == null) return '';
@@ -68,7 +81,6 @@ class DosenModel extends HiveObject {
     );
   }
 
-  // ── Ke format MongoDB ─────────────────────────────────────────────────────
   Map<String, dynamic> toMongoMap() {
     final map = <String, dynamic>{
       'kode_dosen': kodeDosen,

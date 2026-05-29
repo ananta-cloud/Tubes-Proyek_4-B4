@@ -22,7 +22,7 @@ class MataKuliahService {
       );
       return data.map((e) => MataKuliahModel.fromJson(e)).toList();
     } catch (e) {
-      print("🔥 Error Get Mata Kuliah: $e");
+      print("Error Get Mata Kuliah: $e");
       return [];
     }
   }
@@ -35,7 +35,7 @@ class MataKuliahService {
       );
       return data.map((e) => MataKuliahModel.fromJson(e)).toList();
     } catch (e) {
-      print("🔥 Error Get All Mata Kuliah: $e");
+      print("Error Get All Mata Kuliah: $e");
       return [];
     }
   }

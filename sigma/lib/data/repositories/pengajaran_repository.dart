@@ -7,19 +7,18 @@ class PengajaranRepository {
   final PengajaranService _service = PengajaranService();
   final Box<PengajaranModel> _box = Hive.box<PengajaranModel>('pengajaran');
 
-  // Ambil data dari lokal (Instan)
   List<PengajaranModel> getLocalPengajaran(String idDosen) {
     return _box.values.where((p) => p.kodeDosen == idDosen).toList();
   }
 
-  // Sinkronisasi dari Cloud ke Lokal (Background)
+  // Sinkronisasi dari Cloud ke Lokal
   Future<void> syncPengajaran(String idDosen) async {
     final connectivity = await Connectivity().checkConnectivity();
     if ((connectivity as List).contains(ConnectivityResult.none)) return;
 
     try {
       final remoteData = await _service.getPengajaranByDosen(idDosen);
-      
+
       // Update data di Hive
       for (var json in remoteData) {
         final model = PengajaranModel.fromMongo(json);

@@ -15,7 +15,6 @@ class AnnouncementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Definisi warna (Sesuaikan jika Anda sudah memiliki file tema terpisah)
     final Color primaryBlue = Colors.blue.shade700;
     final Color accentOrange = Colors.orange.shade600;
     const Color darkText = Colors.black87;
@@ -37,7 +36,7 @@ class AnnouncementCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: onTap, // Aksi klik dikendalikan dari parameter
+      onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),
         decoration: BoxDecoration(
@@ -59,7 +58,7 @@ class AnnouncementCard extends StatelessWidget {
               children: [
                 // Garis Indikator di Kiri
                 Container(width: 6, color: indikatorWarna),
-                
+
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -80,7 +79,10 @@ class AnnouncementCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                announcement.targetAudience.replaceAll('_', ' '),
+                                announcement.targetAudience.replaceAll(
+                                  '_',
+                                  ' ',
+                                ),
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -166,7 +168,11 @@ class AnnouncementCard extends StatelessWidget {
                             const Spacer(),
                             // Ikon Edit Khusus Dosen
                             if (isLecturer)
-                              const Icon(Icons.edit, size: 16, color: Colors.blue),
+                              const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
                           ],
                         ),
                       ],

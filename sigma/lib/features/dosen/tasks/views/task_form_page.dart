@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+// import 'package:file_picker/file_picker.dart';
 import '../viewmodels/task_form_viewmodel.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
@@ -11,6 +11,7 @@ import '../../../../core/network/mongo_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' show where;
 import 'package:hive/hive.dart';
+import 'package:sigma/shared/app_colors.dart';
 
 class TaskFormPage extends StatefulWidget {
   final TaskModel? taskToEdit;
@@ -23,49 +24,52 @@ class TaskFormPage extends StatefulWidget {
 
 class _TaskFormPageState extends State<TaskFormPage> {
   // Warna Tema SIGMA
-  static const primaryBlue = Color(0xFF1F1F3D);
+  // static const navyDark = Color(0xFF1F1F3D);
   static const secondaryBlue = Color(0xFF3F5DB3);
-  static const accentOrange = Color(0xFFFF7A36);
-  static const bgColor = Color(0xFFEAF3FA);
+
+  // static const bgColor = Color(0xFFEAF3FA);
 
   late TaskFormViewModel _viewModel;
 
- @override
+  @override
   void initState() {
-  super.initState();
-  
-  _viewModel = Provider.of<TaskFormViewModel>(context, listen: false);
+    super.initState();
 
-  // 💡 BUNGKUS SEMUANYA DI DALAM POST FRAME CALLBACK
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    
-    // Setup form
-    if (widget.taskToEdit != null) {
-      _viewModel.initializeForEdit(widget.taskToEdit!); 
-    } else {
-      _viewModel.clearForm(); 
-    }
+    _viewModel = Provider.of<TaskFormViewModel>(context, listen: false);
 
-    // Load data dosen
-    final user = context.read<LoginViewModel>().user;
-    if (user != null && mounted) {
-      _loadDosenOfflineFirst(user);
-    }
-  });
-}
+    // 💡 BUNGKUS SEMUANYA DI DALAM POST FRAME CALLBACK
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Setup form
+      if (widget.taskToEdit != null) {
+        _viewModel.initializeForEdit(widget.taskToEdit!);
+      } else {
+        _viewModel.clearForm();
+      }
 
+      // Load data dosen
+      final user = context.read<LoginViewModel>().user;
+      if (user != null && mounted) {
+        _loadDosenOfflineFirst(user);
+      }
+    });
+  }
 
   Future<void> _loadDosenOfflineFirst(user) async {
     try {
       final box = Hive.box<DosenModel>('dosen_box');
-      
+
       // 1. CARI DI LOKAL DULU (Pasti sangat cepat & bisa tanpa internet)
-      final localDosen = box.values.where((d) => d.email.trim().toLowerCase() == user.email.trim().toLowerCase()).toList();
+      final localDosen = box.values
+          .where(
+            (d) =>
+                d.email.trim().toLowerCase() == user.email.trim().toLowerCase(),
+          )
+          .toList();
 
       if (localDosen.isNotEmpty) {
         final dosen = localDosen.first;
         print("⚡ [LOKAL] Profil dosen dimuat dari Hive: ${dosen.namaDosen}");
-        
+
         // Langsung tampilkan di UI!
         _viewModel.loadPengajaran(dosen, taskToEdit: widget.taskToEdit);
 
@@ -73,41 +77,57 @@ class _TaskFormPageState extends State<TaskFormPage> {
         _syncDosenFromMongoBackground(user.email, box);
       } else {
         // 2. JIKA DI LOKAL KOSONG, PAKSA TARIK DARI MONGODB
-        print("☁️ [CLOUD] Cache kosong. Mencoba menarik profil dosen dari MongoDB...");
-        await _syncDosenFromMongoBackground(user.email, box, forceLoadToUI: true);
+        print(
+          "☁️ [CLOUD] Cache kosong. Mencoba menarik profil dosen dari MongoDB...",
+        );
+        await _syncDosenFromMongoBackground(
+          user.email,
+          box,
+          forceLoadToUI: true,
+        );
       }
     } catch (e) {
       print("⚠️ Error Offline-First Dosen: $e");
     }
   }
 
-  Future<void> _syncDosenFromMongoBackground(String email, Box<DosenModel> box, {bool forceLoadToUI = false}) async {
+  Future<void> _syncDosenFromMongoBackground(
+    String email,
+    Box<DosenModel> box, {
+    bool forceLoadToUI = false,
+  }) async {
     try {
       final dosenDoc = await MongoDatabase.runSafe(
         () => MongoDatabase.dosenCollection.findOne(where.eq('email', email)),
       );
-      
+
       if (dosenDoc != null) {
         final dosen = DosenModel.fromMongo(dosenDoc);
-        
-        await box.put(dosen.id, dosen); 
+
+        await box.put(dosen.id, dosen);
 
         if (forceLoadToUI) {
-          print("✅ [CLOUD] Dosen ditarik & disimpan ke lokal: ${dosen.namaDosen} (Kode: ${dosen.kodeDosen})");
+          print(
+            "✅ [CLOUD] Dosen ditarik & disimpan ke lokal: ${dosen.namaDosen} (Kode: ${dosen.kodeDosen})",
+          );
           _viewModel.loadPengajaran(dosen, taskToEdit: widget.taskToEdit);
         } else {
-          print("🔄 [SYNC] Cache profil dosen berhasil diperbarui di background.");
+          print(
+            "🔄 [SYNC] Cache profil dosen berhasil diperbarui di background.",
+          );
         }
       } else {
-        print("❌ [CLOUD] Dosen dengan email '$email' tidak ditemukan di database MongoDB.");
+        print(
+          "❌ [CLOUD] Dosen dengan email '$email' tidak ditemukan di database MongoDB.",
+        );
       }
     } catch (e) {
       print("🔌 [ERROR MONGO] Gagal menarik data dari server: $e");
     }
   }
 
- @override
-  void dispose() {    
+  @override
+  void dispose() {
     super.dispose();
   }
 
@@ -232,7 +252,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back_ios_new,
-              color: primaryBlue,
+              color: AppColors.navyDark,
               size: 20,
             ),
             onPressed: () => Navigator.pop(context),
@@ -240,14 +260,13 @@ class _TaskFormPageState extends State<TaskFormPage> {
           title: Text(
             isEditMode ? "Edit Tugas" : "Buat Tugas Baru",
             style: const TextStyle(
-              color: primaryBlue,
+              color: AppColors.navyDark,
               fontWeight: FontWeight.bold,
             ),
           ),
           centerTitle: true,
         ),
         body: Consumer<TaskFormViewModel>(
-          
           builder: (context, viewModel, child) => SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -267,7 +286,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                    viewModel.availableKelasList.isEmpty
+                viewModel.availableKelasList.isEmpty
                     ? const Padding(
                         padding: EdgeInsets.symmetric(vertical: 10),
                         child: Text(
@@ -277,21 +296,21 @@ class _TaskFormPageState extends State<TaskFormPage> {
                             fontStyle: FontStyle.italic,
                           ),
                         ),
-                      ):
-                TextField(
-                  controller: _viewModel.deskripsiController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: "Deskripsi Tugas (Opsional)",
-                    prefixIcon: const Icon(
-                      Icons.description,
-                      color: secondaryBlue,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
+                      )
+                    : TextField(
+                        controller: _viewModel.deskripsiController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: "Deskripsi Tugas (Opsional)",
+                          prefixIcon: const Icon(
+                            Icons.description,
+                            color: secondaryBlue,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                 const SizedBox(height: 20),
 
                 // =========================================================================
@@ -334,25 +353,30 @@ class _TaskFormPageState extends State<TaskFormPage> {
                         ),
                       ),
                       child: DropdownButtonHideUnderline(
-                       child: DropdownButton<String>(
-                        isExpanded: true,
-                        // CEK APAKAH VALUE ADA DI LIST, JIKA TIDAK BERI NULL
-                        value: viewModel.uniqueMatkulList.contains(viewModel.selectedMatkulDisplay) 
-                              ? viewModel.selectedMatkulDisplay 
-                              : null, 
-                        hint: Text(viewModel.uniqueMatkulList.isEmpty 
-                                  ? "Belum ada kelas yang Anda ajar" 
-                                  : "Pilih Mata Kuliah"),
-                        items: viewModel.uniqueMatkulList.map((matkulString) {
-                          return DropdownMenuItem<String>(
-                            value: matkulString,
-                            child: Text(matkulString),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          viewModel.selectMatkul(newValue);
-                        },
-                      ),
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          // CEK APAKAH VALUE ADA DI LIST, JIKA TIDAK BERI NULL
+                          value:
+                              viewModel.uniqueMatkulList.contains(
+                                viewModel.selectedMatkulDisplay,
+                              )
+                              ? viewModel.selectedMatkulDisplay
+                              : null,
+                          hint: Text(
+                            viewModel.uniqueMatkulList.isEmpty
+                                ? "Belum ada kelas yang Anda ajar"
+                                : "Pilih Mata Kuliah",
+                          ),
+                          items: viewModel.uniqueMatkulList.map((matkulString) {
+                            return DropdownMenuItem<String>(
+                              value: matkulString,
+                              child: Text(matkulString),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            viewModel.selectMatkul(newValue);
+                          },
+                        ),
                       ),
                     );
                   },
@@ -410,7 +434,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? Colors.white
-                                        : primaryBlue,
+                                        : AppColors.navyDark,
                                     fontWeight: isSelected
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -456,7 +480,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       labelText: "Deadline Tugas",
                       prefixIcon: const Icon(
                         Icons.access_time_filled,
-                        color: accentOrange,
+                        color: AppColors.gold,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -468,7 +492,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                           : "Pilih Tanggal & Waktu",
                       style: TextStyle(
                         color: viewModel.selectedDeadline != null
-                            ? primaryBlue
+                            ? AppColors.navyDark
                             : Colors.grey.shade600,
                         fontSize: 16,
                       ),
@@ -486,7 +510,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: primaryBlue,
+                        color: AppColors.navyDark,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -517,7 +541,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                             icon: const Icon(Icons.link, size: 14),
                             label: const Text("Link"),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: accentOrange,
+                              backgroundColor: AppColors.gold,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -546,7 +570,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: primaryBlue,
+                          color: AppColors.navyDark,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -599,7 +623,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                           "📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini.",
                                         ),
                                         duration: Duration(seconds: 3),
-                                        backgroundColor: secondaryBlue,
+                                        backgroundColor: AppColors.accent,
                                       ),
                                     );
                                   }
@@ -613,7 +637,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   size: 18,
                                   color: attachment['type'] == 'file'
                                       ? secondaryBlue
-                                      : accentOrange,
+                                      : AppColors.gold,
                                 ),
                                 title: Text(
                                   attachment['title'] ?? '',
@@ -666,7 +690,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
             padding: const EdgeInsets.all(24),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: accentOrange,
+                backgroundColor: AppColors.gold,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

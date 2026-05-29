@@ -47,6 +47,12 @@ class ScheduleLocalModel extends HiveObject {
   String idPeriode;
 
   @HiveField(14)
+  String kelas;
+
+  @HiveField(15)
+  List<String> kodeDosen;
+
+  @HiveField(16)
   String? updatedAt;
 
   ScheduleLocalModel({
@@ -64,6 +70,8 @@ class ScheduleLocalModel extends HiveObject {
     this.idProdi = '',
     this.idJurusan = '',
     this.idPeriode = '',
+    this.kelas = '',
+    this.kodeDosen = const [],
     this.updatedAt,
   });
 
@@ -83,6 +91,8 @@ class ScheduleLocalModel extends HiveObject {
       idProdi: json['id_prodi']?.toString() ?? '',
       idJurusan: json['id_jurusan']?.toString() ?? '',
       idPeriode: json['id_periode']?.toString() ?? '',
+      kelas: json['kelas'] ?? '',
+      kodeDosen: List<String>.from(json['kode_dosen'] ?? []),
       updatedAt: json['updated_at']?.toString(),
     );
   }
@@ -102,10 +112,13 @@ class ScheduleLocalModel extends HiveObject {
     'id_prodi': idProdi,
     'id_jurusan': idJurusan,
     'id_periode': idPeriode,
+    'kelas': kelas,
+    'kode_dosen': kodeDosen,
     'updated_at': updatedAt,
   };
 
   @override
-  String toString() =>
-      'ScheduleLocalModel(namaMk: $namaMk, hari: $hari, jam: $jamMulai-$jamSelesai, status: $status)';
+  String toString() {
+    return 'ScheduleLocalModel(namaMk: $namaMk, hari: $hari, jam: $jamMulai-$jamSelesai, status: $status)';
+  }
 }

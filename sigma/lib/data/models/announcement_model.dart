@@ -70,7 +70,7 @@ class AnnouncementModel extends HiveObject {
 
   factory AnnouncementModel.fromMongo(Map<String, dynamic> map) {
     try {
-      // 1. Parsing Kategori secara aman
+      // 1. Parsing Kategori
       List<String> parsedKategori = [];
       if (map['kategori'] != null) {
         if (map['kategori'] is List) {
@@ -82,7 +82,7 @@ class AnnouncementModel extends HiveObject {
         }
       }
 
-      // 2. Parsing Target Angkatan secara aman
+      // 2. Parsing Target Angkatan
       List<String>? parsedTargetAngkatan;
       if (map['target_angkatan'] != null) {
         if (map['target_angkatan'] is List) {
@@ -151,9 +151,11 @@ class AnnouncementModel extends HiveObject {
     if (json['attachments'] != null && json['attachments'] is List) {
       parsedAttachments = (json['attachments'] as List)
           .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(
-                e.map((k, v) => MapEntry(k.toString(), v.toString())),
-              ))
+          .map(
+            (e) => Map<String, String>.from(
+              e.map((k, v) => MapEntry(k.toString(), v.toString())),
+            ),
+          )
           .toList();
     }
 
@@ -167,11 +169,17 @@ class AnnouncementModel extends HiveObject {
       rolePublisher: json['role_publisher'] ?? '',
       idProdi: json['id_prodi'],
       idJurusan: json['id_jurusan'],
-      targetAngkatan: json['target_angkatan'] != null ? List<String>.from(json['target_angkatan']) : null,
+      targetAngkatan: json['target_angkatan'] != null
+          ? List<String>.from(json['target_angkatan'])
+          : null,
       kategori: List<String>.from(json['kategori'] ?? []),
       tingkatKepentingan: json['tingkat_kepentingan'] ?? '',
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+          DateTime.now(),
       attachments: parsedAttachments,
     );
   }

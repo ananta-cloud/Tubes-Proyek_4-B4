@@ -3,7 +3,7 @@ import 'package:mongo_dart/mongo_dart.dart';
 
 part 'task_model.g.dart';
 
-@HiveType(typeId: 3)
+@HiveType(typeId: 10)
 class TaskModel extends HiveObject {
   @HiveField(0)
   final String id;
@@ -77,7 +77,10 @@ class TaskModel extends HiveObject {
       namaMkSnapshot: map['nama_mk_snapshot'],
       deadline: map['deadline'] as DateTime,
       status: map['status'] ?? 'BELUM',
-      isSynced: true,
+      isSynced:
+          map['is_synced'] ??
+          map['is_synced'] ??
+          true, // Default ke true karena ditarik dari Cloud
       createdAt: map['created_at'] as DateTime,
       updatedAt: map['updated_at'] as DateTime,
       lampiran: map['lampiran'] != null

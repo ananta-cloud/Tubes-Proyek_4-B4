@@ -5,10 +5,10 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../../admin_tu/main/views/admin_main_page.dart';
 import '../viewmodels/admin_announcement_viewmodel.dart';
 import '../../auth/viewmodels/login_viewmodel.dart';
 import 'package:mongo_dart/mongo_dart.dart' show ObjectId;
+import 'package:sigma/shared/app_colors.dart';
 
 class CreateAnnouncementPage extends StatefulWidget {
   const CreateAnnouncementPage({super.key});
@@ -51,9 +51,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
   static const _prodiList = ['D3 Teknik Informatika', 'D4 Teknik Informatika'];
 
   static const _tingkatColors = {
-    'BIASA': SigmaColors.textSub,
+    'BIASA': AppColors.textSub,
     'PENTING': Color(0xFFF59E0B),
-    'SANGAT PENTING': SigmaColors.danger,
+    'SANGAT PENTING': AppColors.danger,
   };
 
   static const int _maxFileSizeBytes = 5 * 1024 * 1024;
@@ -111,9 +111,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(
-            primary: SigmaColors.navy,
-            onPrimary: SigmaColors.white,
-            surface: SigmaColors.white,
+            primary: AppColors.navy,
+            onPrimary: AppColors.white,
+            surface: AppColors.white,
           ),
         ),
         child: child!,
@@ -151,7 +151,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
           content: Text(
             'File berikut melebihi 5MB dan dilewati: ${oversized.join(', ')}',
           ),
-          backgroundColor: SigmaColors.danger,
+          backgroundColor: AppColors.danger,
         ),
       );
     }
@@ -186,7 +186,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Judul dan isi tidak boleh kosong.'),
-          backgroundColor: SigmaColors.danger,
+          backgroundColor: AppColors.danger,
         ),
       );
       return;
@@ -235,7 +235,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pengumuman berhasil diterbitkan!'),
-          backgroundColor: SigmaColors.success,
+          backgroundColor: AppColors.success,
         ),
       );
       Navigator.pop(context);
@@ -250,12 +250,12 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     final bool isManajemen = currentUser?.role.toUpperCase() == 'MANAJEMEN';
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: Column(
         children: [
           // ── Header ──
           Container(
-            color: SigmaColors.white,
+            color: AppColors.white,
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top + 12,
               left: 16,
@@ -269,12 +269,12 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: SigmaColors.bgPage,
+                      color: AppColors.bgPage,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.arrow_back_rounded,
-                      color: SigmaColors.navy,
+                      color: AppColors.navy,
                       size: 20,
                     ),
                   ),
@@ -287,7 +287,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                       Text(
                         'Buat Pengumuman Baru',
                         style: TextStyle(
-                          color: SigmaColors.navy,
+                          color: AppColors.navy,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -295,7 +295,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                       Text(
                         'Semester Genap 2025/2026',
                         style: TextStyle(
-                          color: SigmaColors.textSub,
+                          color: AppColors.textSub,
                           fontSize: 11,
                         ),
                       ),
@@ -316,9 +316,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: SigmaColors.white,
+                      color: AppColors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: SigmaColors.cardBorder),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,12 +329,12 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: SigmaColors.navy.withOpacity(0.08),
+                                color: AppColors.navy.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Icon(
                                 Icons.edit_rounded,
-                                color: SigmaColors.navy,
+                                color: AppColors.navy,
                                 size: 16,
                               ),
                             ),
@@ -342,7 +342,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             const Text(
                               'Form Pengumuman',
                               style: TextStyle(
-                                color: SigmaColors.navy,
+                                color: AppColors.navy,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -353,7 +353,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         const Text(
                           'Pengumuman akan dikirim via Push Notification ke target audiens.',
                           style: TextStyle(
-                            color: SigmaColors.textSub,
+                            color: AppColors.textSub,
                             fontSize: 11,
                           ),
                         ),
@@ -369,7 +369,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           controller: _judulCtrl,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                           ),
                           decoration: _inputDeco(
                             hint: 'Cth: Perubahan Jadwal Ujian Basis Data...',
@@ -383,7 +383,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         const Text(
                           'Dapat memilih lebih dari satu',
                           style: TextStyle(
-                            color: SigmaColors.textSub,
+                            color: AppColors.textSub,
                             fontSize: 11,
                           ),
                         ),
@@ -409,13 +409,13 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? SigmaColors.navy
-                                      : SigmaColors.bgPage,
+                                      ? AppColors.navy
+                                      : AppColors.bgPage,
                                   borderRadius: BorderRadius.circular(99),
                                   border: Border.all(
                                     color: isSelected
-                                        ? SigmaColors.navy
-                                        : SigmaColors.cardBorder,
+                                        ? AppColors.navy
+                                        : AppColors.cardBorder,
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -423,8 +423,8 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                   k,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? SigmaColors.white
-                                        : SigmaColors.textSub,
+                                        ? AppColors.white
+                                        : AppColors.textSub,
                                     fontSize: 12,
                                     fontWeight: isSelected
                                         ? FontWeight.w700
@@ -524,6 +524,43 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
+                                    Row(
+                                      children: [
+                                        const _FieldLabel(label: 'Prodi'),
+                                        const SizedBox(width: 4),
+                                        if (!_isTargetMahasiswa)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.textSub
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'nonaktif',
+                                              style: TextStyle(
+                                                color: AppColors.textSub,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _SigmaDropdown<String>(
+                                      value: _selectedProdi,
+                                      hint: 'Semua prodi',
+                                      items: _prodiList,
+                                      labelBuilder: (e) => e,
+                                      onChanged: _isTargetMahasiswa
+                                          ? (v) => setState(
+                                              () => _selectedProdi = v,
+                                            )
+                                          : null,
                                     ),
                                   ],
                                 ),
@@ -584,13 +621,13 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: SigmaColors.textSub.withOpacity(0.1),
+                                color: AppColors.textSub.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'opsional',
                                 style: TextStyle(
-                                  color: SigmaColors.textSub,
+                                  color: AppColors.textSub,
                                   fontSize: 9,
                                 ),
                               ),
@@ -601,7 +638,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         const Text(
                           '≤ 3 hari → Sangat Penting · ≤ 7 hari → Penting · Tidak ada → Biasa',
                           style: TextStyle(
-                            color: SigmaColors.textSub,
+                            color: AppColors.textSub,
                             fontSize: 11,
                           ),
                         ),
@@ -614,12 +651,12 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: SigmaColors.bgPage,
+                              color: AppColors.bgPage,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: _selectedDeadline != null
-                                    ? SigmaColors.navy
-                                    : SigmaColors.cardBorder,
+                                    ? AppColors.navy
+                                    : AppColors.cardBorder,
                                 width: _selectedDeadline != null ? 1.5 : 1,
                               ),
                             ),
@@ -629,8 +666,8 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                   Icons.event_rounded,
                                   size: 16,
                                   color: _selectedDeadline != null
-                                      ? SigmaColors.navy
-                                      : SigmaColors.textSub,
+                                      ? AppColors.navy
+                                      : AppColors.textSub,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
@@ -643,8 +680,8 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         : 'Pilih tanggal deadline...',
                                     style: TextStyle(
                                       color: _selectedDeadline != null
-                                          ? SigmaColors.navy
-                                          : SigmaColors.textSub,
+                                          ? AppColors.navy
+                                          : AppColors.textSub,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -655,7 +692,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                     child: const Icon(
                                       Icons.close_rounded,
                                       size: 16,
-                                      color: SigmaColors.textSub,
+                                      color: AppColors.textSub,
                                     ),
                                   ),
                               ],
@@ -680,15 +717,13 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: SigmaColors.navy.withOpacity(
-                                          0.07,
-                                        ),
+                                        color: AppColors.navy.withOpacity(0.07),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: const Text(
                                         'otomatis dari deadline',
                                         style: TextStyle(
-                                          color: SigmaColors.navy,
+                                          color: AppColors.navy,
                                           fontSize: 9,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -701,7 +736,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: SigmaColors.textSub.withOpacity(
+                                        color: AppColors.textSub.withOpacity(
                                           0.08,
                                         ),
                                         borderRadius: BorderRadius.circular(4),
@@ -709,7 +744,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                       child: const Text(
                                         'pilih manual',
                                         style: TextStyle(
-                                          color: SigmaColors.textSub,
+                                          color: AppColors.textSub,
                                           fontSize: 9,
                                         ),
                                       ),
@@ -725,7 +760,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             final isSelected = _selectedTingkat == tingkat;
                             final isLocked = _selectedDeadline != null;
                             final color =
-                                _tingkatColors[tingkat] ?? SigmaColors.textSub;
+                                _tingkatColors[tingkat] ?? AppColors.textSub;
                             return Expanded(
                               child: GestureDetector(
                                 onTap: isLocked
@@ -744,12 +779,12 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? color.withOpacity(0.12)
-                                        : SigmaColors.bgPage,
+                                        : AppColors.bgPage,
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isSelected
                                           ? color
-                                          : SigmaColors.cardBorder,
+                                          : AppColors.cardBorder,
                                       width: isSelected ? 1.5 : 1,
                                     ),
                                   ),
@@ -763,7 +798,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                             : Icons.error_rounded,
                                         color: isSelected
                                             ? color
-                                            : SigmaColors.textSub,
+                                            : AppColors.textSub,
                                         size: 18,
                                       ),
                                       const SizedBox(height: 4),
@@ -772,7 +807,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         style: TextStyle(
                                           color: isSelected
                                               ? color
-                                              : SigmaColors.textSub,
+                                              : AppColors.textSub,
                                           fontSize: 9,
                                           fontWeight: isSelected
                                               ? FontWeight.w700
@@ -800,7 +835,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           maxLines: 5,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                           ),
                           decoration: _inputDeco(
                             hint: 'Tuliskan detail pengumuman di sini...',
@@ -814,7 +849,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         const Text(
                           'PDF, PNG, JPG, JPEG • Maks. 5 MB per file',
                           style: TextStyle(
-                            color: SigmaColors.textSub,
+                            color: AppColors.textSub,
                             fontSize: 11,
                           ),
                         ),
@@ -827,10 +862,10 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                               horizontal: 14,
                             ),
                             decoration: BoxDecoration(
-                              color: SigmaColors.bgPage,
+                              color: AppColors.bgPage,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: SigmaColors.navy.withOpacity(0.3),
+                                color: AppColors.navy.withOpacity(0.3),
                               ),
                             ),
                             child: const Row(
@@ -838,14 +873,14 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                               children: [
                                 Icon(
                                   Icons.attach_file_rounded,
-                                  color: SigmaColors.navy,
+                                  color: AppColors.navy,
                                   size: 18,
                                 ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Pilih File',
                                   style: TextStyle(
-                                    color: SigmaColors.navy,
+                                    color: AppColors.navy,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -872,11 +907,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 vertical: 9,
                               ),
                               decoration: BoxDecoration(
-                                color: SigmaColors.white,
+                                color: AppColors.white,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: SigmaColors.cardBorder,
-                                ),
+                                border: Border.all(color: AppColors.cardBorder),
                               ),
                               child: Row(
                                 children: [
@@ -885,8 +918,8 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         ? Icons.image_outlined
                                         : Icons.picture_as_pdf_outlined,
                                     color: isImage
-                                        ? SigmaColors.accent
-                                        : SigmaColors.danger,
+                                        ? AppColors.accent
+                                        : AppColors.danger,
                                     size: 18,
                                   ),
                                   const SizedBox(width: 10),
@@ -894,7 +927,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                     child: Text(
                                       file.name,
                                       style: const TextStyle(
-                                        color: SigmaColors.navy,
+                                        color: AppColors.navy,
                                         fontSize: 12,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -904,7 +937,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                   Text(
                                     '${(file.size / 1024).toStringAsFixed(1)} KB',
                                     style: const TextStyle(
-                                      color: SigmaColors.textSub,
+                                      color: AppColors.textSub,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -913,7 +946,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                     onTap: () => _removeFile(i),
                                     child: const Icon(
                                       Icons.close_rounded,
-                                      color: SigmaColors.danger,
+                                      color: AppColors.danger,
                                       size: 16,
                                     ),
                                   ),
@@ -933,14 +966,14 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                   height: 14,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: SigmaColors.navy,
+                                    color: AppColors.navy,
                                   ),
                                 ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Memproses lampiran...',
                                   style: TextStyle(
-                                    color: SigmaColors.textSub,
+                                    color: AppColors.textSub,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -957,17 +990,17 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: SigmaColors.navy.withOpacity(0.05),
+                      color: AppColors.navy.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: SigmaColors.navy.withOpacity(0.12),
+                        color: AppColors.navy.withOpacity(0.12),
                       ),
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           Icons.info_outline_rounded,
-                          color: SigmaColors.navy,
+                          color: AppColors.navy,
                           size: 15,
                         ),
                         const SizedBox(width: 8),
@@ -978,6 +1011,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 : 'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
                             style: const TextStyle(
                               color: SigmaColors.navy,
+                            'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
+                            style: TextStyle(
+                              color: AppColors.navy,
                               fontSize: 11,
                               height: 1.5,
                             ),
@@ -998,15 +1034,15 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
-                              color: SigmaColors.bgPage,
+                              color: AppColors.bgPage,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: SigmaColors.cardBorder),
+                              border: Border.all(color: AppColors.cardBorder),
                             ),
                             child: const Center(
                               child: Text(
                                 'Batal',
                                 style: TextStyle(
-                                  color: SigmaColors.textSub,
+                                  color: AppColors.textSub,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
@@ -1026,8 +1062,8 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
                               color: (vm.isLoading || _isUploading)
-                                  ? SigmaColors.textSub
-                                  : SigmaColors.navy,
+                                  ? AppColors.textSub
+                                  : AppColors.navy,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
@@ -1037,7 +1073,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: SigmaColors.white,
+                                        color: AppColors.white,
                                       ),
                                     )
                                   : const Row(
@@ -1045,14 +1081,14 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                       children: [
                                         Icon(
                                           Icons.send_rounded,
-                                          color: SigmaColors.white,
+                                          color: AppColors.white,
                                           size: 16,
                                         ),
                                         SizedBox(width: 8),
                                         Text(
                                           'Terbitkan Pengumuman',
                                           style: TextStyle(
-                                            color: SigmaColors.white,
+                                            color: AppColors.white,
                                             fontWeight: FontWeight.w700,
                                             fontSize: 14,
                                           ),
@@ -1077,20 +1113,20 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 
   InputDecoration _inputDeco({required String hint}) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+    hintStyle: const TextStyle(color: AppColors.textSub, fontSize: 13),
     filled: true,
-    fillColor: SigmaColors.bgPage,
+    fillColor: AppColors.bgPage,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: SigmaColors.cardBorder),
+      borderSide: const BorderSide(color: AppColors.cardBorder),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: SigmaColors.cardBorder),
+      borderSide: const BorderSide(color: AppColors.cardBorder),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: SigmaColors.navy, width: 1.5),
+      borderSide: const BorderSide(color: AppColors.navy, width: 1.5),
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
   );
@@ -1109,7 +1145,7 @@ class _FieldLabel extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: SigmaColors.navy,
+            color: AppColors.navy,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -1118,7 +1154,7 @@ class _FieldLabel extends StatelessWidget {
           const Text(
             ' *',
             style: TextStyle(
-              color: SigmaColors.danger,
+              color: AppColors.danger,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1147,20 +1183,20 @@ class _SigmaDropdown<T> extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: SigmaColors.bgPage,
+        color: AppColors.bgPage,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: SigmaColors.cardBorder),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
           value: value,
           hint: Text(
             hint,
-            style: const TextStyle(color: SigmaColors.textSub, fontSize: 13),
+            style: const TextStyle(color: AppColors.textSub, fontSize: 13),
           ),
           isExpanded: true,
-          dropdownColor: SigmaColors.white,
-          style: const TextStyle(color: SigmaColors.navy, fontSize: 13),
+          dropdownColor: AppColors.white,
+          style: const TextStyle(color: AppColors.navy, fontSize: 13),
           onChanged: onChanged,
           items: items
               .map(

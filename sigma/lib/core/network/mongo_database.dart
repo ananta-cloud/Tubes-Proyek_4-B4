@@ -12,6 +12,7 @@ class MongoDatabase {
   static late DbCollection kelasCollection;
   static late DbCollection prodiCollection;
   static late DbCollection dosenCollection;
+  static late DbCollection timPenjadwalanCollection;
 
   static bool isOffline = true;
   static bool _isOperationRunning = false;
@@ -59,6 +60,8 @@ class MongoDatabase {
       kelasCollection = db.collection('kelas');
       prodiCollection = db.collection('program_studi');
       dosenCollection = db.collection('dosen');
+      dosenCollection = db.collection('dosen');
+      timPenjadwalanCollection = db.collection('tim_penjadwalan');
 
       isOffline = false;
       print("Berhasil terkoneksi ke MongoDB!");
@@ -70,9 +73,21 @@ class MongoDatabase {
   }
 
   static Future<void> ensureConnected() async {
-    if (!db.isConnected) {
-      print("🔄 Reconnecting ke MongoDB...");
+    try {
+      if (db.state == State.OPEN) {
+        await db.serverStatus();
+        isOffline = false;
+        return;
+      }
+
       await connect();
+    } catch (e) {
+      try {
+        await connect();
+        isOffline = false;
+      } catch (_) {
+        isOffline = true;
+      }
     }
   }
 

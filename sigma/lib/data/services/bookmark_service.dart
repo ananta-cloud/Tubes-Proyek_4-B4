@@ -3,17 +3,21 @@ import 'package:sigma/core/network/mongo_database.dart';
 import 'package:sigma/data/models/announcement_model.dart';
 
 class BookmarkService {
-  
   ObjectId _safeObjectId(String id) {
-    // Hilangkan karakter aneh agar murni sisa 24 digit Hex-nya saja
-    String cleanId = id.replaceAll('ObjectId("', '').replaceAll('")', '').replaceAll("'", "").trim();
+    String cleanId = id
+        .replaceAll('ObjectId("', '')
+        .replaceAll('")', '')
+        .replaceAll("'", "")
+        .trim();
     return ObjectId.fromHexString(cleanId);
   }
 
-  // 1. Simpan Bookmark ke MongoDB beserta Snapshot-nya
-  Future<bool> saveBookmark(String userId, AnnouncementModel announcement) async {
+  // Simpan Bookmark ke MongoDB beserta Snapshot-nya
+  Future<bool> saveBookmark(
+    String userId,
+    AnnouncementModel announcement,
+  ) async {
     try {
-
       if (!MongoDatabase.db.isConnected) {
         await MongoDatabase.db.open();
       }
@@ -24,7 +28,7 @@ class BookmarkService {
 
       // Mencegah duplikasi data
       final existing = await collection.findOne(
-        where.eq('id_user', userObjId).eq('id_announcement', annObjId)
+        where.eq('id_user', userObjId).eq('id_announcement', annObjId),
       );
 
       if (existing == null) {
@@ -44,18 +48,18 @@ class BookmarkService {
     }
   }
 
-  // 2. Hapus Bookmark dari MongoDB
+  // Hapus Bookmark dari MongoDB
   Future<bool> removeBookmark(String userId, String announcementId) async {
     try {
-
       if (!MongoDatabase.db.isConnected) {
         await MongoDatabase.db.open();
       }
-      
+
       final collection = MongoDatabase.db.collection('bookmarks');
       await collection.remove(
-        where.eq('id_user', _safeObjectId(userId))
-             .eq('id_announcement', _safeObjectId(announcementId))
+        where
+            .eq('id_user', _safeObjectId(userId))
+            .eq('id_announcement', _safeObjectId(announcementId)),
       );
       print("SUKSES MENGHAPUS BOOKMARK DARI MONGODB!");
       return true;
@@ -65,15 +69,15 @@ class BookmarkService {
     }
   }
 
-  // 3. Tarik semua Bookmark milik User dari MongoDB
+  // Tarik semua Bookmark milik User dari MongoDB
   Future<List<Map<String, dynamic>>> getBookmarksByUser(String userId) async {
     try {
       final collection = MongoDatabase.db.collection('bookmarks');
       // Cari semua bookmark yang id_user-nya cocok dengan ID user yang sedang login
-      final data = await collection.find(
-        where.eq('id_user', _safeObjectId(userId))
-      ).toList();
-      
+      final data = await collection
+          .find(where.eq('id_user', _safeObjectId(userId)))
+          .toList();
+
       return data;
     } catch (e) {
       print("Error Get Bookmarks (Mongo): $e");

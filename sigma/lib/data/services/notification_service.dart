@@ -3,7 +3,6 @@ import 'dart:convert'; // Tambahkan ini untuk jsonEncode
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-// Fungsi WAJIB di level teratas (Top-level)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Pesan masuk di latar belakang: ${message.messageId}");
@@ -19,8 +18,15 @@ class NotificationService {
   static final StreamController<void> onNewNotification =
       StreamController<void>.broadcast();
 
+  final AndroidNotificationChannel _channel = const AndroidNotificationChannel(
+    'pengumuman_kampus_channel',
+    'Pengumuman Kampus',
+    description: 'Saluran untuk pengumuman kampus',
+    importance: Importance.max,
+    playSound: true,
+  );
+
   Future<void> initNotification() async {
-    // 1. Minta Izin
     NotificationSettings settings = await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
@@ -33,7 +39,7 @@ class NotificationService {
       print('Izin Notifikasi Ditolak.');
     }
 
-    // 2. Setup Local Notifications
+    // Setup Local Notifications
     const AndroidInitializationSettings androidInitSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initSettings = InitializationSettings(
@@ -78,11 +84,11 @@ class NotificationService {
       );
     }
 
-    // 3. Berlangganan Topik
+    // Berlangganan Topik
     await _firebaseMessaging.unsubscribeFromTopic('pengumuman_kampus');
     print("Membersihkan sisa langganan topik lama...");
 
-    // 4. Tangkap Notifikasi saat aplikasi TERBUKA (Foreground)
+    // Tangkap Notifikasi saat aplikasi TERBUKA (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print("Pesan masuk saat aplikasi dibuka (Foreground)!");
       onNewNotification.add(null);
@@ -106,7 +112,7 @@ class NotificationService {
       }
     });
 
-    // 5. Tangkap di Latar Belakang (Background)
+    // Tangkap di Background
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
@@ -203,7 +209,10 @@ class NotificationService {
       await fcm.unsubscribeFromTopic(topic);
     }
 
-    // 2. BERLANGGANAN BERDASARKAN ROLE
+    // SEMUA ROLE BERLANGGANAN TOPIK GLOBAL PENGUMUMAN
+    await fcm.subscribeToTopic('pengumuman_semua');
+
+    // BERLANGGANAN BERDASARKAN ROLE
     if (userRole == 'MAHASISWA') {
       await fcm.subscribeToTopic('pengumuman_semua');
       await fcm.subscribeToTopic('pengumuman_mahasiswa');

@@ -8,7 +8,7 @@ part of 'matkul_model.dart';
 
 class MatkulModelAdapter extends TypeAdapter<MatkulModel> {
   @override
-  final int typeId = 4;
+  final int typeId = 6;
 
   @override
   MatkulModel read(BinaryReader reader) {

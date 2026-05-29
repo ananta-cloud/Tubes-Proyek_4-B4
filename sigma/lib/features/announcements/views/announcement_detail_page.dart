@@ -144,7 +144,6 @@ class AnnouncementDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Memanggil ViewModel gabungan kita
     final vm = context.watch<AnnouncementViewModel>();
     final isBookmarked = vm.isBookmarked(announcement.id);
 
@@ -155,7 +154,6 @@ class AnnouncementDetailPage extends StatelessWidget {
           // ================= HEADER DENGAN BOOKMARK =================
           SliverAppBar(
             expandedHeight: 140,
-            floating: false,
             pinned: true,
             elevation: 0,
             backgroundColor: primaryBlue,
@@ -190,10 +188,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
               background: Container(
                 decoration: const BoxDecoration(
@@ -250,7 +245,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Menggunakan Helper Format Teks dari ViewModel
+                            // Helper Format Teks dari ViewModel
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -269,7 +264,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            // Menggunakan Helper Format Tanggal dari ViewModel
+                            // Helper Format Tanggal dari ViewModel
                             Row(
                               children: [
                                 Icon(
@@ -489,7 +484,7 @@ class AnnouncementDetailPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 100), // Spasi bawah
+                  const SizedBox(height: 100),
                 ],
               ),
             ),

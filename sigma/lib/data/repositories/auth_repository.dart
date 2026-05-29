@@ -11,6 +11,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:sigma/data/models/pengajaran_model.dart';
+import '../models/dosen_model.dart';
+import '../models/tpj_model.dart';
 
 class AuthRepository {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -26,11 +28,13 @@ class AuthRepository {
 
     if (isPhysicalOffline) {
       debugPrint("LOGIN ERROR: Perangkat tidak terhubung ke internet.");
-      return null; 
+      return null;
     }
 
     if (MongoDatabase.isOffline) {
-      debugPrint("Koneksi terputus. Mencoba menyambungkan kembali ke MongoDB...");
+      debugPrint(
+        "Koneksi terputus. Mencoba menyambungkan kembali ke MongoDB...",
+      );
       try {
         await MongoDatabase.connect();
       } catch (e) {
@@ -56,7 +60,6 @@ class AuthRepository {
       final isValid = BCrypt.checkpw(password, hashedPassword);
       if (!isValid) return null;
 
-      // 3. Siapkan variabel
       Map<String, dynamic>? profilLengkap;
       // Gunakan nama bawaan jika ada, jika tidak, pakai "Pengguna Tanpa Nama"
       String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama"; 
@@ -119,8 +122,6 @@ class AuthRepository {
       final String namaDariProfil = profilLengkap?["nama"]?.toString() ?? "";
       final String namaDariUser = user["nama"]?.toString() ?? "";
       
-      // Jika profil mahasiswa punya nama, pakai itu. Jika kosong, baru pakai dari users.
-      final String safeNama = namaDariProfil.isNotEmpty ? namaDariProfil : (namaDariUser.isNotEmpty ? namaDariUser : "Mahasiswa");
       
       final String safeEmail = user["email"]?.toString() ?? "";
       final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
@@ -132,7 +133,10 @@ class AuthRepository {
       await _storage.write(key: "user_email", value: safeEmail);
       
       if (modelMahasiswa != null) {
-        await _storage.write(key: "user_profil", value: jsonEncode(modelMahasiswa.toJson()));
+        await _storage.write(
+          key: "user_profil",
+          value: jsonEncode(modelMahasiswa.toJson()),
+        );
       }
 
       // 6. Kembalikan UserModel
@@ -145,6 +149,40 @@ class AuthRepository {
       );
     } catch (e) {
       debugPrint("LOGIN ERROR: $e");
+      return null;
+    }
+  }
+
+  Future<DosenModel?> getDosenByUserId(String userId) async {
+    try {
+      // Ambil email dari collection users
+      final userDoc = await MongoDatabase.usersCollection.findOne({
+        "_id": ObjectId.fromHexString(userId),
+      });
+      if (userDoc == null) return null;
+
+      final email = userDoc["email"]?.toString();
+      if (email == null || email.isEmpty) return null;
+
+      // Query dosen menggunakan email
+      final doc = await MongoDatabase.dosenCollection.findOne({"email": email});
+      if (doc == null) return null;
+      return DosenModel.fromMongo(doc);
+    } catch (e) {
+      debugPrint("GET DOSEN ERROR: $e");
+      return null;
+    }
+  }
+
+  Future<TimPenjadwalanModel?> getTimPenjadwalanByUserId(String userId) async {
+    try {
+      final doc = await MongoDatabase.timPenjadwalanCollection.findOne({
+        "user_id": ObjectId.fromHexString(userId),
+      });
+      if (doc == null) return null;
+      return TimPenjadwalanModel.fromMongo(doc);
+    } catch (e) {
+      debugPrint("GET TIM PENJADWALAN ERROR: $e");
       return null;
     }
   }
@@ -172,6 +210,8 @@ class AuthRepository {
   Future<UserModel?> checkAutoLogin() async {
     try {
       final userId = await _storage.read(key: "user_id");
+      print('DEBUG checkAutoLogin: userId=$userId');
+
       if (userId == null) return null; // Belum login
 
       final nama = await _storage.read(key: "user_nama") ?? "Mahasiswa";
@@ -183,6 +223,17 @@ class AuthRepository {
       Map<String, dynamic>? profilMap;
       if (profilString != null && profilString.isNotEmpty) {
         profilMap = jsonDecode(profilString);
+      }
+      String resolvedNama = nama;
+      if (role == 'DOSEN') {
+        final dosenNama = await _storage.read(key: "dosen_nama");
+        if (dosenNama != null && dosenNama.isNotEmpty) {
+          resolvedNama = dosenNama;
+        }
+      }
+      if (role == 'TIM_PENJADWALAN') {
+        final tpjNama = await _storage.read(key: "tpj_nama");
+        if (tpjNama != null && tpjNama.isNotEmpty) resolvedNama = tpjNama;
       }
 
       return UserModel(
@@ -204,13 +255,18 @@ class AuthRepository {
   // 4. FUNGSI LOGOUT
   // ===============================================
   Future<void> logout() async {
-    // Bersihkan semua kunci sesi dari brankas
     await _storage.delete(key: "user_id");
     await _storage.delete(key: "user_nama");
     await _storage.delete(key: "user_role");
     await _storage.delete(key: "user_email");
     await _storage.delete(key: "user_profil");
     await _storage.delete(key: "user_data");
+
+    await _storage.delete(key: "dosen_id");
+    await _storage.delete(key: "dosen_kode");
+    await _storage.delete(key: "dosen_nama");
+
+    await _storage.delete(key: "tpj_nama");
 
     // Bersihkan data Hive
     await Hive.box<ScheduleModel>('schedules').clear();

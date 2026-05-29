@@ -4,10 +4,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-
 // ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';
 
@@ -21,13 +21,17 @@ import 'data/models/dosen_model.dart';
 import 'data/models/task_model.dart';
 import 'data/models/matkul_model.dart';
 import 'data/models/schedule_model.dart';
+import 'data/models/schedule_request_model.dart';
 import 'data/models/pengajaran_model.dart';
+import 'data/models/dosen_model.dart';
+import 'data/models/tpj_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
-import 'data/services/schedule_service.dart';
 import 'data/services/announcement_service.dart';
 import 'data/repositories/auth_repository.dart';
-import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
+import 'data/services/schedule_request_service.dart';
+import 'data/services/dosen_cache_service.dart';
+import 'package:sigma/data/services/dosen_request_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
@@ -40,6 +44,8 @@ import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_view
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/viewmodels/admin_announcement_viewmodel.dart';
 import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_viewmodel.dart';
+import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
+import 'features/penjadwalan/viewmodels/schedule_request_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,21 +55,28 @@ void main() async {
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  final storage = FlutterSecureStorage();
+  await storage.deleteAll();
   // Initialize Hive
   await Hive.initFlutter();
-
-  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(ScheduleLocalModelAdapter());
-  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(AnnouncementModelAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(TaskModelAdapter());
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(MatkulModelAdapter());
-  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(ScheduleModelAdapter());
-  if (!Hive.isAdapterRegistered(6)) {
+  
+  if (!Hive.isAdapterRegistered(1))
+    Hive.registerAdapter(ScheduleLocalModelAdapter());
+  if (!Hive.isAdapterRegistered(2))
+    Hive.registerAdapter(AnnouncementModelAdapter());
+  if (!Hive.isAdapterRegistered(3))
+    Hive.registerAdapter(DetailPerubahanAdapter());
+  if (!Hive.isAdapterRegistered(4))
+    Hive.registerAdapter(ScheduleRequestModelAdapter());
+  if (!Hive.isAdapterRegistered(5))
+    Hive.registerAdapter(ScheduleModelAdapter());
+  if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(MatkulModelAdapter());
+  if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(DosenModelAdapter());
+  if (!Hive.isAdapterRegistered(8))
+    Hive.registerAdapter(TimPenjadwalanModelAdapter());
+  if (!Hive.isAdapterRegistered(9))
     Hive.registerAdapter(PengajaranModelAdapter());
-  }
-  if (!Hive.isAdapterRegistered(7)) {
-    Hive.registerAdapter(DosenModelAdapter());
-  }
+  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(TaskModelAdapter());
 
   // ── MongoDB ────────────────────────────────────────────────────────────────
   try {
@@ -78,6 +91,9 @@ void main() async {
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
+  await Hive.openBox('pending_requests');
+  await Hive.openBox('schedule_cache');
+  await Hive.openBox('cancel_queue');
   await Hive.openBox('student_action_queue');
 
   await Hive.openBox<AnnouncementModel>('admin_announcements');
@@ -92,30 +108,40 @@ void main() async {
   await Hive.openBox<PengajaranModel>('pengajaran');
   await Hive.openBox<DosenModel>('dosen_box');
   await Hive.openBox<String>('kelasCacheBox');
+  await ScheduleRequestService.openBoxes();
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();
 
-  // Isi cache dosen dari MongoDB (best-effort — tidak fatal jika offline)
   await DosenCacheService.warmUp();
-
+  await MongoDatabase.connect();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LoginViewModel(AuthRepository())),
-        ChangeNotifierProvider(
-          create: (_) => ScheduleController(ScheduleService()),
-        ),
+
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
         ChangeNotifierProvider(create: (_) => TaskFormViewModel()),
+
         ChangeNotifierProvider(
           create: (_) => AnnouncementViewModel(AnnouncementService()),
         ),
+
         ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
         ChangeNotifierProvider(create: (_) => AdminMainViewModel()),
+
         ChangeNotifierProvider(create: (_) => AdminScheduleViewModel()),
-        ChangeNotifierProvider(create: (_) => AdminAnnouncementViewModel()),
+
         ChangeNotifierProvider(create: (_) => AdminMatkulViewModel()),
+
+        ChangeNotifierProvider(
+          create: (_) => DosenRequestController(DosenRequestService()),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => ScheduleRequestController(ScheduleRequestService()),
+        ),
+        ChangeNotifierProvider(create: (_) => AdminAnnouncementViewModel()),
       ],
       child: const MyApp(),
     ),
@@ -130,10 +156,16 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sigma',
       debugShowCheckedModeBanner: false,
-      home: const LoginPage(),
-      builder: (context, child) => _ConnectivityListener(child: child!),
+      home: const _ConnectivityListenerWrapper(),
     );
   }
+}
+
+class _ConnectivityListenerWrapper extends StatelessWidget {
+  const _ConnectivityListenerWrapper();
+  @override
+  Widget build(BuildContext context) =>
+      const _ConnectivityListener(child: LoginPage());
 }
 
 // ── Connectivity Listener ──────────────────────────────────────────────────────
@@ -154,8 +186,15 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     Connectivity().onConnectivityChanged.listen((result) {
       final isOffline = (result as List).contains(ConnectivityResult.none);
 
+      if (isOffline) {
+        MongoDatabase.isOffline = true;
+        if (mounted) {
+          context.read<ScheduleRequestController>().setOffline(true);
+        }
+      }
+
       if (_wasOffline && !isOffline) {
-        debugPrint(' Koneksi kembali online, memulai sync...');
+        debugPrint('Koneksi kembali online, memulai sync...');
         _syncAll();
       }
       _wasOffline = isOffline;
@@ -165,23 +204,28 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
   Future<void> _syncAll() async {
     if (!mounted) return;
     await MongoDatabase.ensureConnected();
-
     await DosenCacheService.warmUp();
 
-    await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
-    await context.read<AdminMatkulViewModel>().onConnectionRestored();
-    await context.read<AdminScheduleViewModel>().onConnectionRestored();
-
     final user = context.read<LoginViewModel>().user;
+
+    if (user != null && (user.role == 'ADMIN_TU' || user.role == 'MANAJEMEN')) {
+      await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
+      await context.read<AdminMatkulViewModel>().onConnectionRestored();
+      await context.read<AdminScheduleViewModel>().onConnectionRestored();
+    }
+
     if (user != null && user.role == 'MAHASISWA') {
       final announcementVM = context.read<AnnouncementViewModel>();
       final taskVM = context.read<TaskViewModel>();
       final scheduleVM = context.read<ScheduleViewModel>();
-
       await announcementVM.syncOfflineActions();
       await announcementVM.syncAnnouncements();
       await taskVM.syncTasks(user); 
       await scheduleVM.syncSchedules(user);
+    }
+
+    if (user != null && user.role == 'TIM_PENJADWALAN') {
+      await context.read<ScheduleRequestController>().onConnectionRestored();
     }
   }
 

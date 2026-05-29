@@ -12,7 +12,7 @@ class TaskService {
     return ObjectId.fromHexString(cleanId);
   }
 
-  // 1. Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
+  // Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
   Future<List<Map<String, dynamic>>> getTasksByUser(String userId) async {
     try {
       final data = await MongoDatabase.runSafe(
@@ -22,7 +22,7 @@ class TaskService {
       );
       return data;
     } catch (e) {
-      print("🔥 Error Get Tasks (Mongo): $e");
+      print(" Error Get Tasks (Mongo): $e");
       return [];
     }
   }
@@ -64,12 +64,12 @@ class TaskService {
       print("✅ SUKSES MENGIRIM TUGAS BARU KE MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Create Task (Mongo): $e");
+      print(" Error Create Task (Mongo): $e");
       return false;
     }
   }
 
-  // 3. Update Status Tugas (Bisa untuk semua jenis tugas)
+  // Update Status Tugas (Bisa untuk semua jenis tugas)
   Future<bool> updateTaskStatus(String taskId, String status) async {
     try {
       await MongoDatabase.runSafe(
@@ -81,7 +81,7 @@ class TaskService {
       print("✅ SUKSES UPDATE STATUS TUGAS DI MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Update Task Status (Mongo): $e");
+      print(" Error Update Task Status (Mongo): $e");
       return false;
     }
   }
@@ -94,10 +94,10 @@ class TaskService {
           where.eq('_id', _safeObjectId(taskId)),
         ),
       );
-      print("🗑️ SUKSES MENGHAPUS TUGAS DARI MONGODB!");
+      print("SUKSES MENGHAPUS TUGAS DARI MONGODB!");
       return true;
     } catch (e) {
-      print("🔥 Error Delete Task (Mongo): $e");
+      print(" Error Delete Task (Mongo): $e");
       return false;
     }
   }
@@ -153,14 +153,10 @@ class TaskService {
     String? kelas,
   ) async {
     try {
-      // 1. Ambil tugas personal (yang dibuat oleh Mahasiswa itu sendiri)
       final personalTasks = await MongoDatabase.runSafe(
         () => MongoDatabase.tasksCollection
             .find(where.eq('id_user', _safeObjectId(userId)))
-            .toList(),
-      );
-
-      // 2. Ambil tugas dari Dosen berdasarkan Kelas Mahasiswa
+      // Ambil tugas Dosen berdasarkan Kelas Mahasiswa
       List<Map<String, dynamic>> dosenTasks = [];
 
       if (kelas != null && kelas.isNotEmpty) {
@@ -204,10 +200,9 @@ class TaskService {
         );
       }
 
-      // Gabungkan keduanya
       return [...personalTasks, ...dosenTasks];
     } catch (e) {
-      print("🔥 Error Get Tasks For Mahasiswa (Mongo): $e");
+      print(" Error Get Tasks For Mahasiswa (Mongo): $e");
       return [];
     }
   }
