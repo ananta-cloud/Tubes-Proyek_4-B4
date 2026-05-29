@@ -34,6 +34,11 @@ class MongoDatabase {
         final separator = mongoUrl.contains('?') ? '&' : '?';
         mongoUrl = '$mongoUrl${separator}serverSelectionTimeoutMS=30000';
       }
+      
+      if (!mongoUrl.contains('safeAtlas=true')) {
+        final separator = mongoUrl.contains('?') ? '&' : '?';
+        mongoUrl = '$mongoUrl${separator}safeAtlas=true';
+      }
 
       db = await Db.create(mongoUrl);
       await db.open().timeout(

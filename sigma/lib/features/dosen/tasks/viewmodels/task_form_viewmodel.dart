@@ -39,7 +39,7 @@ class TaskFormViewModel extends ChangeNotifier {
 
   final Map<String, String> _kelasCacheNames = {};
   final Map<String, String> _kelasNameToIdMap = {};
-  
+
   // 🔥 MAP BARU: Menyimpan nama asli mata kuliah agar dropdown tidak error
   final Map<String, String> _matkulRealNames = {};
 
@@ -51,11 +51,33 @@ class TaskFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ===========================================================================
+  // RESOLVE NAMA KELAS DENGAN HIVE CACHE (KEBAL OFFLINE RESTART)
+  // ===========================================================================
   Future<String> _resolveNamaKelas(String idKelasHex) async {
     if (idKelasHex.length != 24) return idKelasHex;
+    
+    // 1. Cek di memori RAM (Paling Cepat)
     if (_kelasCacheNames.containsKey(idKelasHex)) return _kelasCacheNames[idKelasHex]!;
 
+    // 2. Cek di memori internal HP (Hive Box)
+    final cacheBox = Hive.box<String>('kelasCacheBox');
+    if (cacheBox.containsKey(idKelasHex)) {
+      String cachedName = cacheBox.get(idKelasHex)!;
+      _kelasCacheNames[idKelasHex] = cachedName; // Masukkan ke RAM lagi
+      return cachedName;
+    }
+
+    // 3. Jika di memori tidak ada, baru cari ke MongoDB (Harus Online)
     try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+      
+      if (isOffline || MongoDatabase.isOffline) {
+         // Jika offline dan tidak pernah dicache sebelumnya, gunakan ID sementara
+         return "Kelas (${idKelasHex.substring(0, 4)})";
+      }
+
       final kelasDoc = await MongoDatabase.kelasCollection.findOne(where.id(ObjectId.parse(idKelasHex)));
 
       if (kelasDoc != null && kelasDoc.containsKey('nama_kelas')) {
@@ -76,16 +98,24 @@ class TaskFormViewModel extends ChangeNotifier {
             }
           }
         }
+        
+        // Simpan ke RAM
         _kelasCacheNames[idKelasHex] = name;
+        // 🔥 SIMPAN KE HIVE AGAR TIDAK HILANG SAAT APLIKASI DITUTUP
+        await cacheBox.put(idKelasHex, name);
+        
         return name;
       }
       return "Unknown";
     } catch (e) {
-      return "Error";
+      return "Kelas (${idKelasHex.substring(0, 4)})";
     }
   }
 
-  Future<void> loadPengajaran(DosenModel currentDosen, {TaskModel? taskToEdit}) async {
+  Future<void> loadPengajaran(
+    DosenModel currentDosen, {
+    TaskModel? taskToEdit,
+  }) async {
     if (isDisposed) return;
     isLoadingPengajaran = true;
     notifyListeners();
@@ -103,7 +133,9 @@ class TaskFormViewModel extends ChangeNotifier {
       await _pengajaranRepo.syncPengajaran(kodeDosenLogin);
       final updatedList = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
-      if (!isDisposed && (updatedList.length != listPengajaran.length || listPengajaran.isEmpty)) {
+      if (!isDisposed &&
+          (updatedList.length != listPengajaran.length ||
+              listPengajaran.isEmpty)) {
         listPengajaran = updatedList;
         await _generateUniqueMatkul(); // 🔥 Await agar matkul asli tercari
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
@@ -119,22 +151,27 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  // 🔥 FUNGSI DIUBAH: Mencari nama asli jika datanya berupa KODE - KODE
   Future<void> _generateUniqueMatkul() async {
     Set<String> tempMatkul = {};
+
+    // 💡 CEK KONEKSI INTERNET
+    final connectivityResult = await Connectivity().checkConnectivity();
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
     for (var p in listPengajaran) {
       String realName = p.namaMk;
 
-      // Jika namanya aneh (sama dengan kode mk), kita cari di master data!
       if (p.namaMk == p.kodeMk || p.namaMk.isEmpty) {
         if (_matkulRealNames.containsKey(p.kodeMk)) {
           realName = _matkulRealNames[p.kodeMk]!;
-        } else {
+        } else if (!isOffline) {
+          // 🔥 HANYA CARI KE MONGO JIKA ONLINE
           try {
-            final masterMk = await MongoDatabase.db.collection('mata_kuliah').findOne(
-              where.eq('kode_mk', p.kodeMk.trim())
-            );
+            final masterMk = await MongoDatabase.db
+                .collection('mata_kuliah')
+                .findOne(where.eq('kode_mk', p.kodeMk.trim()));
             if (masterMk != null && masterMk['nama_mk'] != null) {
               realName = masterMk['nama_mk'].toString();
               _matkulRealNames[p.kodeMk] = realName;
@@ -146,7 +183,7 @@ class TaskFormViewModel extends ChangeNotifier {
       } else {
         _matkulRealNames[p.kodeMk] = p.namaMk;
       }
-      
+
       tempMatkul.add("${p.kodeMk} - $realName");
     }
 
@@ -171,12 +208,15 @@ class TaskFormViewModel extends ChangeNotifier {
 
       if (task.targetKelas != null && task.targetKelas!.isNotEmpty) {
         for (String idKelas in task.targetKelas!) {
-            String name = await _resolveNamaKelas(idKelas);
-            loadedKelasNames.add(name);
+          String name = await _resolveNamaKelas(idKelas);
+          loadedKelasNames.add(name);
         }
-      } 
-      
-      selectedTargetKelas = loadedKelasNames.where((k) => availableKelasList.contains(k)).toSet().toList();
+      }
+
+      selectedTargetKelas = loadedKelasNames
+          .where((k) => availableKelasList.contains(k))
+          .toSet()
+          .toList();
       notifyListeners();
     } catch (e) {
       print('Error init dropdown edit: $e');
@@ -209,7 +249,7 @@ class TaskFormViewModel extends ChangeNotifier {
       for (var id in doc.targetKelas) {
         String nama = await _resolveNamaKelas(id);
         tempKelasNames.add(nama);
-        _kelasNameToIdMap[nama] = id; 
+        _kelasNameToIdMap[nama] = id;
       }
     }
 
@@ -255,7 +295,11 @@ class TaskFormViewModel extends ChangeNotifier {
         var photosStatus = await Permission.photos.status;
         if (!photosStatus.isGranted) await Permission.photos.request();
       }
-      FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false, withData: false);
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: false,
+      );
       if (result != null) return result.files.single;
     } catch (e) {
       print('Error picking file: $e');
@@ -264,15 +308,21 @@ class TaskFormViewModel extends ChangeNotifier {
   }
 
   // =========================================================================
-  // FUNGSI CREATE 
+  // FUNGSI CREATE
   // =========================================================================
   Future<bool> createTaskForStudents(UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
+    if (namaTugasController.text.isEmpty ||
+        selectedDeadline == null ||
+        selectedTargetKelas.isEmpty)
+      return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
 
-    final String cleanUserId = currentUser.id.replaceAll(RegExp(r'ObjectId\(|"|\)'), '');
+    final String cleanUserId = currentUser.id.replaceAll(
+      RegExp(r'ObjectId\(|"|\)'),
+      '',
+    );
     final String newTaskId = ObjectId().toHexString();
 
     List<String> idsUntukDatabase = selectedTargetKelas
@@ -287,7 +337,9 @@ class TaskFormViewModel extends ChangeNotifier {
       id: newTaskId,
       idUser: cleanUserId,
       namaTugas: namaTugasController.text,
-      deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
+      deskripsi: deskripsiController.text.isNotEmpty
+          ? deskripsiController.text
+          : null,
       kodeMk: matched.kodeMk,
       namaMkSnapshot: namaRealMatkul, // Menyimpan nama matkul yang bersih
       deadline: selectedDeadline!,
@@ -296,7 +348,7 @@ class TaskFormViewModel extends ChangeNotifier {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       lampiran: lampiran.isNotEmpty ? lampiran : null,
-      targetKelas: idsUntukDatabase, 
+      targetKelas: idsUntukDatabase,
       namaDosen: currentUser.nama,
     );
 
@@ -313,10 +365,16 @@ class TaskFormViewModel extends ChangeNotifier {
   }
 
   // =========================================================================
-  // FUNGSI EDIT 
+  // FUNGSI EDIT
   // =========================================================================
-  Future<bool> updateTaskForStudents(TaskModel taskLama, UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
+  Future<bool> updateTaskForStudents(
+    TaskModel taskLama,
+    UserModel currentUser,
+  ) async {
+    if (namaTugasController.text.isEmpty ||
+        selectedDeadline == null ||
+        selectedTargetKelas.isEmpty)
+      return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
@@ -326,11 +384,12 @@ class TaskFormViewModel extends ChangeNotifier {
 
       final listTugasSejenis = taskBox.values.where((t) {
         bool isNameSame = t.namaTugas == taskLama.namaTugas;
-        bool isTimeSame = t.deadline.year == taskLama.deadline.year &&
-                          t.deadline.month == taskLama.deadline.month &&
-                          t.deadline.day == taskLama.deadline.day &&
-                          t.deadline.hour == taskLama.deadline.hour &&
-                          t.deadline.minute == taskLama.deadline.minute;
+        bool isTimeSame =
+            t.deadline.year == taskLama.deadline.year &&
+            t.deadline.month == taskLama.deadline.month &&
+            t.deadline.day == taskLama.deadline.day &&
+            t.deadline.hour == taskLama.deadline.hour &&
+            t.deadline.minute == taskLama.deadline.minute;
         bool isMatkulSame = t.kodeMk == taskLama.kodeMk;
         return isNameSame && isTimeSame && isMatkulSame;
       }).toList();
@@ -343,19 +402,22 @@ class TaskFormViewModel extends ChangeNotifier {
           .toList();
 
       // 🔥 Gunakan nama bersih yang sudah dicegat
-      String namaRealMatkul = _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
+      String namaRealMatkul =
+          _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
 
       TaskModel tToUpdate = listTugasSejenis[0];
-      
+
       tToUpdate.namaTugas = namaTugasController.text;
-      tToUpdate.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
+      tToUpdate.deskripsi = deskripsiController.text.isNotEmpty
+          ? deskripsiController.text
+          : null;
       tToUpdate.kodeMk = matched.kodeMk;
-      tToUpdate.namaMkSnapshot = namaRealMatkul; 
+      tToUpdate.namaMkSnapshot = namaRealMatkul;
       tToUpdate.deadline = selectedDeadline!;
       tToUpdate.lampiran = lampiran.isNotEmpty ? lampiran : null;
       tToUpdate.updatedAt = DateTime.now();
       tToUpdate.isSynced = false;
-      tToUpdate.targetKelas = idsUntukDatabase; 
+      tToUpdate.targetKelas = idsUntukDatabase;
       tToUpdate.namaDosen = currentUser.nama;
 
       await tToUpdate.save();
@@ -378,13 +440,20 @@ class TaskFormViewModel extends ChangeNotifier {
   Future<void> _backgroundSync(TaskModel task, {required bool isCreate}) async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOnline = !(connectivityResult as List).contains(ConnectivityResult.none);
+      bool isOnline = !(connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
 
       if (isOnline) {
-        bool cloudSuccess = isCreate ? await _taskService.createTask(task) : await _taskService.updateTask(task);
+        bool cloudSuccess = isCreate
+            ? await _taskService.createTask(task)
+            : await _taskService.updateTask(task);
         if (cloudSuccess) {
           task.isSynced = true;
-          await task.save();
+          // ❌ HAPUS INI: await task.save();
+          // ✅ GANTI MENJADI:
+          final taskBox = Hive.box<TaskModel>('tasks');
+          await taskBox.put(task.id, task);
         }
       }
     } catch (e) {

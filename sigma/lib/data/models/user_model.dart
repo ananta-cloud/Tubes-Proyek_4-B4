@@ -1,10 +1,11 @@
 import 'mahasiswa_model.dart';
+import 'kelas_model.dart';
 
 class UserModel {
   final String id;
   final String nama;
   final String email;
-  final String role;  
+  final String role;
   final String? deviceToken;
   final MahasiswaModel? profilMahasiswa;
 
@@ -18,7 +19,6 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-
     final String currentRole = json['role'] ?? '';
     final dynamic profilData = json['profil'];
 
@@ -28,14 +28,13 @@ class UserModel {
       email: json['email'] ?? '',
       role: json['role'] ?? '',
       deviceToken: json['device_token'],
-      profilMahasiswa: (currentRole == 'MAHASISWA' && profilData != null) 
-          ? MahasiswaModel.fromJson(profilData) 
+      profilMahasiswa: (currentRole == 'MAHASISWA' && profilData != null)
+          ? MahasiswaModel.fromJson(profilData)
           : null,
     );
   }
 
   Map<String, dynamic> toJson() {
-
     dynamic profilJson;
     if (role == 'MAHASISWA') profilJson = profilMahasiswa?.toJson();
     // else if (role == 'DOSEN') profilJson = profilDosen?.toJson();
@@ -56,4 +55,6 @@ class UserModel {
   bool get isTimPenjadwalan => role == 'TIM_PENJADWALAN';
   bool get isAdminTu => role == 'ADMIN_TU';
   bool get isManajemen => role == 'MANAJEMEN';
+
+  String? get namaKelasStr => profilMahasiswa?.kelas?.namaKelas;
 }

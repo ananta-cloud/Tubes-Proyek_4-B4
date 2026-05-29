@@ -90,6 +90,7 @@ void main() async {
   await Hive.openBox<Map>('schedule_queue');
   await Hive.openBox<PengajaranModel>('pengajaran');
   await Hive.openBox<DosenModel>('dosen_box');
+  await Hive.openBox<String>('kelasCacheBox');
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();

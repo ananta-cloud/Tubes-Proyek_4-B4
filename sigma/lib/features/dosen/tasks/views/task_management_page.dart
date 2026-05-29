@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center, Size;
 import 'package:file_picker/file_picker.dart';
 import 'dart:io' show Platform;
+import 'dart:async';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../data/models/task_model.dart';
@@ -31,13 +32,27 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   late Box<TaskModel> _taskBox;
   final TaskService _taskService = TaskService();
   List<String> _selectedFilterMatkul = [];
+  StreamSubscription? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
     _taskBox = Hive.box<TaskModel>('tasks');
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncDataFromServer();
+    });
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) {
+      // Cek apakah perangkat sudah tidak "none" (berarti online)
+      bool isOnline = !(result as List).contains(ConnectivityResult.none);
+
+      if (isOnline) {
+        print("🌐 Jaringan kembali ONLINE! Memulai sinkronisasi otomatis...");
+        // Jika online, paksa jalankan sinkronisasi yang akan mengirim tugas tertunda
+        _syncDataFromServer();
+      }
     });
   }
 
@@ -46,13 +61,33 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   // ===========================================================================
   Future<String> _resolveNamaKelas(String idKelasHex) async {
     if (idKelasHex.length != 24) return idKelasHex;
+
+    // 1. Cek di memori RAM (Paling Cepat)
     if (_kelasCacheNames.containsKey(idKelasHex)) {
       return _kelasCacheNames[idKelasHex]!;
     }
 
+    // 2. Cek di memori internal HP (Hive Box)
+    final cacheBox = Hive.box<String>('kelasCacheBox');
+    if (cacheBox.containsKey(idKelasHex)) {
+      String cachedName = cacheBox.get(idKelasHex)!;
+      _kelasCacheNames[idKelasHex] = cachedName; // Masukkan ke RAM lagi
+      return cachedName;
+    }
+
+    // 3. Jika di memori tidak ada, baru cari ke MongoDB (Harus Online)
     try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      bool isOfflineNetwork = (connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
+
+      if (isOfflineNetwork || MongoDatabase.isOffline) {
+        // Jika offline dan tidak pernah dicache, kembalikan ID sementara
+        return "Kelas (${idKelasHex.substring(0, 4)})";
+      }
+
       final kelasDoc = await MongoDatabase.kelasCollection.findOne(
-        // PERBAIKAN: Gunakan ObjectId.parse
         where.id(ObjectId.parse(idKelasHex)),
       );
 
@@ -61,7 +96,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
 
         if (kelasDoc['id_prodi'] != null) {
           final dynamic rawProdiId = kelasDoc['id_prodi'];
-          // PERBAIKAN: Gunakan ObjectId.parse
           final ObjectId prodiObjId = rawProdiId is ObjectId
               ? rawProdiId
               : ObjectId.parse(rawProdiId.toString());
@@ -83,23 +117,29 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
 
         _kelasCacheNames[idKelasHex] = name;
+
+        // 🔥 SIMPAN KE HIVE AGAR PAGE MANAGEMENT TIDAK ERROR SAAT OFFLINE
+        await cacheBox.put(idKelasHex, name);
+
         return name;
       }
       return "Unknown";
     } catch (e) {
       debugPrint("Error resolve kelas: $e");
-      return "Error";
+      return "Kelas (${idKelasHex.substring(0, 4)})";
     }
   }
 
   // ===========================================================================
   // GROUPING TASK (Menggabungkan Array & Fallback Data Lama)
   // ===========================================================================
-  Future<List<GroupedTask>> dapatkanTugasTerkelompok(List<TaskModel> rawTasks) async {
+  Future<List<GroupedTask>> dapatkanTugasTerkelompok(
+    List<TaskModel> rawTasks,
+  ) async {
     final Map<String, GroupedTask> groups = {};
 
     for (var task in rawTasks) {
-      // Karena kita sudah murni menyimpan nama_mk tanpa embel-embel kelas (1A-D3), 
+      // Karena kita sudah murni menyimpan nama_mk tanpa embel-embel kelas (1A-D3),
       // kita tinggal memasukkannya langsung!
       String matkulName = task.namaMkSnapshot ?? 'Umum';
       List<String> namaKelasTerkonversi = [];
@@ -109,16 +149,18 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           String resolvedName = await _resolveNamaKelas(idKelas);
           namaKelasTerkonversi.add(resolvedName);
         }
-      } 
+      }
 
-      String timeKey = "${task.deadline.year}-${task.deadline.month}-${task.deadline.day}_${task.deadline.hour}:${task.deadline.minute}";
-      
+      String timeKey =
+          "${task.deadline.year}-${task.deadline.month}-${task.deadline.day}_${task.deadline.hour}:${task.deadline.minute}";
+
       // BERUBAH: Key grouping sekarang menggunakan kodeMk
       String key = "${task.kodeMk}_${timeKey}_${task.namaTugas}";
 
       if (groups.containsKey(key)) {
         for (String nKelas in namaKelasTerkonversi) {
-          if (nKelas.isNotEmpty && !groups[key]!.targetKelasList.contains(nKelas)) {
+          if (nKelas.isNotEmpty &&
+              !groups[key]!.targetKelasList.contains(nKelas)) {
             groups[key]!.targetKelasList.add(nKelas);
           }
         }
@@ -130,7 +172,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           deskripsi: task.deskripsi,
           kodeMk: task.kodeMk, // BERUBAH
           matkulNamaSaja: matkulName, // Langsung bersih!
-          targetKelasList: namaKelasTerkonversi, 
+          targetKelasList: namaKelasTerkonversi,
           deadline: task.deadline,
           isSynced: task.isSynced,
           originalTasks: [task],
@@ -147,13 +189,15 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     final user = context.read<LoginViewModel>().user;
     if (user == null || user.role.toUpperCase() != 'DOSEN') return {};
 
-    final String cleanUserId = user.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim();
+    final String cleanUserId = user.id
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .trim();
     final matkulSet = <String>{};
 
     for (final task in _taskBox.values) {
       if (task.idUser == cleanUserId && task.namaMkSnapshot != null) {
         String snapshot = task.namaMkSnapshot!;
-        
+
         // Buang bagian dalam kurung untuk mendapatkan nama matkulnya saja
         if (snapshot.contains('(')) {
           int openBracket = snapshot.lastIndexOf('(');
@@ -184,7 +228,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         for (String matkul in _selectedFilterMatkul) {
           if (task.namaMkSnapshot!.contains(matkul)) {
             matches = true;
-            break; 
+            break;
           }
         }
         return matches;
@@ -203,7 +247,9 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
       if (pendingTasks.isEmpty) return;
 
-      print("☁️ Mengunggah ${pendingTasks.length} tugas offline secara paralel...");
+      print(
+        "☁️ Mengunggah ${pendingTasks.length} tugas offline secara paralel...",
+      );
 
       await Future.wait(
         pendingTasks.map((task) async {
@@ -226,6 +272,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     try {
       final user = context.read<LoginViewModel>().user;
       if (user == null) return;
+
       String cleanId = user.id
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
@@ -236,14 +283,25 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       );
       if (isOffline) return;
 
-      List<Map<String, dynamic>> rawCloudTasks = await _taskService.getTasksByUser(cleanId);
+      // 🔥 1. SOLUSI UTAMA: Bangunkan kembali MongoDB jika sebelumnya mati (Cold Start)
+      if (MongoDatabase.isOffline) {
+        print("🔄 Menghubungkan ulang ke MongoDB karena sebelumnya offline...");
+        await MongoDatabase.connect();
+      }
+
+      List<Map<String, dynamic>> rawCloudTasks = await _taskService
+          .getTasksByUser(cleanId);
       List<TaskModel> cloudTasks = [];
+
       for (var data in rawCloudTasks) {
         try {
-          cloudTasks.add(TaskModel.fromMongo(data));
+          final t = TaskModel.fromMongo(data);
+          // 🔥 2. WAJIB: Tandai tugas dari server sebagai tersinkronisasi
+          t.isSynced = true;
+          cloudTasks.add(t);
         } catch (_) {}
       }
-      
+
       Set<String> cloudIds = cloudTasks.map((t) => t.id).toSet();
       final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
       bool hasNewUploads = false;
@@ -261,13 +319,14 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
 
             if (success) {
               task.isSynced = true;
-              await task.save();
+              await _taskBox.put(task.id, task);
               hasNewUploads = true;
             }
           }),
         );
       }
 
+      // Jika ada data yang baru saja terupload, tarik ulang dari server agar sinkron
       if (hasNewUploads) {
         rawCloudTasks = await _taskService.getTasksByUser(cleanId);
         cloudTasks.clear();
@@ -275,12 +334,13 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         for (var data in rawCloudTasks) {
           try {
             final t = TaskModel.fromMongo(data);
+            t.isSynced = true; // 🔥 Set true lagi di sini
             cloudTasks.add(t);
             cloudIds.add(t.id);
           } catch (_) {}
         }
       }
-      
+
       final Map<String, TaskModel> tasksToPut = {};
       final List<String> keysToDelete = [];
 
@@ -304,6 +364,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       if (tasksToPut.isNotEmpty) await _taskBox.putAll(tasksToPut);
       if (keysToDelete.isNotEmpty) await _taskBox.deleteAll(keysToDelete);
 
+      // Memaksa layar untuk memuat ulang UI berdasarkan data Hive terbaru
       if (mounted) setState(() {});
     } catch (e) {
       print("❌ Gagal Sinkronisasi: $e");
@@ -391,10 +452,9 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 child: FutureBuilder<List<GroupedTask>>(
                   future: dapatkanTugasTerkelompok(rawTasks),
                   builder: (context, snapshot) {
-                    
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
-                        child: CircularProgressIndicator(color: secondaryBlue)
+                        child: CircularProgressIndicator(color: secondaryBlue),
                       );
                     }
 
@@ -408,7 +468,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           ? SingleChildScrollView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               child: SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.6,
+                                height:
+                                    MediaQuery.of(context).size.height * 0.6,
                                 child: _buildEmptyState(),
                               ),
                             )
@@ -417,7 +478,9 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                               padding: const EdgeInsets.all(16),
                               itemCount: groupedTasks.length,
                               itemBuilder: (context, index) {
-                                return _buildGroupedTaskCard(groupedTasks[index]);
+                                return _buildGroupedTaskCard(
+                                  groupedTasks[index],
+                                );
                               },
                             ),
                     );
@@ -901,6 +964,12 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   String _formatDateTime(DateTime dateTime) {

@@ -34,11 +34,11 @@ class TaskViewModel extends ChangeNotifier {
     }
 
     try {
-      print("🧑‍🎓 [TaskViewModel] Cek Kelas User di HP: '${user.kelas}'");
+      print("🧑‍🎓 [TaskViewModel] Cek Kelas User di HP: '${user.namaKelasStr}'");
 
       // Panggil fungsi baru dari TaskService (Kirim ID dan Kelas Mahasiswa)
       final List<Map<String, dynamic>> mongoTasks = await _taskService
-          .getTasksForMahasiswa(user.id, user.kelas);
+          .getTasksForMahasiswa(user.id, user.namaKelasStr);
 
       print(
         "🔄 [TaskViewModel] Total tugas yang berhasil ditarik: ${mongoTasks.length}",

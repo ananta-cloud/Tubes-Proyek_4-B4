@@ -56,58 +56,63 @@ class AuthRepository {
       final isValid = BCrypt.checkpw(password, hashedPassword);
       if (!isValid) return null;
 
-      // 2. Siapkan wadah untuk Profil Akademik
+      // 3. Siapkan variabel
       Map<String, dynamic>? profilLengkap;
+      // Gunakan nama bawaan jika ada, jika tidak, pakai "Pengguna Tanpa Nama"
+      String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama"; 
 
-      // 3. Jika ia MAHASISWA, ambil data relasinya!
+      // 4. Jika ia MAHASISWA, ambil data relasinya!
       if (user["role"] == "MAHASISWA") {
-        // Cari profil mahasiswa
         final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
-          "user_id": user["_id"],
+          "user_id": user["_id"], // Relasi Mahasiswa pakai user_id
         });
 
         if (profilMahasiswa != null) {
-          // Jika punya kelas, ambil juga data kelasnya
+          // Ambil nama mahasiswa jika ada
+          if (profilMahasiswa["nama"] != null) {
+            safeNama = profilMahasiswa["nama"].toString();
+          }
+
           if (profilMahasiswa["id_kelas"] != null) {
             final dataKelas = await MongoDatabase.kelasCollection.findOne({
               "_id": profilMahasiswa["id_kelas"],
             });
-            // Gabungkan data kelas ke dalam object profil mahasiswa
             profilMahasiswa["kelas"] = dataKelas;
           }
-          profilLengkap = profilMahasiswa; // Set profil lengkap
+          profilLengkap = profilMahasiswa; 
+        }
+      } 
+      // 5. 🔥 JIKA IA DOSEN, AMBIL NAMANYA DARI KOLEKSI DOSEN
+      else if (user["role"] == "DOSEN" || user["role"] == "MANAJEMEN") {
+        final profilDosen = await MongoDatabase.db.collection('dosen').findOne({
+          "email": user["email"], // Relasi Dosen di database Anda pakai email
+        });
+
+        if (profilDosen != null && profilDosen["nama_dosen"] != null) {
+           safeNama = profilDosen["nama_dosen"].toString(); // Timpa dengan "Santi Sundari"
         }
       }
 
-      // 4. Simpan ke Secure Storage untuk Offline/Auto-Login
-      await _storage.write(key: "user_id", value: user["_id"].oid);
-      await _storage.write(key: "user_nama", value: user["nama"]);
-      await _storage.write(key: "user_role", value: user["role"]);
-      await _storage.write(key: "user_email", value: user["email"]);
-      
-      // Simpan Map Profil sebagai JSON String (karena storage hanya menerima String)
+      // 6. Simpan ke Secure Storage untuk Offline/Auto-Login
       MahasiswaModel? modelMahasiswa;
       if (user["role"] == "MAHASISWA" && profilLengkap != null) {
         modelMahasiswa = MahasiswaModel.fromJson(profilLengkap);
       }
 
       final String safeId = (user["_id"] is ObjectId) ? (user["_id"] as ObjectId).toHexString() : user["_id"].toString();
-      final String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama";
       final String safeEmail = user["email"]?.toString() ?? "";
       final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
 
-      // 5. Simpan ke Secure Storage untuk Offline/Auto-Login dengan variabel yang sudah aman
       await _storage.write(key: "user_id", value: safeId);
-      await _storage.write(key: "user_nama", value: safeNama);
+      await _storage.write(key: "user_nama", value: safeNama); // Nama sekarang pasti benar!
       await _storage.write(key: "user_role", value: safeRole);
       await _storage.write(key: "user_email", value: safeEmail);
       
-      // Simpan Map Profil sebagai JSON String
       if (modelMahasiswa != null) {
         await _storage.write(key: "user_profil", value: jsonEncode(modelMahasiswa.toJson()));
       }
 
-      // 6. Kembalikan UserModel dengan variabel yang dijamin bukan Null
+      // 7. Kembalikan UserModel
       return UserModel(
         id: safeId,
         nama: safeNama,
@@ -130,7 +135,7 @@ class AuthRepository {
 
       if (userDataString != null && userDataString.isNotEmpty) {
         final Map<String, dynamic> userMap = jsonDecode(userDataString);
-        return UserModel.fromJson(userMap); 
+        return UserModel.fromJson(userMap);
       }
     } catch (e) {
       debugPrint("AUTO LOGIN ERROR: $e");
@@ -149,7 +154,7 @@ class AuthRepository {
       final nama = await _storage.read(key: "user_nama") ?? "Mahasiswa";
       final role = await _storage.read(key: "user_role") ?? "MAHASISWA";
       final email = await _storage.read(key: "user_email") ?? "";
-      
+
       // Ambil dan Decode kembali profil yang tadi disimpan sebagai JSON String
       final profilString = await _storage.read(key: "user_profil");
       Map<String, dynamic>? profilMap;
@@ -158,12 +163,12 @@ class AuthRepository {
       }
 
       return UserModel(
-        id: userId, 
-        nama: nama, 
-        email: email, 
-        role: role, 
-        profilMahasiswa: (role == 'MAHASISWA' && profilMap != null) 
-            ? MahasiswaModel.fromJson(profilMap) 
+        id: userId,
+        nama: nama,
+        email: email,
+        role: role,
+        profilMahasiswa: (role == 'MAHASISWA' && profilMap != null)
+            ? MahasiswaModel.fromJson(profilMap)
             : null,
       );
     } catch (e) {
@@ -196,9 +201,15 @@ class AuthRepository {
   // ===============================================
   // 5. FUNGSI GANTI PASSWORD (TETAP)
   // ===============================================
-  Future<bool> changePassword(String userId, String oldPassword, String newPassword) async {
+  Future<bool> changePassword(
+    String userId,
+    String oldPassword,
+    String newPassword,
+  ) async {
     try {
-      String cleanUserId = userId.replaceAll('ObjectId("', '').replaceAll('")', '');
+      String cleanUserId = userId
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
 
       final user = await MongoDatabase.usersCollection.findOne({
         "_id": ObjectId.fromHexString(cleanUserId),
@@ -207,7 +218,10 @@ class AuthRepository {
       if (user == null) return false;
 
       final currentHashedPassword = user["password"];
-      final isOldPasswordCorrect = BCrypt.checkpw(oldPassword, currentHashedPassword);
+      final isOldPasswordCorrect = BCrypt.checkpw(
+        oldPassword,
+        currentHashedPassword,
+      );
 
       if (!isOldPasswordCorrect) {
         throw Exception("Password lama salah");

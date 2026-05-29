@@ -31,22 +31,22 @@ class _TaskFormPageState extends State<TaskFormPage> {
   late TaskFormViewModel _viewModel;
 
  @override
-void initState() {
+  void initState() {
   super.initState();
   
-  // 1. Inisialisasi ViewModel
   _viewModel = Provider.of<TaskFormViewModel>(context, listen: false);
 
-  if (widget.taskToEdit != null) {
-    // Tambahkan tanda '!' di sini
-    _viewModel.initializeForEdit(widget.taskToEdit!); 
-  } else {
-    // Mode Tambah Baru: Bersihkan data lama
-    _viewModel.clearForm(); 
-  }
-
-  // ... (sisa kode _loadDosenOfflineFirst Anda)
+  // 💡 BUNGKUS SEMUANYA DI DALAM POST FRAME CALLBACK
   WidgetsBinding.instance.addPostFrameCallback((_) {
+    
+    // Setup form
+    if (widget.taskToEdit != null) {
+      _viewModel.initializeForEdit(widget.taskToEdit!); 
+    } else {
+      _viewModel.clearForm(); 
+    }
+
+    // Load data dosen
     final user = context.read<LoginViewModel>().user;
     if (user != null && mounted) {
       _loadDosenOfflineFirst(user);
