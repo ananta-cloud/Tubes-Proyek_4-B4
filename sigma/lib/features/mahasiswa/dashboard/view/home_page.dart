@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../../data/services/notification_service.dart';
@@ -8,7 +9,7 @@ import '../../../../data/services/notification_service.dart';
 // 1. IMPORT DATA & MODELS
 // ==========================================
 import 'package:sigma/data/models/announcement_model.dart';
-import 'package:sigma/data/models/schedule_local_model.dart';
+import 'package:sigma/data/models/schedule_model.dart';
 
 // ==========================================
 // 2. IMPORT VIEWMODELS & VIEWS
@@ -43,7 +44,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Panggil fungsi syncSchedules di sini saat module jadwal sudah siap
-      context.read<ScheduleViewModel>().syncSchedules();
+      context.read<ScheduleViewModel>().syncSchedules(context.read<LoginViewModel>().user!  );
 
       // 1. Tarik ID User yang sedang aktif
       final userId = context.read<LoginViewModel>().user?.id;
@@ -134,13 +135,13 @@ class _HomePageMhsState extends State<HomePageMhs> {
   Widget _header(BuildContext context) {
     final user = context.watch<LoginViewModel>().user;
 
+    // 1. Ambil Nama (Sekarang dijamin muncul karena AuthRepository & MahasiswaModel sudah sinkron)
     final namaLengkap = user?.nama ?? "Mahasiswa";
 
-    // final listKata = namaLengkap.split(' ');
-
-    // final namaPanggilan = (listKata.length > 1 && (listKata[0].toLowerCase() == 'muhammad' || listKata[0].toLowerCase() == 'm.'))
-    //     ? listKata[1]
-    //     : listKata[0];
+    // 2. Ambil Data Akademik dari Model secara aman (Type-Safe)
+    final namaKelas = user?.profilMahasiswa?.kelas?.namaKelas ?? "-";
+    final prodi = user?.profilMahasiswa?.kelas?.namaProdi ?? user?.profilMahasiswa?.kelas?.idProdi ?? "-";
+    final angkatan = user?.profilMahasiswa?.kelas?.angkatan?.toString() ?? "-";
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
@@ -164,38 +165,36 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "Selamat Datang,",
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      namaLengkap,
+                      style: const TextStyle(
+                        color: Colors.white, 
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Text(
-                      "$namaLengkap",
-                      style: TextStyle(color: Colors.white, fontSize: 22),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _buildInfoBadge("Kelas: $namaKelas"),
+                        const SizedBox(width: 6),
+                        _buildInfoBadge("Prodi: $prodi"),
+                      ],
                     ),
                   ],
                 ),
               ),
-              Stack(
-                children: [
-                  const Icon(Icons.notifications, color: Colors.white),
-                  Positioned(
-                    right: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: accentOrange,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(width: 15),
+              // --- Tombol Logout ---
               GestureDetector(
                 onTap: () => _handleLogout(context),
                 child: const Icon(Icons.logout_rounded, color: Colors.white),
@@ -203,25 +202,74 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ],
           ),
           const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.wifi, size: 14, color: Colors.white),
-                SizedBox(width: 5),
-                Text(
-                  "Online - Tersinkronisasi",
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+          // --- Indikator Status Online / Offline ---
+          StreamBuilder<List<ConnectivityResult>>(
+            stream: Connectivity().onConnectivityChanged,
+            builder: (context, snapshot) {
+              // Secara default kita anggap online, sampai stream mendeteksi offline
+              bool isOffline = false;
+              
+              if (snapshot.hasData) {
+                isOffline = snapshot.data!.contains(ConnectivityResult.none);
+              }
+
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300), // Efek transisi warna yang halus
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  // Jika offline berubah merah redup, jika online hijau redup
+                  color: isOffline 
+                      ? Colors.redAccent.withValues(alpha: 0.2)
+                      : Colors.green.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2), 
+                    width: 1
+                  ),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isOffline ? Icons.wifi_off_rounded : Icons.wifi_rounded, 
+                      size: 14, 
+                      color: Colors.white
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isOffline ? "Offline" : "Online",
+                      style: const TextStyle(
+                        color: Colors.white, 
+                        fontSize: 12, 
+                        fontWeight: FontWeight.w500
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
           ),
         ],
+      ),
+    );
+  }
+
+  // 💡 Fungsi Helper untuk membuat kotak Badge Informasi agar kode di atas tidak terlalu panjang
+  Widget _buildInfoBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -304,10 +352,13 @@ class _HomePageMhsState extends State<HomePageMhs> {
   // ================= JADWAL =================
   Widget _schedule(ScheduleViewModel viewModel) {
     final grouped = viewModel.scheduleByDay;
+    final user = context.read<LoginViewModel>().user;
 
     return RefreshIndicator(
       onRefresh: () async {
-        await viewModel.syncSchedules();
+        if (user != null) {
+          await viewModel.syncSchedules(user);
+        }
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
@@ -503,7 +554,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            s.namaMk,
+                            s.namaMatkul,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -531,7 +582,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
     );
   }
 
-  Widget _scheduleItem(ScheduleLocalModel s) {
+  Widget _scheduleItem(ScheduleModel s) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -579,7 +630,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  s.namaMk,
+                  s.namaMatkul,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: darkText,
@@ -599,7 +650,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        s.dosen,
+                        s.namaDosen,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade600,

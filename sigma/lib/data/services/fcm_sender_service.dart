@@ -24,6 +24,7 @@ class FcmSenderService {
     required String isi,
     required String module,
     required String targetAudience,
+    String tingkatKepentingan = 'BIASA',
   }) async {
     try {
       final String serverToken = await _getAccessToken();
@@ -40,6 +41,10 @@ class FcmSenderService {
           "notification": {
             "title": judul,
             "body": isi,
+          },
+          "data": {
+            "tipe": tingkatKepentingan, 
+            "module": module,
           }
         }
       };

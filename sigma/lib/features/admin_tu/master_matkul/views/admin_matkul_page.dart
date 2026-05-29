@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_matkul_viewmodel.dart';
-import '../models/matkul_model.dart';
+import '../../../../data/models/matkul_model.dart';
 
 class AdminMatkulPage extends StatefulWidget {
   const AdminMatkulPage({super.key});

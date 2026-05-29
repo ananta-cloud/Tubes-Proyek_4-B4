@@ -48,7 +48,7 @@ class AnnouncementModel extends HiveObject {
   final String tingkatKepentingan;
 
   @HiveField(14)
-  final List<Map<String, String>> attachments;
+  final List<Map<String, dynamic>> attachments;
 
   AnnouncementModel({
     required this.id,
@@ -95,12 +95,12 @@ class AnnouncementModel extends HiveObject {
       }
 
       // 3. Parsing Attachments
-      List<Map<String, String>> parsedAttachments = [];
+      List<Map<String, dynamic>> parsedAttachments = [];
       if (map['attachments'] != null && map['attachments'] is List) {
         parsedAttachments = (map['attachments'] as List)
             .whereType<Map>()
             .map(
-              (e) => Map<String, String>.from(
+              (e) => Map<String, dynamic>.from(
                 e.map((k, v) => MapEntry(k.toString(), v.toString())),
               ),
             )
@@ -147,11 +147,11 @@ class AnnouncementModel extends HiveObject {
   }
 
   factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
-    List<Map<String, String>> parsedAttachments = [];
+    List<Map<String, dynamic>> parsedAttachments = [];
     if (json['attachments'] != null && json['attachments'] is List) {
       parsedAttachments = (json['attachments'] as List)
           .whereType<Map>()
-          .map((e) => Map<String, String>.from(
+          .map((e) => Map<String, dynamic>.from(
                 e.map((k, v) => MapEntry(k.toString(), v.toString())),
               ))
           .toList();

@@ -55,19 +55,20 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
   Future<void> fetchProdiByJurusan(String idJurusanHex) async {
     try {
       _selectedProdiId = null; // Reset prodi tiap kali jurusan diganti
-      
+
       // Bersihkan string dari spasi tersembunyi
-      final cleanId = idJurusanHex.trim(); 
+      final cleanId = idJurusanHex.trim();
       final objId = ObjectId.parse(cleanId);
 
       // Gunakan query builder 'where.eq' asli dari mongo_dart
       final docs = await MongoDatabase.runSafe(
         // PASTIKAN NAMA COLLECTION DI BAWAH INI SAMA PERSIS DENGAN DI MONGODB COMPASS ANDA
-        () => MongoDatabase.db.collection('program_studi').find(
-          where.eq('id_jurusan', objId)
-        ).toList(),
+        () => MongoDatabase.db
+            .collection('program_studi')
+            .find(where.eq('id_jurusan', objId))
+            .toList(),
       );
-      
+
       _listProdi = docs;
       debugPrint('✅ Ditemukan ${docs.length} prodi untuk jurusan $cleanId');
       notifyListeners();
@@ -323,7 +324,8 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             judul: op['judul'],
             isi: op['isi'],
             module: 'pengumuman',
-            targetAudience: op['target'] ?? op['target_audience'],
+            targetAudience: op['target'],
+            tingkatKepentingan: op['tingkatKepentingan'] ?? 'BIASA',
           );
         }
 

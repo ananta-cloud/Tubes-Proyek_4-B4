@@ -150,6 +150,14 @@ class ScheduleModel {
     'needs_enrichment': needsEnrichment,
   };
 
+  factory ScheduleModel.fromJson(Map<String, dynamic> json) {
+    return ScheduleModel.fromMongo(json);
+  }
+
+  Map<String, dynamic> toJson() {
+    return toMongoMap();
+  }
+
   // copyWith — dibutuhkan oleh enrichPendingSchedules di ViewModel
   ScheduleModel copyWith({
     String? id,

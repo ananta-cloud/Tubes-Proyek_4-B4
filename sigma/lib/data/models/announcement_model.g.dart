@@ -32,7 +32,7 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       updatedAt: fields[12] as DateTime,
       tingkatKepentingan: fields[13] as String,
       attachments: (fields[14] as List)
-          .map((dynamic e) => (e as Map).cast<String, String>())
+          .map((dynamic e) => (e as Map).cast<String, dynamic>())
           .toList(),
     );
   }

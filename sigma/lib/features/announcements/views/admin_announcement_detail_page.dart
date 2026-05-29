@@ -313,7 +313,7 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
 
 // ─── Attachment Item ──────────────────────────────────────────────────────────
 class _AttachmentItem extends StatefulWidget {
-  final Map<String, String> attachment;
+  final Map<String, dynamic> attachment;
   const _AttachmentItem({required this.attachment});
 
   @override

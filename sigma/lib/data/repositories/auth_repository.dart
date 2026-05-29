@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bcrypt/bcrypt.dart';
 import '../models/user_model.dart';
 import '../models/mahasiswa_model.dart';
-import '../models/schedule_local_model.dart';
+import '../models/schedule_model.dart';
 import '../models/announcement_model.dart';
 import 'dart:convert';
 import '../../core/network/mongo_database.dart';
@@ -63,46 +63,69 @@ class AuthRepository {
 
       // 4. Jika ia MAHASISWA, ambil data relasinya!
       if (user["role"] == "MAHASISWA") {
+        // 🔥 PERBAIKAN: Cari berdasarkan email dari tabel users, bukan user_id!
         final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
-          "user_id": user["_id"], // Relasi Mahasiswa pakai user_id
+          "email": user["email"], 
         });
 
         if (profilMahasiswa != null) {
-          // Ambil nama mahasiswa jika ada
-          if (profilMahasiswa["nama"] != null) {
-            safeNama = profilMahasiswa["nama"].toString();
-          }
-
+          // 3A. Ambil Data Kelas
           if (profilMahasiswa["id_kelas"] != null) {
+            var searchIdKelas = profilMahasiswa["id_kelas"];
+            if (searchIdKelas is String && searchIdKelas.length == 24) {
+              searchIdKelas = ObjectId.fromHexString(searchIdKelas);
+            }
             final dataKelas = await MongoDatabase.kelasCollection.findOne({
-              "_id": profilMahasiswa["id_kelas"],
+              "_id": searchIdKelas,
             });
             profilMahasiswa["kelas"] = dataKelas;
           }
-          profilLengkap = profilMahasiswa; 
-        }
-      } 
-      // 5. 🔥 JIKA IA DOSEN, AMBIL NAMANYA DARI KOLEKSI DOSEN
-      else if (user["role"] == "DOSEN" || user["role"] == "MANAJEMEN") {
-        final profilDosen = await MongoDatabase.db.collection('dosen').findOne({
-          "email": user["email"], // Relasi Dosen di database Anda pakai email
-        });
 
-        if (profilDosen != null && profilDosen["nama_dosen"] != null) {
-           safeNama = profilDosen["nama_dosen"].toString(); // Timpa dengan "Santi Sundari"
+          // 3B. Ambil Data Prodi (Terdapat di profilMahasiswa atau Kelas)
+          // Kode kueri prodi Anda yang kemarin ditaruh di sini tetap sama dan aman
+          var searchIdProdi = profilMahasiswa["id_prodi"] ?? (profilMahasiswa["kelas"] != null ? profilMahasiswa["kelas"]["id_prodi"] : null);
+          if (searchIdProdi != null) {
+            if (searchIdProdi is String && searchIdProdi.length == 24) {
+              searchIdProdi = ObjectId.fromHexString(searchIdProdi);
+            }
+            final dataProdi = await MongoDatabase.prodiCollection.findOne({
+              "_id": searchIdProdi
+            });
+            if (dataProdi != null) {
+              if (profilMahasiswa["kelas"] != null) {
+                profilMahasiswa["kelas"]["nama_prodi"] = dataProdi["nama_prodi"] ?? dataProdi["nama"];
+              } else {
+                profilMahasiswa["kelas"] = {"nama_prodi": dataProdi["nama_prodi"] ?? dataProdi["nama"]};
+              }
+            }
+          }
+          
+          profilLengkap = profilMahasiswa;
+          print("✅ PROFIL MAHASISWA DITEMUKAN VIA EMAIL: ${profilLengkap['nama']}");
+        } else {
+          print("❌ WARNING: Profil mahasiswa TIDAK DITEMUKAN untuk email: ${user["email"]}");
         }
       }
 
-      // 6. Simpan ke Secure Storage untuk Offline/Auto-Login
+      // 4. Saring Data Mentah ke Model
       MahasiswaModel? modelMahasiswa;
       if (user["role"] == "MAHASISWA" && profilLengkap != null) {
         modelMahasiswa = MahasiswaModel.fromJson(profilLengkap);
       }
 
+      // 🔥 PERBAIKAN NAMA: Prioritaskan nama dari koleksi MAHASISWA!
       final String safeId = (user["_id"] is ObjectId) ? (user["_id"] as ObjectId).toHexString() : user["_id"].toString();
+      
+      final String namaDariProfil = profilLengkap?["nama"]?.toString() ?? "";
+      final String namaDariUser = user["nama"]?.toString() ?? "";
+      
+      // Jika profil mahasiswa punya nama, pakai itu. Jika kosong, baru pakai dari users.
+      final String safeNama = namaDariProfil.isNotEmpty ? namaDariProfil : (namaDariUser.isNotEmpty ? namaDariUser : "Mahasiswa");
+      
       final String safeEmail = user["email"]?.toString() ?? "";
       final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
 
+      // 5. Simpan ke Secure Storage
       await _storage.write(key: "user_id", value: safeId);
       await _storage.write(key: "user_nama", value: safeNama); // Nama sekarang pasti benar!
       await _storage.write(key: "user_role", value: safeRole);
@@ -112,7 +135,7 @@ class AuthRepository {
         await _storage.write(key: "user_profil", value: jsonEncode(modelMahasiswa.toJson()));
       }
 
-      // 7. Kembalikan UserModel
+      // 6. Kembalikan UserModel
       return UserModel(
         id: safeId,
         nama: safeNama,
@@ -190,7 +213,7 @@ class AuthRepository {
     await _storage.delete(key: "user_data");
 
     // Bersihkan data Hive
-    await Hive.box<ScheduleLocalModel>('schedules').clear();
+    await Hive.box<ScheduleModel>('schedules').clear();
     await Hive.box<AnnouncementModel>('announcements').clear();
     await Hive.box<PengajaranModel>('pengajaran').clear();
     if (Hive.isBoxOpen('bookmarks')) {
