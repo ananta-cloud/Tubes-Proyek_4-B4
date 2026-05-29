@@ -115,10 +115,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
             ? (p['_id'] as ObjectId).toHexString()
             : p['_id'].toString();
         newProdiMap[key] = p['nama_prodi']?.toString() ?? '-';
-        final idJurusan = p['id_jurusan'] is ObjectId
-            ? (p['id_jurusan'] as ObjectId).toHexString()
-            : p['id_jurusan']?.toString() ?? '';
-        newProdiJurusanMap[key] = idJurusan;
       }
       _prodiMap = newProdiMap;
       _prodiJurusanMap = newProdiJurusanMap;
@@ -168,7 +164,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
   }) async {
     final newId = ObjectId().toHexString();
     final namaProdi = _prodiMap[idProdi] ?? '-';
-    final idJurusan = _prodiJurusanMap[idProdi] ?? '';
 
     final model = MatkulModel(
       id: newId,
@@ -177,7 +172,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       programStudi: namaProdi,
       idProdi: idProdi,
       sks: sks,
-      idJurusan: idJurusan,
     );
     await _matkulBox.put(newId, model);
     _loadFromLocal();
@@ -189,7 +183,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'namaMatkul': namaMatkul,
       'idProdi': idProdi,
       'sks': sks,
-      'idJurusan': idJurusan,
     });
 
     // Tandai sebagai pending
@@ -209,7 +202,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
     required int sks,
   }) async {
     final namaProdi = _prodiMap[idProdi] ?? '-';
-    final idJurusan = _prodiJurusanMap[idProdi] ?? '';
 
     final updated = MatkulModel(
       id: id,
@@ -218,7 +210,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       programStudi: namaProdi,
       idProdi: idProdi,
       sks: sks,
-      idJurusan: idJurusan,
     );
     await _matkulBox.put(id, updated);
     _loadFromLocal();
@@ -230,7 +221,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'namaMatkul': namaMatkul,
       'idProdi': idProdi,
       'sks': sks,
-      'idJurusan': idJurusan,
     });
 
     // Tandai sebagai pending
@@ -289,7 +279,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
                 'sks': op['sks'],
                 'created_at': DateTime.now(),
                 'updated_at': DateTime.now(),
-                'id_jurusan': ObjectId.fromHexString(op['idJurusan']),
               }),
             );
           }
@@ -303,7 +292,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
                   .set('id_prodi', ObjectId.fromHexString(op['idProdi']))
                   .set('sks', op['sks'])
                   .set('updated_at', DateTime.now())
-                  .set('id_jurusan', ObjectId.fromHexString(op['idJurusan'])),
             ),
           );
         } else if (op['operation'] == 'delete') {

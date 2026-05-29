@@ -17,8 +17,9 @@ class TaskModel extends HiveObject {
   @HiveField(3)
   String? deskripsi;
 
+  // BERUBAH DARI idMk MENJADI kodeMk
   @HiveField(4)
-  String? idMk;
+  String? kodeMk;
 
   @HiveField(5)
   String? namaMkSnapshot;
@@ -42,7 +43,7 @@ class TaskModel extends HiveObject {
   List<Map<String, String>>? lampiran;
 
   @HiveField(12)
-  String? kelas;
+  List<String>? targetKelas;
 
   @HiveField(13)
   String? namaDosen;
@@ -52,7 +53,7 @@ class TaskModel extends HiveObject {
     required this.idUser,
     required this.namaTugas,
     this.deskripsi,
-    this.idMk,
+    this.kodeMk, // Berubah
     this.namaMkSnapshot,
     required this.deadline,
     this.status = 'BELUM',
@@ -60,51 +61,47 @@ class TaskModel extends HiveObject {
     required this.createdAt,
     required this.updatedAt,
     this.lampiran,
-    this.kelas,
+    this.targetKelas,
     this.namaDosen,
   });
 
-  // Jika idMk kosong/null, otomatis dianggap sebagai Tugas Personal.
-  bool get isPersonal => idMk == null || idMk!.isEmpty;
+  bool get isPersonal => kodeMk == null || kodeMk!.isEmpty;
 
-  // Format dari mongo_dart: _id adalah ObjectId, date adalah DateTime langsung
   factory TaskModel.fromMongo(Map<String, dynamic> map) {
     return TaskModel(
       id: (map['_id'] as ObjectId).toHexString(),
       idUser: (map['id_user'] as ObjectId).toHexString(),
-      namaTugas: map['nama_tugas'],
+      namaTugas: map['nama_tugas'] ?? '',
       deskripsi: map['deskripsi'],
-      idMk: map['id_mk'],
+      kodeMk: map['kode_mk']?.toString(), // BERUBAH: Ambil dari kode_mk
       namaMkSnapshot: map['nama_mk_snapshot'],
       deadline: map['deadline'] as DateTime,
       status: map['status'] ?? 'BELUM',
-      isSynced:
-          map['is_synced'] ??
-          map['is_synced'] ??
-          true, // Default ke true karena ditarik dari Cloud // Default ke true karena ditarik dari Cloud
+      isSynced: true,
       createdAt: map['created_at'] as DateTime,
       updatedAt: map['updated_at'] as DateTime,
-      // Pada TaskModel.fromMongo:
       lampiran: map['lampiran'] != null
           ? (map['lampiran'] as List)
                 .map((e) => Map<String, String>.from(e as Map))
                 .toList()
           : null,
-      kelas: map['kelas'] is List
-          ? (map['kelas'] as List).join(', ')
-          : map['kelas']?.toString(),
+      targetKelas: map['target_kelas'] is List
+          ? (map['target_kelas'] as List).map((e) {
+              if (e is ObjectId) return e.toHexString();
+              return e.toString();
+            }).toList()
+          : [],
       namaDosen: map['nama_dosen'],
     );
   }
 
-  // Convert to JSON for MongoDB
   Map<String, dynamic> toJson() {
     return {
-      '_id': ObjectId.fromHexString(id),
-      'id_user': ObjectId.fromHexString(idUser),
+      '_id': ObjectId.parse(id),
+      'id_user': ObjectId.parse(idUser),
       'nama_tugas': namaTugas,
       'deskripsi': deskripsi,
-      'id_mk': idMk,
+      'kode_mk': kodeMk, // BERUBAH
       'nama_mk_snapshot': namaMkSnapshot,
       'deadline': deadline,
       'status': status,
@@ -112,7 +109,13 @@ class TaskModel extends HiveObject {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'lampiran': lampiran,
-      'kelas': kelas,
+      // Pastikan target_kelas menjadi Array
+      'target_kelas':
+          targetKelas?.map((idHex) {
+            if (idHex.length == 24) return ObjectId.parse(idHex);
+            return idHex;
+          }).toList() ??
+          [],
       'nama_dosen': namaDosen,
     };
   }

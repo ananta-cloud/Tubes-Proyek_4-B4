@@ -112,19 +112,34 @@ class PengajaranService {
         final allKelasList = await kelasColl.find().toList();
 
         final pipeline = [
-          {
-            '\$group': {
-              '_id': {
-                'kode_mk': '\$kode_mk',
-                'kode_dosen': {
-                  '\$arrayElemAt': ['\$kode_dosen', 0],
-                },
-                'nama_mk': '\$nama_matkul',
-              },
-              'kelas_list': {'\$addToSet': '\$kelas'},
-            },
+        // 1. Hubungkan schedules dengan collection mata_kuliah berdasarkan kode_mk
+        {
+          '\$lookup': {
+            'from': 'mata_kuliah',
+            'localField': 'kode_mk',
+            'foreignField': 'kode_mk',
+            'as': 'mk_info',
           },
-        ];
+        },
+        // 2. Unwind agar data hasil lookup menjadi objek tunggal
+        {
+          '\$unwind': {
+            'path': '\$mk_info',
+            'preserveNullAndEmptyArrays': true, // Tetap simpan jadwal meski matkul tidak ketemu
+          },
+        },
+        // 3. Grouping dengan nama yang benar dari collection mata_kuliah
+        {
+          '\$group': {
+            '_id': {
+              'kode_mk': '\$kode_mk',
+              'kode_dosen': { '\$arrayElemAt': ['\$kode_dosen', 0] },
+              'nama_mk': { '\$ifNull': ['\$mk_info.nama_mk', '\$nama_matkul'] },
+            },
+            'kelas_list': {'\$addToSet': '\$kelas'},
+          },
+        },
+      ];
 
         final aggregated = await schedulesColl
             .aggregateToStream(pipeline)

@@ -23,9 +23,6 @@ class MatkulModel {
   @HiveField(5)
   final int sks;
 
-  @HiveField(6)
-  final String idJurusan;
-
   MatkulModel({
     required this.id,
     required this.kodeMk,
@@ -33,7 +30,6 @@ class MatkulModel {
     required this.programStudi,
     required this.idProdi,
     required this.sks,
-    required this.idJurusan,
   });
 
   factory MatkulModel.fromMongo(
@@ -55,7 +51,6 @@ class MatkulModel {
       sks: (map['sks'] is int)
           ? map['sks']
           : int.tryParse(map['sks']?.toString() ?? '0') ?? 0,
-      idJurusan: parseId(map['id_jurusan']),
     );
   }
 

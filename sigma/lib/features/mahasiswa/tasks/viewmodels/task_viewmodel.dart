@@ -22,19 +22,22 @@ class TaskViewModel extends ChangeNotifier {
   // 1. SINKRONISASI (Ubah parameter menjadi UserModel)
   Future<void> syncTasks(UserModel user) async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
     if (isOffline) return;
 
     try {
-
       print("🧑‍🎓 [TaskViewModel] Cek Kelas User di HP: '${user.kelas}'");
 
       // Panggil fungsi baru dari TaskService (Kirim ID dan Kelas Mahasiswa)
       final List<Map<String, dynamic>> mongoTasks = await _taskService
           .getTasksForMahasiswa(user.id, user.kelas);
 
-      print("🔄 [TaskViewModel] Total tugas yang berhasil ditarik: ${mongoTasks.length}");
+      print(
+        "🔄 [TaskViewModel] Total tugas yang berhasil ditarik: ${mongoTasks.length}",
+      );
 
       List<String> mongoIds = [];
 
@@ -47,7 +50,7 @@ class TaskViewModel extends ChangeNotifier {
         if (!task.isPersonal) {
           final localTask = _taskBox.get(task.id);
           if (localTask != null) {
-            task.status = localTask.status; 
+            task.status = localTask.status;
           }
         }
         await _taskBox.put(task.id, task);
@@ -60,7 +63,7 @@ class TaskViewModel extends ChangeNotifier {
           await _taskBox.delete(id);
         }
       }
-      
+
       notifyListeners();
     } catch (e) {
       print("🔥 ERROR SINKRONISASI TUGAS: $e");
@@ -75,13 +78,12 @@ class TaskViewModel extends ChangeNotifier {
     required DateTime deadline,
   }) async {
     final newId = ObjectId().toHexString();
-    
+
     final newTask = TaskModel(
       id: newId,
       idUser: userId,
       namaTugas: namaTugas,
-      deskripsi: null, 
-      idMk: null, // Null menandakan ini Tugas Personal!
+      deskripsi: null,
       namaMkSnapshot: matkul, // Kita gunakan ini sebagai label
       deadline: deadline,
       status: 'BELUM',
@@ -96,12 +98,14 @@ class TaskViewModel extends ChangeNotifier {
 
     // Sync ke MongoDB
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
     if (!isOffline) {
       bool success = await _taskService.createTask(newTask);
       if (success) {
         newTask.isSynced = true;
-        await newTask.save(); 
+        await newTask.save();
       }
     }
   }
@@ -120,7 +124,9 @@ class TaskViewModel extends ChangeNotifier {
     // Agar status tugas dosen tidak ikut tercentang "Selesai" di HP teman sekelas
     if (task.isPersonal) {
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+      bool isOffline = (connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
 
       if (!isOffline) {
         await _taskService.updateTaskStatus(task.id, newStatus);
@@ -141,7 +147,9 @@ class TaskViewModel extends ChangeNotifier {
 
     // ☁️ HAPUS DARI MONGODB
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
     if (!isOffline) {
       await _taskService.deleteTask(taskId);
@@ -163,13 +171,15 @@ class TaskViewModel extends ChangeNotifier {
     task.deadline = deadline;
     task.updatedAt = DateTime.now();
     task.isSynced = false;
-    
+
     await task.save();
     notifyListeners();
 
     // Sync ke MongoDB
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
     if (!isOffline) {
       bool success = await _taskService.updateTask(task);
       if (success) {

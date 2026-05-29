@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center, Size;
+import 'package:file_picker/file_picker.dart';
+import 'dart:io' show Platform;
+import 'package:permission_handler/permission_handler.dart';
+
 import '../../../../data/models/task_model.dart';
 import '../../../../data/models/group_task_model.dart';
 import '../../../../data/models/pengajaran_model.dart';
 import '../../../../data/services/task_service.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
+import '../../../../core/network/mongo_database.dart';
 import 'task_form_page.dart';
 
 class TaskManagementPage extends StatefulWidget {
@@ -21,6 +27,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   static const secondaryBlue = Color(0xFF3F5DB3);
   static const accentOrange = Color(0xFFFF7A36);
 
+  final Map<String, String> _kelasCacheNames = {};
   late Box<TaskModel> _taskBox;
   final TaskService _taskService = TaskService();
   List<String> _selectedFilterMatkul = [];
@@ -29,50 +36,101 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   void initState() {
     super.initState();
     _taskBox = Hive.box<TaskModel>('tasks');
-    _syncDataFromServer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncDataFromServer();
+    });
   }
 
-  List<GroupedTask> dapatkanTugasTerkelompok(List<TaskModel> rawTasks) {
+  // ===========================================================================
+  // RESOLVE KELAS (Mengubah ObjectId menjadi Nama Kelas, misal: "1A-D3")
+  // ===========================================================================
+  Future<String> _resolveNamaKelas(String idKelasHex) async {
+    if (idKelasHex.length != 24) return idKelasHex;
+    if (_kelasCacheNames.containsKey(idKelasHex)) {
+      return _kelasCacheNames[idKelasHex]!;
+    }
+
+    try {
+      final kelasDoc = await MongoDatabase.kelasCollection.findOne(
+        // PERBAIKAN: Gunakan ObjectId.parse
+        where.id(ObjectId.parse(idKelasHex)),
+      );
+
+      if (kelasDoc != null && kelasDoc.containsKey('nama_kelas')) {
+        String name = kelasDoc['nama_kelas'].toString();
+
+        if (kelasDoc['id_prodi'] != null) {
+          final dynamic rawProdiId = kelasDoc['id_prodi'];
+          // PERBAIKAN: Gunakan ObjectId.parse
+          final ObjectId prodiObjId = rawProdiId is ObjectId
+              ? rawProdiId
+              : ObjectId.parse(rawProdiId.toString());
+
+          final prodiDoc = await MongoDatabase.db
+              .collection('prodi')
+              .findOne(where.id(prodiObjId));
+
+          if (prodiDoc != null && prodiDoc['nama_prodi'] != null) {
+            String namaProdi = prodiDoc['nama_prodi'].toString().toUpperCase();
+            if (namaProdi.contains('D3') || namaProdi.contains('D-III')) {
+              name += "-D3";
+            } else if (namaProdi.contains('D4') ||
+                namaProdi.contains('D-IV') ||
+                namaProdi.contains('SARJANA TERAPAN')) {
+              name += "-D4";
+            }
+          }
+        }
+
+        _kelasCacheNames[idKelasHex] = name;
+        return name;
+      }
+      return "Unknown";
+    } catch (e) {
+      debugPrint("Error resolve kelas: $e");
+      return "Error";
+    }
+  }
+
+  // ===========================================================================
+  // GROUPING TASK (Menggabungkan Array & Fallback Data Lama)
+  // ===========================================================================
+  Future<List<GroupedTask>> dapatkanTugasTerkelompok(List<TaskModel> rawTasks) async {
     final Map<String, GroupedTask> groups = {};
 
     for (var task in rawTasks) {
-      String snapshot = task.namaMkSnapshot ?? 'Umum';
-      String matkulName = snapshot;
-      String kelas = '';
+      // Karena kita sudah murni menyimpan nama_mk tanpa embel-embel kelas (1A-D3), 
+      // kita tinggal memasukkannya langsung!
+      String matkulName = task.namaMkSnapshot ?? 'Umum';
+      List<String> namaKelasTerkonversi = [];
 
-      // Ekstrak nama kelas dari snapshot
-      if (snapshot.contains('(')) {
-        int openBracket = snapshot.lastIndexOf('(');
-        matkulName = snapshot.substring(0, openBracket).trim();
-        kelas = snapshot
-            .substring(openBracket + 1, snapshot.lastIndexOf(')'))
-            .trim();
-      }
+      if (task.targetKelas != null && task.targetKelas!.isNotEmpty) {
+        for (String idKelas in task.targetKelas!) {
+          String resolvedName = await _resolveNamaKelas(idKelas);
+          namaKelasTerkonversi.add(resolvedName);
+        }
+      } 
 
-      // Jika field kelas di model sudah tersimpan, gunakan itu sebagai prioritas
-      if (task.kelas != null && task.kelas!.isNotEmpty) {
-        kelas = task.kelas!;
-      }
-
-      String timeKey =
-          "${task.deadline.year}-${task.deadline.month}-${task.deadline.day}_${task.deadline.hour}:${task.deadline.minute}";
-      String key = "${task.idMk}_${timeKey}_${task.namaTugas}";
+      String timeKey = "${task.deadline.year}-${task.deadline.month}-${task.deadline.day}_${task.deadline.hour}:${task.deadline.minute}";
+      
+      // BERUBAH: Key grouping sekarang menggunakan kodeMk
+      String key = "${task.kodeMk}_${timeKey}_${task.namaTugas}";
 
       if (groups.containsKey(key)) {
-        // Jika grup sudah ada (tugas & deadline sama), cukup tambahkan kelasnya!
-        if (kelas.isNotEmpty && !groups[key]!.targetKelasList.contains(kelas)) {
-          groups[key]!.targetKelasList.add(kelas);
+        for (String nKelas in namaKelasTerkonversi) {
+          if (nKelas.isNotEmpty && !groups[key]!.targetKelasList.contains(nKelas)) {
+            groups[key]!.targetKelasList.add(nKelas);
+          }
         }
         groups[key]!.originalTasks.add(task);
       } else {
-        // Jika belum ada / deadline berbeda, buat kartu tugas baru!
         groups[key] = GroupedTask(
           baseId: task.id,
           namaTugas: task.namaTugas,
           deskripsi: task.deskripsi,
-          idMk: task.idMk,
-          matkulNamaSaja: matkulName,
-          targetKelasList: kelas.isNotEmpty ? [kelas] : [],
+          kodeMk: task.kodeMk, // BERUBAH
+          matkulNamaSaja: matkulName, // Langsung bersih!
+          targetKelasList: namaKelasTerkonversi, 
           deadline: task.deadline,
           isSynced: task.isSynced,
           originalTasks: [task],
@@ -81,28 +139,22 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     }
 
     final groupedList = groups.values.toList();
-    // Urutkan berdasarkan deadline terdekat
     groupedList.sort((a, b) => a.deadline.compareTo(b.deadline));
     return groupedList;
   }
 
   Set<String> get _allMataKuliah {
     final user = context.read<LoginViewModel>().user;
-
-    // 1. Gunakan toUpperCase() agar kebal terhadap perbedaan tulisan 'Dosen' atau 'DOSEN'
     if (user == null || user.role.toUpperCase() != 'DOSEN') return {};
 
-    final String cleanUserId = user.id
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-        .trim();
+    final String cleanUserId = user.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim();
     final matkulSet = <String>{};
 
-    // 2. Ambil daftar mata kuliah langsung dari tugas-tugas yang sudah pernah dibuat!
     for (final task in _taskBox.values) {
       if (task.idUser == cleanUserId && task.namaMkSnapshot != null) {
         String snapshot = task.namaMkSnapshot!;
-
-        // Bersihkan string untuk mendapatkan nama matkul saja (menghilangkan "(2B-D3)")
+        
+        // Buang bagian dalam kurung untuk mendapatkan nama matkulnya saja
         if (snapshot.contains('(')) {
           int openBracket = snapshot.lastIndexOf('(');
           matkulSet.add(snapshot.substring(0, openBracket).trim());
@@ -124,36 +176,35 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     return _taskBox.values.where((task) {
       if (task.idUser != cleanId) return false;
 
-      // Jika ada filter matkul yang dicentang (multi-select)
+      // Jika ada filter matkul yang dicentang
       if (_selectedFilterMatkul.isNotEmpty) {
         if (task.namaMkSnapshot == null) return false;
 
-        // Cek apakah tugas ini mengandung SALAH SATU dari matkul yang dicentang
         bool matches = false;
         for (String matkul in _selectedFilterMatkul) {
           if (task.namaMkSnapshot!.contains(matkul)) {
             matches = true;
-            break; // Jika ketemu satu kecocokan, langsung lolos filter
+            break; 
           }
         }
         return matches;
       }
 
-      // Jika tidak ada filter yang dicentang (tombol "Semua" aktif)
+      // Jika tidak ada filter yang dicentang
       return true;
     }).toList();
   }
 
+  // ===========================================================================
+  // SYNC & UPLOAD
+  // ===========================================================================
   Future<void> _uploadPendingTasks() async {
     try {
       final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
       if (pendingTasks.isEmpty) return;
 
-      print(
-        "☁️ Mengunggah ${pendingTasks.length} tugas offline secara paralel...",
-      );
+      print("☁️ Mengunggah ${pendingTasks.length} tugas offline secara paralel...");
 
-      // Menggunakan Future.wait agar semua request API berjalan BERSAMAAN (Paralel)
       await Future.wait(
         pendingTasks.map((task) async {
           bool success = await _taskService.updateTask(task);
@@ -184,14 +235,15 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         ConnectivityResult.none,
       );
       if (isOffline) return;
-      List<Map<String, dynamic>> rawCloudTasks = await _taskService
-          .getTasksByUser(cleanId);
+
+      List<Map<String, dynamic>> rawCloudTasks = await _taskService.getTasksByUser(cleanId);
       List<TaskModel> cloudTasks = [];
       for (var data in rawCloudTasks) {
         try {
           cloudTasks.add(TaskModel.fromMongo(data));
         } catch (_) {}
       }
+      
       Set<String> cloudIds = cloudTasks.map((t) => t.id).toSet();
       final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
       bool hasNewUploads = false;
@@ -201,7 +253,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         await Future.wait(
           pendingTasks.map((task) async {
             bool success = false;
-
             if (cloudIds.contains(task.id)) {
               success = await _taskService.updateTask(task);
             } else {
@@ -229,10 +280,10 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           } catch (_) {}
         }
       }
+      
       final Map<String, TaskModel> tasksToPut = {};
       final List<String> keysToDelete = [];
 
-      // Masukkan data server ke lokal
       for (var taskFromServer in cloudTasks) {
         final localTask = _taskBox.get(taskFromServer.id);
         if (localTask == null || localTask.isSynced == true) {
@@ -240,11 +291,9 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
       }
 
-      // Bersihkan data lokal yang benar-benar tidak ada di server
       final localKeys = _taskBox.keys.cast<String>().toList();
       for (var key in localKeys) {
         final taskInHive = _taskBox.get(key);
-        // Hapus HANYA JIKA task sudah sukses disync TAPI tidak ada di response server
         if (taskInHive != null &&
             taskInHive.isSynced &&
             !cloudIds.contains(key)) {
@@ -252,7 +301,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
       }
 
-      // Eksekusi Massal
       if (tasksToPut.isNotEmpty) await _taskBox.putAll(tasksToPut);
       if (keysToDelete.isNotEmpty) await _taskBox.deleteAll(keysToDelete);
 
@@ -323,6 +371,9 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     }
   }
 
+  // ===========================================================================
+  // RENDER UI
+  // ===========================================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -331,39 +382,46 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         valueListenable: _taskBox.listenable(),
         builder: (context, box, _) {
           final rawTasks = _myRawTasks;
-          final groupedTasks = dapatkanTugasTerkelompok(rawTasks);
           final allMatkul = _allMataKuliah.toList()..sort();
 
           return Column(
             children: [
               if (allMatkul.isNotEmpty) _buildFilterBar(allMatkul),
               Expanded(
-                child: RefreshIndicator(
-                  // 1. Panggil fungsi sinkronisasi Anda di sini
-                  onRefresh: _syncDataFromServer,
-                  color: secondaryBlue,
-                  backgroundColor: Colors.white,
-                  child: groupedTasks.isEmpty
-                      // 2. Jika kosong, gunakan SingleChildScrollView agar tetap bisa ditarik (pull)
-                      ? SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: SizedBox(
-                            height:
-                                MediaQuery.of(context).size.height *
-                                0.6, // Sesuaikan tinggi
-                            child: _buildEmptyState(),
-                          ),
-                        )
-                      // 3. Jika ada data, bungkus ListView
-                      : ListView.builder(
-                          // WAJIB: Agar list bisa ditarik ke bawah meskipun jumlah item sedikit
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: groupedTasks.length,
-                          itemBuilder: (context, index) {
-                            return _buildGroupedTaskCard(groupedTasks[index]);
-                          },
-                        ),
+                child: FutureBuilder<List<GroupedTask>>(
+                  future: dapatkanTugasTerkelompok(rawTasks),
+                  builder: (context, snapshot) {
+                    
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: secondaryBlue)
+                      );
+                    }
+
+                    final groupedTasks = snapshot.data ?? [];
+
+                    return RefreshIndicator(
+                      onRefresh: _syncDataFromServer,
+                      color: secondaryBlue,
+                      backgroundColor: Colors.white,
+                      child: groupedTasks.isEmpty
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.6,
+                                child: _buildEmptyState(),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(16),
+                              itemCount: groupedTasks.length,
+                              itemBuilder: (context, index) {
+                                return _buildGroupedTaskCard(groupedTasks[index]);
+                              },
+                            ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -379,7 +437,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   }
 
   Widget _buildFilterBar(List<String> matkulList) {
-    // LOGIKA REORDER: Pisahkan matkul yang dipilih dan yang tidak
     List<String> selectedMatkuls = [];
     List<String> unselectedMatkuls = [];
 
@@ -391,7 +448,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       }
     }
 
-    // Gabungkan list: Letakkan semua yang dipilih di urutan terdepan
     List<String> displayMatkul = [...selectedMatkuls, ...unselectedMatkuls];
 
     return Container(
@@ -404,7 +460,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            // 1. TOMBOL "SEMUA"
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
@@ -413,15 +468,12 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    // Teks putih jika kosong (default), biru jika sedang pilih matkul
                     color: _selectedFilterMatkul.isEmpty
                         ? Colors.white
                         : secondaryBlue,
                   ),
                 ),
-                // Aktif jika List filter kosong
                 selected: _selectedFilterMatkul.isEmpty,
-                // Jika "Semua" diklik, bersihkan semua centang matkul
                 onSelected: (_) =>
                     setState(() => _selectedFilterMatkul.clear()),
                 backgroundColor: Colors.white,
@@ -434,8 +486,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 ),
               ),
             ),
-
-            // 2. TOMBOL MATA KULIAH LAINNYA
             ...displayMatkul.map((matkul) {
               final isSelected = _selectedFilterMatkul.contains(matkul);
               return Padding(
@@ -452,10 +502,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   onSelected: (_) {
                     setState(() {
                       if (isSelected) {
-                        // Jika sudah dipilih, hapus dari filter
                         _selectedFilterMatkul.remove(matkul);
                       } else {
-                        // Jika belum dipilih, tambahkan ke filter
                         _selectedFilterMatkul.add(matkul);
                       }
                     });
@@ -536,7 +584,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 ],
               ),
               const SizedBox(height: 8),
-
               Text(
                 "📚 ${groupedTask.matkulNamaSaja} (${daftarKelasText.isEmpty ? 'Semua Kelas' : daftarKelasText})",
                 style: const TextStyle(
@@ -546,7 +593,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 ),
               ),
               const SizedBox(height: 8),
-
               Row(
                 children: [
                   const Icon(Icons.access_time, size: 16, color: Colors.grey),
@@ -557,7 +603,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ),
                 ],
               ),
-
               if (representatifTask.lampiran != null &&
                   representatifTask.lampiran!.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -572,7 +617,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ],
                 ),
               ],
-
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -610,7 +654,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         label: const Text('Edit'),
                         style: TextButton.styleFrom(
                           foregroundColor: secondaryBlue,
-                          minimumSize: Size.zero,
+                          minimumSize: const Size(0, 0),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
                       ),
@@ -620,7 +664,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         label: const Text('Hapus'),
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.red,
-                          minimumSize: Size.zero,
+                          minimumSize: const Size(0, 0),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
                       ),
@@ -678,15 +722,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled:
-          true, // Agar popup bisa lebih tinggi dari setengah layar jika isinya panjang
-      backgroundColor: Colors
-          .transparent, // Transparan agar bisa memodifikasi sudut melengkung
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          height:
-              MediaQuery.of(context).size.height *
-              0.75, // Maksimal 75% tinggi layar
+          height: MediaQuery.of(context).size.height * 0.75,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -694,7 +734,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Garis handle abu-abu di atas popup untuk indikator drag
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 12, bottom: 16),
@@ -706,8 +745,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ),
                 ),
               ),
-
-              // Header Judul
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
@@ -729,8 +766,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 ),
               ),
               const Divider(),
-
-              // Isi Detail (Bisa di-scroll jika panjang)
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
@@ -764,7 +799,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         iconColor: accentOrange,
                       ),
                       const SizedBox(height: 24),
-
                       const Text(
                         "Deskripsi",
                         style: TextStyle(
@@ -791,8 +825,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           ),
                         ),
                       ),
-
-                      // Jika ada lampiran, bisa ditampilkan di sini juga
                       if (representatifTask.lampiran != null &&
                           representatifTask.lampiran!.isNotEmpty) ...[
                         const SizedBox(height: 24),
@@ -836,7 +868,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     );
   }
 
-  // Widget bantuan untuk merapikan baris detail
   Widget _buildDetailRow(
     IconData icon,
     String label,
