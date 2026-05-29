@@ -4,7 +4,6 @@ class MataKuliahModel {
   final String kodeMk;
   final int sks;
   final String? idProdi;
-  final String? idJurusan;
 
   MataKuliahModel({
     required this.id,
@@ -12,7 +11,6 @@ class MataKuliahModel {
     required this.kodeMk,
     required this.sks,
     this.idProdi,
-    this.idJurusan,
   });
 
   factory MataKuliahModel.fromJson(Map<String, dynamic> json) {
@@ -22,7 +20,6 @@ class MataKuliahModel {
       kodeMk: json["kode_mk"] ?? "",
       sks: json["sks"] ?? 0,
       idProdi: json["id_prodi"]?.toString(),
-      idJurusan: json["id_jurusan"]?.toString(),
     );
   }
 
@@ -33,7 +30,6 @@ class MataKuliahModel {
       "kode_mk": kodeMk,
       "sks": sks,
       "id_prodi": idProdi,
-      "id_jurusan": idJurusan,
     };
   }
 

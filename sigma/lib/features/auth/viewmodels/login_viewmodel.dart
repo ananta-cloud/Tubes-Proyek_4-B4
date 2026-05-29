@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/services/notification_service.dart';
+import 'package:sigma/data/models/user_model.dart';
+import 'package:sigma/data/models/dosen_model.dart';
+import 'package:hive/hive.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepo;
@@ -60,6 +63,21 @@ class LoginViewModel extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return result;
+  }
+
+  DosenModel? get dosenData {
+    if (_user == null) return null;
+    
+    try {
+      // Buka box tempat Anda menyimpan data dosen (Sesuaikan nama box-nya, misal 'dosen_box' atau 'dosen')
+      final box = Hive.box<DosenModel>('dosen_box'); 
+      
+      // Cari dosen yang userId-nya sama dengan ID user yang sedang login
+      return box.values.firstWhere((dosen) => dosen.userId == _user!.id);
+    } catch (e) {
+      print("⚠️ Dosen data tidak ditemukan di Hive: $e");
+      return null;
+    }
   }
 
   Future<void> logout() async {

@@ -5,6 +5,12 @@ import '../viewmodels/task_form_viewmodel.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../data/models/dosen_model.dart';
+import '../../../../data/models/pengajaran_model.dart';
+import '../../../../core/network/mongo_database.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:mongo_dart/mongo_dart.dart' show where;
+import 'package:hive/hive.dart';
 
 class TaskFormPage extends StatefulWidget {
   final TaskModel? taskToEdit;
@@ -24,26 +30,84 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
   late TaskFormViewModel _viewModel;
 
-  @override
+ @override
   void initState() {
-    super.initState();
-    _viewModel = TaskFormViewModel();
-    _viewModel.initializeForEdit(widget.taskToEdit);
+  super.initState();
+  
+  _viewModel = Provider.of<TaskFormViewModel>(context, listen: false);
 
+  // 💡 BUNGKUS SEMUANYA DI DALAM POST FRAME CALLBACK
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    
+    // Setup form
+    if (widget.taskToEdit != null) {
+      _viewModel.initializeForEdit(widget.taskToEdit!); 
+    } else {
+      _viewModel.clearForm(); 
+    }
+
+    // Load data dosen
     final user = context.read<LoginViewModel>().user;
-    if (user != null) {
-      String cleanId = user.id
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+    if (user != null && mounted) {
+      _loadDosenOfflineFirst(user);
+    }
+  });
+}
 
-      // Mengirimkan parameter taskToEdit agar form bisa auto-select dropdown saat mode edit
-      _viewModel.loadPengajaran(cleanId, taskToEdit: widget.taskToEdit);
+
+  Future<void> _loadDosenOfflineFirst(user) async {
+    try {
+      final box = Hive.box<DosenModel>('dosen_box');
+      
+      // 1. CARI DI LOKAL DULU (Pasti sangat cepat & bisa tanpa internet)
+      final localDosen = box.values.where((d) => d.email.trim().toLowerCase() == user.email.trim().toLowerCase()).toList();
+
+      if (localDosen.isNotEmpty) {
+        final dosen = localDosen.first;
+        print("⚡ [LOKAL] Profil dosen dimuat dari Hive: ${dosen.namaDosen}");
+        
+        // Langsung tampilkan di UI!
+        _viewModel.loadPengajaran(dosen, taskToEdit: widget.taskToEdit);
+
+        // Lakukan sinkronisasi diam-diam ke MongoDB di background
+        _syncDosenFromMongoBackground(user.email, box);
+      } else {
+        // 2. JIKA DI LOKAL KOSONG, PAKSA TARIK DARI MONGODB
+        print("☁️ [CLOUD] Cache kosong. Mencoba menarik profil dosen dari MongoDB...");
+        await _syncDosenFromMongoBackground(user.email, box, forceLoadToUI: true);
+      }
+    } catch (e) {
+      print("⚠️ Error Offline-First Dosen: $e");
     }
   }
 
-  @override
-  void dispose() {
-    _viewModel.dispose();
+  Future<void> _syncDosenFromMongoBackground(String email, Box<DosenModel> box, {bool forceLoadToUI = false}) async {
+    try {
+      final dosenDoc = await MongoDatabase.runSafe(
+        () => MongoDatabase.dosenCollection.findOne(where.eq('email', email)),
+      );
+      
+      if (dosenDoc != null) {
+        final dosen = DosenModel.fromMongo(dosenDoc);
+        
+        await box.put(dosen.id, dosen); 
+
+        if (forceLoadToUI) {
+          print("✅ [CLOUD] Dosen ditarik & disimpan ke lokal: ${dosen.namaDosen} (Kode: ${dosen.kodeDosen})");
+          _viewModel.loadPengajaran(dosen, taskToEdit: widget.taskToEdit);
+        } else {
+          print("🔄 [SYNC] Cache profil dosen berhasil diperbarui di background.");
+        }
+      } else {
+        print("❌ [CLOUD] Dosen dengan email '$email' tidak ditemukan di database MongoDB.");
+      }
+    } catch (e) {
+      print("🔌 [ERROR MONGO] Gagal menarik data dari server: $e");
+    }
+  }
+
+ @override
+  void dispose() {    
     super.dispose();
   }
 
@@ -183,13 +247,14 @@ class _TaskFormPageState extends State<TaskFormPage> {
           centerTitle: true,
         ),
         body: Consumer<TaskFormViewModel>(
+          
           builder: (context, viewModel, child) => SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
-                  controller: viewModel.namaTugasController,
+                  controller: _viewModel.namaTugasController,
                   decoration: InputDecoration(
                     labelText: "Nama Tugas",
                     prefixIcon: const Icon(
@@ -202,9 +267,19 @@ class _TaskFormPageState extends State<TaskFormPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
+                    viewModel.availableKelasList.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          "Silakan pilih mata kuliah terlebih dahulu.",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ):
                 TextField(
-                  controller: viewModel.deskripsiController,
+                  controller: _viewModel.deskripsiController,
                   maxLines: 3,
                   decoration: InputDecoration(
                     labelText: "Deskripsi Tugas (Opsional)",
@@ -259,29 +334,25 @@ class _TaskFormPageState extends State<TaskFormPage> {
                         ),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: viewModel.selectedMatkulDisplay,
-                          hint: Text(
-                            viewModel.uniqueMatkulList.isEmpty
-                                ? "Belum ada kelas yang Anda ajar"
-                                : "Pilih Mata Kuliah",
-                          ),
-                          items: viewModel.uniqueMatkulList.map((matkulString) {
-                            return DropdownMenuItem<String>(
-                              value: matkulString,
-                              child: Text(
-                                matkulString,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: viewModel.uniqueMatkulList.isEmpty
-                              ? null
-                              : (String? newValue) {
-                                  viewModel.selectMatkul(newValue);
-                                },
-                        ),
+                       child: DropdownButton<String>(
+                        isExpanded: true,
+                        // CEK APAKAH VALUE ADA DI LIST, JIKA TIDAK BERI NULL
+                        value: viewModel.uniqueMatkulList.contains(viewModel.selectedMatkulDisplay) 
+                              ? viewModel.selectedMatkulDisplay 
+                              : null, 
+                        hint: Text(viewModel.uniqueMatkulList.isEmpty 
+                                  ? "Belum ada kelas yang Anda ajar" 
+                                  : "Pilih Mata Kuliah"),
+                        items: viewModel.uniqueMatkulList.map((matkulString) {
+                          return DropdownMenuItem<String>(
+                            value: matkulString,
+                            child: Text(matkulString),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          viewModel.selectMatkul(newValue);
+                        },
+                      ),
                       ),
                     );
                   },
@@ -503,11 +574,20 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                     final Uri url = Uri.parse(uriString);
                                     if (await canLaunchUrl(url)) {
                                       // Buka di browser bawaan HP
-                                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                                      await launchUrl(
+                                        url,
+                                        mode: LaunchMode.externalApplication,
+                                      );
                                     } else {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text("Tidak dapat membuka tautan ini.")),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "Tidak dapat membuka tautan ini.",
+                                          ),
+                                        ),
                                       );
                                     }
                                   } else {
@@ -515,15 +595,17 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text("📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini."),
+                                        content: Text(
+                                          "📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini.",
+                                        ),
                                         duration: Duration(seconds: 3),
                                         backgroundColor: secondaryBlue,
                                       ),
                                     );
                                   }
                                 },
+
                                 // =======================================================
-                                
                                 leading: Icon(
                                   attachment['type'] == 'file'
                                       ? Icons.insert_drive_file
@@ -540,7 +622,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 subtitle: Text(
-                                  attachment['type'] == 'file' ? 'File' : 'Link',
+                                  attachment['type'] == 'file'
+                                      ? 'File'
+                                      : 'Link',
                                   style: const TextStyle(fontSize: 11),
                                 ),
                                 trailing: SizedBox(
@@ -551,7 +635,8 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                       color: Colors.red,
                                       size: 18,
                                     ),
-                                    onPressed: () => viewModel.removeAttachment(index),
+                                    onPressed: () =>
+                                        viewModel.removeAttachment(index),
                                     padding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -588,20 +673,25 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 ),
               ),
               onPressed: () async {
-                // UBAH BAGIAN INI MENJADI .isNotEmpty
                 if (_viewModel.namaTugasController.text.isNotEmpty &&
                     _viewModel.selectedDeadline != null &&
-                    _viewModel.selectedTargetKelas.isNotEmpty) { 
-                  
-                  final userId = context.read<LoginViewModel>().user?.id ?? "";
+                    _viewModel.selectedTargetKelas.isNotEmpty) {
+                  // KITA AMBIL SELURUH OBJEK USER LENGKAP
+                  final currentUser = context.read<LoginViewModel>().user;
+                  if (currentUser == null) return;
 
                   bool success;
                   if (isEditMode) {
+                    // Kirim taskLama dan currentUser
                     success = await _viewModel.updateTaskForStudents(
                       widget.taskToEdit!,
+                      currentUser,
                     );
                   } else {
-                    success = await _viewModel.createTaskForStudents(userId);
+                    // Kirim currentUser
+                    success = await _viewModel.createTaskForStudents(
+                      currentUser,
+                    );
                   }
 
                   if (success) {

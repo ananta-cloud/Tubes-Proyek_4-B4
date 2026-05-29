@@ -508,7 +508,7 @@ class _ImportSchedulePageState extends State<ImportSchedulePage> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              vm.importStatus,
+              vm.importStatus, // Teks ini sekarang akan mencakup status "Sinkronisasi Pengajaran..."
               style: const TextStyle(color: SigmaColors.textSub, fontSize: 12),
             ),
           ),

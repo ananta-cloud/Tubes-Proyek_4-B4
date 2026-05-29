@@ -34,6 +34,11 @@ class MongoDatabase {
         final separator = mongoUrl.contains('?') ? '&' : '?';
         mongoUrl = '$mongoUrl${separator}serverSelectionTimeoutMS=30000';
       }
+      
+      if (!mongoUrl.contains('safeAtlas=true')) {
+        final separator = mongoUrl.contains('?') ? '&' : '?';
+        mongoUrl = '$mongoUrl${separator}safeAtlas=true';
+      }
 
       db = await Db.create(mongoUrl);
       await db.open().timeout(
@@ -51,7 +56,7 @@ class MongoDatabase {
       mataKuliahCollection = db.collection('mata_kuliah');
       mahasiswaCollection = db.collection('mahasiswa');
       kelasCollection = db.collection('kelas');
-      dosenCollection = db.collection('dosen'); // ✅ tambahan
+      dosenCollection = db.collection('dosen'); 
 
       isOffline = false;
       print("Berhasil terkoneksi ke MongoDB!");

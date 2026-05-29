@@ -21,7 +21,7 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       idUser: fields[1] as String,
       namaTugas: fields[2] as String,
       deskripsi: fields[3] as String?,
-      idMk: fields[4] as String?,
+      kodeMk: fields[4] as String?,
       namaMkSnapshot: fields[5] as String?,
       deadline: fields[6] as DateTime,
       status: fields[7] as String,
@@ -31,13 +31,15 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       lampiran: (fields[11] as List?)
           ?.map((dynamic e) => (e as Map).cast<String, String>())
           ?.toList(),
+      targetKelas: (fields[12] as List?)?.cast<String>(),
+      namaDosen: fields[13] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TaskModel obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +49,7 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       ..writeByte(3)
       ..write(obj.deskripsi)
       ..writeByte(4)
-      ..write(obj.idMk)
+      ..write(obj.kodeMk)
       ..writeByte(5)
       ..write(obj.namaMkSnapshot)
       ..writeByte(6)
@@ -61,7 +63,11 @@ class TaskModelAdapter extends TypeAdapter<TaskModel> {
       ..writeByte(10)
       ..write(obj.updatedAt)
       ..writeByte(11)
-      ..write(obj.lampiran);
+      ..write(obj.lampiran)
+      ..writeByte(12)
+      ..write(obj.targetKelas)
+      ..writeByte(13)
+      ..write(obj.namaDosen);
   }
 
   @override

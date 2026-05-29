@@ -3,43 +3,31 @@ import 'package:mongo_dart/mongo_dart.dart' hide Box;
 
 part 'dosen_model.g.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  DosenModel
-//
-//  Sesuai struktur collection `dosen` di MongoDB:
-//  {
-//    "_id"        : ObjectId("..."),
-//    "user_id"    : ObjectId("..."),   ← referensi ke collection users
-//    "kode_dosen" : "KO009N",
-//    "nama_dosen" : "Santi Sundari, S.T., M.T.",
-//    "id_jurusan" : ObjectId("..."),
-//    "created_at" : ISODate("..."),
-//    "updated_at" : ISODate("...")
-//  }
-// ─────────────────────────────────────────────────────────────────────────────
-@HiveType(typeId: 7) // sesuaikan jika typeId ini sudah dipakai model lain
+@HiveType(typeId: 7) 
 class DosenModel extends HiveObject {
   @HiveField(0)
   final String id;
 
   @HiveField(1)
-  final String userId; // hex ObjectId → referensi ke collection users
-  // kosong string jika dosen belum punya akun user
+  final String userId; 
 
   @HiveField(2)
-  final String kodeDosen; // "KO009N" — primary key / referensi dari jadwal
+  final String kodeDosen; 
 
   @HiveField(3)
-  final String namaDosen; // "Santi Sundari"
+  final String namaDosen; 
 
   @HiveField(4)
-  final String idJurusan; // hex ObjectId → referensi ke collection jurusan
+  final String idJurusan; 
 
   @HiveField(5)
   final DateTime createdAt;
 
   @HiveField(6)
   final DateTime updatedAt;
+
+  @HiveField(7)
+  final String email;
 
   DosenModel({
     required this.id,
@@ -49,6 +37,7 @@ class DosenModel extends HiveObject {
     required this.idJurusan,
     required this.createdAt,
     required this.updatedAt,
+    this.email = '', 
   });
 
   // ── Dari dokumen MongoDB ──────────────────────────────────────────────────
@@ -74,6 +63,8 @@ class DosenModel extends HiveObject {
       idJurusan: parseId(map['id_jurusan']),
       createdAt: parseDate(map['created_at']),
       updatedAt: parseDate(map['updated_at']),
+      // 🔥 Parsing email dari database MongoDB
+      email: map['email']?.toString() ?? '', 
     );
   }
 
@@ -82,11 +73,11 @@ class DosenModel extends HiveObject {
     final map = <String, dynamic>{
       'kode_dosen': kodeDosen,
       'nama_dosen': namaDosen,
+      'email': email, 
       'created_at': createdAt,
       'updated_at': updatedAt,
     };
-
-    // Hanya include user_id & id_jurusan jika tidak kosong
+    
     if (userId.isNotEmpty) {
       map['user_id'] = ObjectId.fromHexString(userId);
     }
@@ -98,5 +89,5 @@ class DosenModel extends HiveObject {
   }
 
   @override
-  String toString() => 'DosenModel(kode: $kodeDosen, nama: $namaDosen)';
+  String toString() => 'DosenModel(kode: $kodeDosen, nama: $namaDosen, email: $email)';
 }
