@@ -182,7 +182,7 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'kodeMk': kodeMk,
       'namaMatkul': namaMatkul,
       'idProdi': idProdi,
-      'sks': sks,
+      'sks': sks
     });
 
     // Tandai sebagai pending

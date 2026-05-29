@@ -145,4 +145,54 @@ class AnnouncementModel extends HiveObject {
       rethrow;
     }
   }
+
+  factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
+    List<Map<String, String>> parsedAttachments = [];
+    if (json['attachments'] != null && json['attachments'] is List) {
+      parsedAttachments = (json['attachments'] as List)
+          .whereType<Map>()
+          .map((e) => Map<String, String>.from(
+                e.map((k, v) => MapEntry(k.toString(), v.toString())),
+              ))
+          .toList();
+    }
+
+    return AnnouncementModel(
+      id: json['id'] ?? '',
+      judul: json['judul'] ?? '',
+      isi: json['isi'] ?? '',
+      targetAudience: json['target_audience'] ?? '',
+      idPublisher: json['id_publisher'] ?? '',
+      namaPublisher: json['nama_publisher'] ?? '',
+      rolePublisher: json['role_publisher'] ?? '',
+      idProdi: json['id_prodi'],
+      idJurusan: json['id_jurusan'],
+      targetAngkatan: json['target_angkatan'] != null ? List<String>.from(json['target_angkatan']) : null,
+      kategori: List<String>.from(json['kategori'] ?? []),
+      tingkatKepentingan: json['tingkat_kepentingan'] ?? '',
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
+      attachments: parsedAttachments,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'judul': judul,
+      'isi': isi,
+      'target_audience': targetAudience,
+      'id_publisher': idPublisher,
+      'nama_publisher': namaPublisher,
+      'role_publisher': rolePublisher,
+      'id_prodi': idProdi,
+      'id_jurusan': idJurusan,
+      'target_angkatan': targetAngkatan,
+      'kategori': kategori,
+      'tingkatKepentingan': tingkatKepentingan,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'attachments': attachments,
+    };
+  }
 }

@@ -8,7 +8,7 @@ import '../../../announcements/views/admin_announcement_page.dart';
 import '../../master_matkul/views/admin_matkul_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  WARNA BRAND SIGMA — pakai di semua file fitur admin_tu
+//  WARNA BRAND SIGMA
 // ─────────────────────────────────────────────────────────────────────────────
 class SigmaColors {
   static const navy = Color(0xFF1E2A6E);
@@ -21,7 +21,6 @@ class SigmaColors {
   static const success = Color(0xFF00897B);
   static const danger = Color(0xFFE53935);
   static const white = Color(0xFFFFFFFF);
-
   static const cardBorder = Color(0xFFE8ECF4);
 }
 
@@ -33,7 +32,6 @@ class AdminMainPage extends StatelessWidget {
 
   static const _semester = 'Semester Genap 2025/2026';
 
-  // Pages sesuai urutan bottom nav
   static final _pages = [
     const AdminSchedulePage(),
     const AdminAnnouncementPage(),
@@ -60,7 +58,6 @@ class AdminMainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pastikan status bar gelap agar kontras dengan navy
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: SigmaColors.navy,
@@ -72,9 +69,7 @@ class AdminMainPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: SigmaColors.bgPage,
-      // ── Body: IndexedStack agar state halaman tidak hilang saat ganti tab ──
       body: IndexedStack(index: vm.selectedIndex, children: _pages),
-      // ── Bottom Navigation Bar ──
       bottomNavigationBar: _SigmaBottomNav(
         selectedIndex: vm.selectedIndex,
         onTap: (i) {
@@ -88,13 +83,12 @@ class AdminMainPage extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  BOTTOM NAV — custom agar bisa pakai desain brand SIGMA
+//  BOTTOM NAV
 // ─────────────────────────────────────────────────────────────────────────────
 class _NavData {
   final IconData icon;
   final IconData activeIcon;
   final String label;
-
   const _NavData({
     required this.icon,
     required this.activeIcon,
@@ -147,7 +141,6 @@ class _SigmaBottomNav extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Pill indicator di atas icon saat aktif
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
                           curve: Curves.easeOutCubic,
@@ -198,10 +191,9 @@ class _SigmaBottomNav extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  SHARED WIDGETS — dipakai bersama oleh semua halaman admin_tu
+//  SHARED WIDGETS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Header standar tiap halaman (judul + subtitle semester + tombol logout)
 class SigmaPageHeader extends StatelessWidget {
   const SigmaPageHeader({
     super.key,
@@ -226,7 +218,6 @@ class SigmaPageHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Logo kecil
           Container(
             width: 36,
             height: 36,
@@ -281,7 +272,11 @@ class SigmaPageHeader extends StatelessWidget {
   }
 }
 
-/// Stat card standar (Draft/Published/Total, dll.)
+/// FIX: Hapus `Expanded` dari dalam SigmaStatCard.
+/// Widget ini sekarang return Container biasa — Expanded diurus oleh
+/// pemanggil (Row di halaman masing-masing) jika memang dibutuhkan.
+/// Sebelumnya return Expanded(...) sehingga jika pemanggil juga wrap
+/// dengan Expanded, terjadi "Competing ParentDataWidgets" error.
 class SigmaStatCard extends StatelessWidget {
   const SigmaStatCard({
     super.key,
@@ -298,56 +293,55 @@ class SigmaStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: SigmaColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border(left: BorderSide(color: accentColor, width: 3)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
+    // FIX: tidak lagi dibungkus Expanded di sini.
+    // Gunakan Expanded di Row pemanggil jika perlu mengisi sisa ruang.
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: SigmaColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border(left: BorderSide(color: accentColor, width: 3)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: accentColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: accentColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: SigmaColors.navy,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1,
             ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: const TextStyle(
-                color: SigmaColors.navy,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              sublabel,
-              style: const TextStyle(color: SigmaColors.textSub, fontSize: 11),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            sublabel,
+            style: const TextStyle(color: SigmaColors.textSub, fontSize: 11),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Empty state standar
 class SigmaEmptyState extends StatelessWidget {
   const SigmaEmptyState({
     super.key,
@@ -397,7 +391,6 @@ class SigmaEmptyState extends StatelessWidget {
   }
 }
 
-/// Tombol aksi utama bercorak navy
 class SigmaPrimaryButton extends StatelessWidget {
   const SigmaPrimaryButton({
     super.key,

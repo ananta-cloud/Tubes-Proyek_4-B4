@@ -77,6 +77,7 @@ void main() async {
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
+  await Hive.openBox('student_action_queue');
 
   await Hive.openBox<AnnouncementModel>('admin_announcements');
   await Hive.openBox<Map>('announcement_queue');
@@ -168,6 +169,18 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
     await context.read<AdminMatkulViewModel>().onConnectionRestored();
     await context.read<AdminScheduleViewModel>().onConnectionRestored();
+
+    final user = context.read<LoginViewModel>().user;
+    if (user != null && user.role == 'MAHASISWA') {
+      final announcementVM = context.read<AnnouncementViewModel>();
+      final taskVM = context.read<TaskViewModel>();
+      final scheduleVM = context.read<ScheduleViewModel>();
+
+      await announcementVM.syncOfflineActions();
+      await announcementVM.syncAnnouncements();
+      await taskVM.syncTasks(user); 
+      await scheduleVM.syncSchedules();
+    }
   }
 
   @override

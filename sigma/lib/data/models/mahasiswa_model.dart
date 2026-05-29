@@ -1,41 +1,36 @@
-import 'package:mongo_dart/mongo_dart.dart' show ObjectId;
+import 'kelas_model.dart';
 
 class MahasiswaModel {
   final String id;
   final String userId;
   final String nim;
-  final String nama;
-  final String idProdi;
-  final String idKelas;
+  final String? idKelas;
+  final KelasModel? kelas;
 
   MahasiswaModel({
     required this.id,
     required this.userId,
     required this.nim,
-    required this.nama,
-    required this.idProdi,
-    required this.idKelas,
+    this.idKelas,
+    this.kelas,
   });
 
-  factory MahasiswaModel.fromMongo(Map<String, dynamic> json) {
-    String extractId(dynamic field) {
-      if (field == null) return '';
-      if (field is ObjectId) return field.toHexString();
-      if (field is Map && field.containsKey('\$oid')) return field['\$oid'];
-      return field
-          .toString()
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '')
-          .trim();
-    }
-
+  factory MahasiswaModel.fromJson(Map<String, dynamic> json) {
     return MahasiswaModel(
-      id: extractId(json['_id']),
-      userId: extractId(json['user_id']),
-      nim: json['nim']?.toString() ?? '',
-      nama: json['nama']?.toString() ?? '',
-      idProdi: extractId(json['id_prodi']),
-      idKelas: extractId(json['id_kelas']),
+      id: json['_id']?.toString() ?? json['id'] ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      nim: json['nim'] ?? '',
+      idKelas: json['id_kelas']?.toString(),
+      // Jika data kelas ikut terbawa (join/lookup), parsing menjadi KelasModel
+      kelas: json['kelas'] != null ? KelasModel.fromJson(json['kelas']) : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'user_id': userId,
+        'nim': nim,
+        'id_kelas': idKelas,
+        'kelas': kelas?.toJson(),
+      };
 }

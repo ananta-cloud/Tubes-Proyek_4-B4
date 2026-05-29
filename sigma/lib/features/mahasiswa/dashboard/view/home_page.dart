@@ -231,67 +231,73 @@ class _HomePageMhsState extends State<HomePageMhs> {
     final user = context.read<LoginViewModel>().user;
     viewModel.setUserRole(user?.role ?? 'MAHASISWA');
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Pengumuman Terbaru",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: darkText,
-                fontSize: 16,
+    return RefreshIndicator(
+      onRefresh: () async{
+        await viewModel.syncOfflineActions();
+        await viewModel.syncAnnouncements();
+      },
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Pengumuman Terbaru",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: darkText,
+                  fontSize: 16,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-
-        // Filter Horizontal
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: viewModel.filters.map((filter) {
-              final isActive = viewModel.selectedFilter == filter;
-              return GestureDetector(
-                onTap: () => viewModel.setFilter(filter),
-                child: _chip(filter, isActive),
-              );
-            }).toList(),
+            ],
           ),
-        ),
-        const SizedBox(height: 15),
-
-        // Daftar Pengumuman Dinamis
-        if (viewModel.isLoading && viewModel.announcements.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 30),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (viewModel.announcements.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 30),
-            child: Center(
-              child: Text(
-                "Tidak ada pengumuman.",
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ),
-          )
-        else
-          ...viewModel.announcements.map((data) {
-                return AnnouncementCard(
-                  announcement: data, 
-                  isLecturer: false, 
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => AnnouncementDetailPage(announcement: data),),);});
+          const SizedBox(height: 10),
+      
+          // Filter Horizontal
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: viewModel.filters.map((filter) {
+                final isActive = viewModel.selectedFilter == filter;
+                return GestureDetector(
+                  onTap: () => viewModel.setFilter(filter),
+                  child: _chip(filter, isActive),
+                );
               }).toList(),
-
-        const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
-      ],
+            ),
+          ),
+          const SizedBox(height: 15),
+      
+          // Daftar Pengumuman Dinamis
+          if (viewModel.isLoading && viewModel.announcements.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 30),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (viewModel.announcements.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 30),
+              child: Center(
+                child: Text(
+                  "Tidak ada pengumuman.",
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
+            )
+          else
+            ...viewModel.announcements.map((data) {
+                  return AnnouncementCard(
+                    announcement: data, 
+                    isLecturer: false, 
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => AnnouncementDetailPage(announcement: data),),);});
+                }).toList(),
+      
+          const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
+        ],
+      ),
     );
   }
 
@@ -299,108 +305,113 @@ class _HomePageMhsState extends State<HomePageMhs> {
   Widget _schedule(ScheduleViewModel viewModel) {
     final grouped = viewModel.scheduleByDay;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-      children: [
-        Text(
-          "Jadwal Kuliah",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: darkText,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          "Semester Genap 2025/2026",
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-        ),
-        const SizedBox(height: 16),
-
-        // Jadwal Hari Ini
-        _todayCard(viewModel),
-        const SizedBox(height: 20),
-
-        // Loading indicator
-        if (viewModel.isLoading)
-          const Center(child: CircularProgressIndicator()),
-
-        // Error message
-        if (viewModel.errorMessage != null)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.amber.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.wifi_off, size: 16, color: Colors.amber.shade700),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    viewModel.errorMessage!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.amber.shade800,
-                    ),
-                  ),
-                ),
-              ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        await viewModel.syncSchedules();
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+        children: [
+          Text(
+            "Jadwal Kuliah",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: darkText,
             ),
           ),
-
-        // Kosong
-        if (!viewModel.isLoading && grouped.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Center(
-              child: Column(
+          const SizedBox(height: 4),
+          Text(
+            "Semester Genap 2025/2026",
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 16),
+      
+          // Jadwal Hari Ini
+          _todayCard(viewModel),
+          const SizedBox(height: 20),
+      
+          // Loading indicator
+          if (viewModel.isLoading)
+            const Center(child: CircularProgressIndicator()),
+      
+          // Error message
+          if (viewModel.errorMessage != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 50,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Belum ada jadwal tersedia.",
-                    style: TextStyle(color: Colors.grey.shade600),
+                  Icon(Icons.wifi_off, size: 16, color: Colors.amber.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      viewModel.errorMessage!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.amber.shade800,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-
-        // Jadwal per Hari
-        ...grouped.entries.map((entry) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(
-                  entry.key,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: primaryBlue,
-                    letterSpacing: 1.2,
-                  ),
+      
+          // Kosong
+          if (!viewModel.isLoading && grouped.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 50,
+                      color: Colors.grey.shade300,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Belum ada jadwal tersedia.",
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
                 ),
               ),
-              ...entry.value.map((s) => _scheduleItem(s)),
-              const SizedBox(height: 16),
-            ],
-          );
-        }).toList(),
-      ],
+            ),
+      
+          // Jadwal per Hari
+          ...grouped.entries.map((entry) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    entry.key,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: primaryBlue,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                ...entry.value.map((s) => _scheduleItem(s)),
+                const SizedBox(height: 16),
+              ],
+            );
+          }).toList(),
+        ],
+      ),
     );
   }
 
@@ -657,48 +668,54 @@ class _HomePageMhsState extends State<HomePageMhs> {
   // ================= TASK / TUGAS =================
   Widget _tasks(TaskViewModel viewModel) {
     final allTasks = viewModel.tasks;
+    final user = context.read<LoginViewModel>().user;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Daftar Tugas",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: darkText,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await viewModel.syncTasks(user!);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Daftar Tugas",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: darkText,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        if (allTasks.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(Icons.task_alt, size: 50, color: Colors.grey.shade300),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Tidak ada tugas. Selamat bersantai!",
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
+            ],
+          ),
+          const SizedBox(height: 16),
+      
+          if (allTasks.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
               ),
-            ),
-          )
-        else
-          ...allTasks.map((task) => StudentTaskCard(task: task, viewModel: viewModel)).toList(),
-      ],
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.task_alt, size: 50, color: Colors.grey.shade300),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Tidak ada tugas. Selamat bersantai!",
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...allTasks.map((task) => StudentTaskCard(task: task, viewModel: viewModel)).toList(),
+        ],
+      ),
     );
   } 
 
