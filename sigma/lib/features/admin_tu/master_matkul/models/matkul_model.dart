@@ -1,30 +1,21 @@
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
-
 part 'matkul_model.g.dart';
 
 @HiveType(typeId: 4)
 class MatkulModel {
   @HiveField(0)
   final String id;
-
   @HiveField(1)
   final String kodeMk;
-
   @HiveField(2)
   final String namaMatkul;
-
   @HiveField(3)
   final String programStudi;
-
   @HiveField(4)
   final String idProdi;
-
   @HiveField(5)
   final int sks;
-
-  @HiveField(6)
-  final String idJurusan;
 
   MatkulModel({
     required this.id,
@@ -33,7 +24,6 @@ class MatkulModel {
     required this.programStudi,
     required this.idProdi,
     required this.sks,
-    required this.idJurusan,
   });
 
   factory MatkulModel.fromMongo(
@@ -55,7 +45,6 @@ class MatkulModel {
       sks: (map['sks'] is int)
           ? map['sks']
           : int.tryParse(map['sks']?.toString() ?? '0') ?? 0,
-      idJurusan: parseId(map['id_jurusan']),
     );
   }
 

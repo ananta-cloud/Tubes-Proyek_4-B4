@@ -15,7 +15,6 @@ enum SyncStatus { idle, pending, syncing, synced, failed }
 class AdminMatkulViewModel extends ChangeNotifier {
   List<MatkulModel> _matkulList = [];
   Map<String, String> _prodiMap = {};
-  Map<String, String> _prodiJurusanMap = {};
 
   bool _isLoading = false;
   bool _isSyncing = false;
@@ -26,7 +25,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
 
   List<MatkulModel> get matkulList => _matkulList;
   Map<String, String> get prodiMap => _prodiMap;
-  Map<String, String> get prodiJurusanMap => _prodiJurusanMap;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
   SyncStatus get syncStatus => _syncStatus;
@@ -55,10 +53,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       final savedProdi = _prodiBox.get('prodiMap');
       if (savedProdi != null) {
         _prodiMap = Map<String, String>.from(savedProdi);
-      }
-      final savedJurusan = _prodiBox.get('prodiJurusanMap');
-      if (savedJurusan != null) {
-        _prodiJurusanMap = Map<String, String>.from(savedJurusan);
       }
       _matkulList = _matkulBox.values.toList();
       notifyListeners();
@@ -103,22 +97,15 @@ class AdminMatkulViewModel extends ChangeNotifier {
         () => MongoDatabase.db.collection('program_studi').find().toList(),
       );
       final newProdiMap = <String, String>{};
-      final newProdiJurusanMap = <String, String>{};
 
       for (final p in prodiDocs) {
         final key = p['_id'] is ObjectId
             ? (p['_id'] as ObjectId).toHexString()
             : p['_id'].toString();
         newProdiMap[key] = p['nama_prodi']?.toString() ?? '-';
-        final idJurusan = p['id_jurusan'] is ObjectId
-            ? (p['id_jurusan'] as ObjectId).toHexString()
-            : p['id_jurusan']?.toString() ?? '';
-        newProdiJurusanMap[key] = idJurusan;
       }
       _prodiMap = newProdiMap;
-      _prodiJurusanMap = newProdiJurusanMap;
       await _prodiBox.put('prodiMap', _prodiMap);
-      await _prodiBox.put('prodiJurusanMap', _prodiJurusanMap);
 
       if (_queueBox.isEmpty) {
         final mkDocs = await MongoDatabase.runSafe(
@@ -162,7 +149,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
   }) async {
     final newId = ObjectId().toHexString();
     final namaProdi = _prodiMap[idProdi] ?? '-';
-    final idJurusan = _prodiJurusanMap[idProdi] ?? '';
 
     final model = MatkulModel(
       id: newId,
@@ -171,7 +157,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       programStudi: namaProdi,
       idProdi: idProdi,
       sks: sks,
-      idJurusan: idJurusan,
     );
     await _matkulBox.put(newId, model);
     _loadFromLocal();
@@ -183,7 +168,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'namaMatkul': namaMatkul,
       'idProdi': idProdi,
       'sks': sks,
-      'idJurusan': idJurusan,
     });
 
     _pendingIds.add(newId);
@@ -202,7 +186,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
     required int sks,
   }) async {
     final namaProdi = _prodiMap[idProdi] ?? '-';
-    final idJurusan = _prodiJurusanMap[idProdi] ?? '';
 
     final updated = MatkulModel(
       id: id,
@@ -211,7 +194,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       programStudi: namaProdi,
       idProdi: idProdi,
       sks: sks,
-      idJurusan: idJurusan,
     );
     await _matkulBox.put(id, updated);
     _loadFromLocal();
@@ -223,7 +205,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       'namaMatkul': namaMatkul,
       'idProdi': idProdi,
       'sks': sks,
-      'idJurusan': idJurusan,
     });
 
     _pendingIds.add(id);
@@ -244,11 +225,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
   }
 
   // ─── Queue drain ──────────────────────────────────────────────────────────
-  //
-  // FIX: hilangkan `break` — proses SEMUA item queue meski ada yang gagal.
-  // Setiap item dicoba secara independen; yang gagal tetap di queue untuk
-  // dicoba lagi, yang berhasil langsung dihapus dari queue.
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -272,24 +248,16 @@ class AdminMatkulViewModel extends ChangeNotifier {
         final col = MongoDatabase.db.collection('mata_kuliah');
 
         if (op['operation'] == 'add') {
-          // FIX: pakai insertOne dengan upsert-style — jika sudah ada,
-          // update saja. Ini menghindari duplicate key error yang dulu
-          // menyebabkan drain berhenti total.
           await MongoDatabase.runSafe(
-            () => col.replaceOne(
-              where.id(ObjectId.fromHexString(op['id'])),
-              {
-                '_id': ObjectId.fromHexString(op['id']),
-                'kode_mk': op['kodeMk'],
-                'nama_mk': op['namaMatkul'],
-                'id_prodi': ObjectId.fromHexString(op['idProdi']),
-                'sks': op['sks'],
-                'created_at': DateTime.now(),
-                'updated_at': DateTime.now(),
-                'id_jurusan': ObjectId.fromHexString(op['idJurusan']),
-              },
-              upsert: true, //insert jika belum ada, replace jika sudah
-            ),
+            () => col.replaceOne(where.id(ObjectId.fromHexString(op['id'])), {
+              '_id': ObjectId.fromHexString(op['id']),
+              'kode_mk': op['kodeMk'],
+              'nama_mk': op['namaMatkul'],
+              'id_prodi': ObjectId.fromHexString(op['idProdi']),
+              'sks': op['sks'],
+              'created_at': DateTime.now(),
+              'updated_at': DateTime.now(),
+            }, upsert: true),
           );
         } else if (op['operation'] == 'update') {
           await MongoDatabase.runSafe(
@@ -300,8 +268,7 @@ class AdminMatkulViewModel extends ChangeNotifier {
                   .set('nama_mk', op['namaMatkul'])
                   .set('id_prodi', ObjectId.fromHexString(op['idProdi']))
                   .set('sks', op['sks'])
-                  .set('updated_at', DateTime.now())
-                  .set('id_jurusan', ObjectId.fromHexString(op['idJurusan'])),
+                  .set('updated_at', DateTime.now()),
             ),
           );
         } else if (op['operation'] == 'delete') {
@@ -310,13 +277,11 @@ class AdminMatkulViewModel extends ChangeNotifier {
           );
         }
 
-        // Berhasil — hapus dari queue dan pending set
         await _queueBox.delete(key);
         final syncedId = op['id']?.toString();
         if (syncedId != null) _pendingIds.remove(syncedId);
         debugPrint('Matkul queue item $key synced');
       } catch (e) {
-        // FIX: tidak break — lanjut ke item berikutnya
         failCount++;
         debugPrint(
           '❌ Matkul queue item $key gagal: $e — lanjut ke item berikutnya',
@@ -333,7 +298,6 @@ class AdminMatkulViewModel extends ChangeNotifier {
       await Future.delayed(const Duration(seconds: 3));
       _syncStatus = SyncStatus.idle;
     } else if (failCount > 0) {
-      // Ada yang gagal — rebuild dari sisa queue
       _rebuildPendingIds();
       _syncStatus = SyncStatus.failed;
     } else {
