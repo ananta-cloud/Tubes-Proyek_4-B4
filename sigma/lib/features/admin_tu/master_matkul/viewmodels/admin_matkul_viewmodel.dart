@@ -4,7 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box;
 
 import '../../../../../core/network/mongo_database.dart';
-import '../models/matkul_model.dart';
+import '../../../../data/models/matkul_model.dart';
 
 const _kBoxMatkul = 'admin_matkul';
 const _kBoxProdi = 'admin_prodi';
@@ -320,3 +320,4 @@ class AdminMatkulViewModel extends ChangeNotifier {
     return !(result as List).contains(ConnectivityResult.none);
   }
 }
+//new
