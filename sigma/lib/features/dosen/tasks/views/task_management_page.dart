@@ -61,7 +61,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   // ===========================================================================
   Future<String> _resolveNamaKelas(String idKelasHex) async {
     if (idKelasHex.length != 24) return idKelasHex;
-
+    
     // 1. Cek di memori RAM (Paling Cepat)
     if (_kelasCacheNames.containsKey(idKelasHex)) {
       return _kelasCacheNames[idKelasHex]!;
@@ -78,13 +78,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     // 3. Jika di memori tidak ada, baru cari ke MongoDB (Harus Online)
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOfflineNetwork = (connectivityResult as List).contains(
-        ConnectivityResult.none,
-      );
+      bool isOfflineNetwork = (connectivityResult as List).contains(ConnectivityResult.none);
 
       if (isOfflineNetwork || MongoDatabase.isOffline) {
         // Jika offline dan tidak pernah dicache, kembalikan ID sementara
-        return "Kelas (${idKelasHex.substring(0, 4)})";
+        return "Kelas (${idKelasHex.substring(0, 4)})"; 
       }
 
       final kelasDoc = await MongoDatabase.kelasCollection.findOne(
@@ -117,16 +115,16 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
 
         _kelasCacheNames[idKelasHex] = name;
-
+        
         // 🔥 SIMPAN KE HIVE AGAR PAGE MANAGEMENT TIDAK ERROR SAAT OFFLINE
         await cacheBox.put(idKelasHex, name);
-
+        
         return name;
       }
       return "Unknown";
     } catch (e) {
       debugPrint("Error resolve kelas: $e");
-      return "Kelas (${idKelasHex.substring(0, 4)})";
+      return "Kelas (${idKelasHex.substring(0, 4)})"; 
     }
   }
 
@@ -272,7 +270,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     try {
       final user = context.read<LoginViewModel>().user;
       if (user == null) return;
-
+      
       String cleanId = user.id
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
@@ -292,12 +290,12 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       List<Map<String, dynamic>> rawCloudTasks = await _taskService
           .getTasksByUser(cleanId);
       List<TaskModel> cloudTasks = [];
-
+      
       for (var data in rawCloudTasks) {
         try {
           final t = TaskModel.fromMongo(data);
           // 🔥 2. WAJIB: Tandai tugas dari server sebagai tersinkronisasi
-          t.isSynced = true;
+          t.isSynced = true; 
           cloudTasks.add(t);
         } catch (_) {}
       }
@@ -619,123 +617,222 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     final representatifTask = groupedTask.originalTasks.first;
     final String daftarKelasText = groupedTask.targetKelasList.join(', ');
 
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _showTaskDetailBottomSheet(context, groupedTask),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      groupedTask.namaTugas,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: primaryBlue,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showTaskDetailBottomSheet(context, groupedTask),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            // Karena garis biru dihapus, kita samakan padding kiri dan kanannya
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- Header: Nama Tugas & Status ---
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: secondaryBlue.withOpacity(0.08), 
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: secondaryBlue.withOpacity(0.15)), 
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          groupedTask.namaTugas,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: secondaryBlue, 
+                            height: 1.3, // Menambah sedikit spasi antar baris jika teks panjang
+                          ),
+                          softWrap: true, // Memastikan teks panjang membentang ke bawah
+                          // Tidak ada maxLines agar judul bisa tampil utuh tanpa terpotong
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      // Status ditempatkan di kanan atas, tidak akan menimpa judul yang panjang
+                      _buildStatusChip(representatifTask.status),
+                    ],
                   ),
-                  _buildStatusChip(representatifTask.status),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "📚 ${groupedTask.matkulNamaSaja} (${daftarKelasText.isEmpty ? 'Semua Kelas' : daftarKelasText})",
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: secondaryBlue,
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Deadline: ${_formatDateTime(groupedTask.deadline)}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                const SizedBox(height: 12),
+
+                // --- Info: Mata Kuliah & Kelas ---
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
-                ],
-              ),
-              if (representatifTask.lampiran != null &&
-                  representatifTask.lampiran!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.school_outlined, size: 16, color: secondaryBlue),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            text: "${groupedTask.matkulNamaSaja} ",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: primaryBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: "(${daftarKelasText.isEmpty ? 'Semua Kelas' : daftarKelasText})",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.normal,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // --- Info: Deadline & Lampiran ---
                 Row(
                   children: [
-                    const Icon(Icons.attach_file, size: 16, color: Colors.grey),
+                    const Icon(Icons.access_time_rounded, size: 15, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${representatifTask.lampiran!.length} lampiran',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      'Deadline: ${_formatDateTime(groupedTask.deadline)}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                    ),
+                    if (representatifTask.lampiran != null &&
+                        representatifTask.lampiran!.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      const Text('•', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.attach_file_rounded, size: 15, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${representatifTask.lampiran!.length}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ],
+                ),
+                
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1, thickness: 1),
+                ),
+
+                // --- Footer: Sync Status & Aksi ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Sync Status
+                    Row(
+                      children: [
+                        Icon(
+                          groupedTask.isSynced
+                              ? Icons.cloud_done_rounded
+                              : Icons.cloud_upload_rounded,
+                          size: 16,
+                          color: groupedTask.isSynced
+                              ? Colors.green.shade600
+                              : accentOrange,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          groupedTask.isSynced
+                              ? "Tersinkronisasi"
+                              : "Menunggu Jaringan",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: groupedTask.isSynced
+                                ? Colors.green.shade700
+                                : accentOrange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    // Tombol Aksi (Edit & Hapus)
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: () => _navigateToEditTask(representatifTask),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: secondaryBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.edit_rounded, size: 14, color: secondaryBlue),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: secondaryBlue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () => _deleteGroupedTask(groupedTask),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded, size: 14, color: Colors.red),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Hapus',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        groupedTask.isSynced
-                            ? Icons.cloud_done
-                            : Icons.cloud_off,
-                        size: 18,
-                        color: groupedTask.isSynced
-                            ? Colors.green
-                            : Colors.orange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        groupedTask.isSynced
-                            ? "Tersinkronisasi"
-                            : "Menunggu Jaringan",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: groupedTask.isSynced
-                              ? Colors.green
-                              : Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => _navigateToEditTask(representatifTask),
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Edit'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: secondaryBlue,
-                          minimumSize: const Size(0, 0),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => _deleteGroupedTask(groupedTask),
-                        icon: const Icon(Icons.delete, size: 16),
-                        label: const Text('Hapus'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          minimumSize: const Size(0, 0),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),

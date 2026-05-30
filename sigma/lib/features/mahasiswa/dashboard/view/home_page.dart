@@ -23,7 +23,6 @@ import 'package:sigma/features/announcements/widgets/announcement_widget.dart';
 import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart';
 import 'package:sigma/features/mahasiswa/tasks/viewmodels/task_viewmodel.dart';
 
-
 class HomePageMhs extends StatefulWidget {
   const HomePageMhs({super.key});
 
@@ -44,7 +43,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Panggil fungsi syncSchedules di sini saat module jadwal sudah siap
-      context.read<ScheduleViewModel>().syncSchedules(context.read<LoginViewModel>().user!  );
+      context.read<ScheduleViewModel>().syncSchedules(
+        context.read<LoginViewModel>().user!,
+      );
 
       // 1. Tarik ID User yang sedang aktif
       final userId = context.read<LoginViewModel>().user?.id;
@@ -52,7 +53,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
       if (userId != null) {
         // 2. Lakukan sinkronisasi Bookmark
         context.read<AnnouncementViewModel>().syncBookmarks(userId);
-        context.read<TaskViewModel>().syncTasks(context.read<LoginViewModel>().user!);
+        context.read<TaskViewModel>().syncTasks(
+          context.read<LoginViewModel>().user!,
+        );
       }
 
       NotificationService().initNotification();
@@ -140,7 +143,10 @@ class _HomePageMhsState extends State<HomePageMhs> {
 
     // 2. Ambil Data Akademik dari Model secara aman (Type-Safe)
     final namaKelas = user?.profilMahasiswa?.kelas?.namaKelas ?? "-";
-    final prodi = user?.profilMahasiswa?.kelas?.namaProdi ?? user?.profilMahasiswa?.kelas?.idProdi ?? "-";
+    final prodi =
+        user?.profilMahasiswa?.kelas?.namaProdi ??
+        user?.profilMahasiswa?.kelas?.idProdi ??
+        "-";
     final angkatan = user?.profilMahasiswa?.kelas?.angkatan?.toString() ?? "-";
 
     return Container(
@@ -177,7 +183,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                     Text(
                       namaLengkap,
                       style: const TextStyle(
-                        color: Colors.white, 
+                        color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
@@ -208,46 +214,51 @@ class _HomePageMhsState extends State<HomePageMhs> {
             builder: (context, snapshot) {
               // Secara default kita anggap online, sampai stream mendeteksi offline
               bool isOffline = false;
-              
+
               if (snapshot.hasData) {
                 isOffline = snapshot.data!.contains(ConnectivityResult.none);
               }
 
               return AnimatedContainer(
-                duration: const Duration(milliseconds: 300), // Efek transisi warna yang halus
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                duration: const Duration(
+                  milliseconds: 300,
+                ), // Efek transisi warna yang halus
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   // Jika offline berubah merah redup, jika online hijau redup
-                  color: isOffline 
+                  color: isOffline
                       ? Colors.redAccent.withValues(alpha: 0.2)
                       : Colors.green.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.2), 
-                    width: 1
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isOffline ? Icons.wifi_off_rounded : Icons.wifi_rounded, 
-                      size: 14, 
-                      color: Colors.white
+                      isOffline ? Icons.wifi_off_rounded : Icons.wifi_rounded,
+                      size: 14,
+                      color: Colors.white,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       isOffline ? "Offline" : "Online",
                       style: const TextStyle(
-                        color: Colors.white, 
-                        fontSize: 12, 
-                        fontWeight: FontWeight.w500
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               );
-            }
+            },
           ),
         ],
       ),
@@ -280,7 +291,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
     viewModel.setUserRole(user?.role ?? 'MAHASISWA');
 
     return RefreshIndicator(
-      onRefresh: () async{
+      onRefresh: () async {
         await viewModel.syncOfflineActions();
         await viewModel.syncAnnouncements();
       },
@@ -301,7 +312,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ],
           ),
           const SizedBox(height: 10),
-      
+
           // Filter Horizontal
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -316,7 +327,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           ),
           const SizedBox(height: 15),
-      
+
           // Daftar Pengumuman Dinamis
           if (viewModel.isLoading && viewModel.announcements.isEmpty)
             const Padding(
@@ -335,15 +346,24 @@ class _HomePageMhsState extends State<HomePageMhs> {
             )
           else
             ...viewModel.announcements.map((data) {
-                  return AnnouncementCard(
-                    announcement: data, 
-                    isLecturer: false, 
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => AnnouncementDetailPage(announcement: data),),);});
-                }).toList(),
-      
-          const SizedBox(height: 80), // Padding bawah agar tidak tertutup nav bar
+              return AnnouncementCard(
+                announcement: data,
+                isLecturer: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AnnouncementDetailPage(announcement: data),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+
+          const SizedBox(
+            height: 80,
+          ), // Padding bawah agar tidak tertutup nav bar
         ],
       ),
     );
@@ -353,6 +373,16 @@ class _HomePageMhsState extends State<HomePageMhs> {
   Widget _schedule(ScheduleViewModel viewModel) {
     final grouped = viewModel.scheduleByDay;
     final user = context.read<LoginViewModel>().user;
+
+    // 🔥 Dinamis: Ambil semester & tahun dari data pertama (jika ada jadwal)
+    String periodeTeks = "Belum Ada Jadwal";
+    if (viewModel.schedules.isNotEmpty) {
+      final s = viewModel.schedules.first;
+      if (s.semester.isNotEmpty && s.tahunAkademik.isNotEmpty) {
+        // Akan menghasilkan "Semester GENAP 2025/2026"
+        periodeTeks = "Semester ${s.semester} ${s.tahunAkademik}";
+      }
+    }
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -372,20 +402,21 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           ),
           const SizedBox(height: 4),
+          // 🔥 TEKS SEMESTER DINAMIS
           Text(
-            "Semester Genap 2025/2026",
+            periodeTeks,
             style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 16),
-      
+
           // Jadwal Hari Ini
           _todayCard(viewModel),
           const SizedBox(height: 20),
-      
+
           // Loading indicator
           if (viewModel.isLoading)
             const Center(child: CircularProgressIndicator()),
-      
+
           // Error message
           if (viewModel.errorMessage != null)
             Container(
@@ -412,7 +443,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 ],
               ),
             ),
-      
+
           // Kosong
           if (!viewModel.isLoading && grouped.isEmpty)
             Container(
@@ -438,7 +469,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 ),
               ),
             ),
-      
+
           // Jadwal per Hari
           ...grouped.entries.map((entry) {
             return Column(
@@ -742,7 +773,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ],
           ),
           const SizedBox(height: 16),
-      
+
           if (allTasks.isEmpty)
             Container(
               padding: const EdgeInsets.all(30),
@@ -764,11 +795,15 @@ class _HomePageMhsState extends State<HomePageMhs> {
               ),
             )
           else
-            ...allTasks.map((task) => StudentTaskCard(task: task, viewModel: viewModel)).toList(),
+            ...allTasks
+                .map(
+                  (task) => StudentTaskCard(task: task, viewModel: viewModel),
+                )
+                .toList(),
         ],
       ),
     );
-  } 
+  }
 
   // ================= BOOKMARK =================
   Widget _bookmark() {
@@ -823,17 +858,18 @@ class _HomePageMhsState extends State<HomePageMhs> {
             else
               ...bookmarkedItems.map((data) {
                 return AnnouncementCard(
-                announcement: data,
-                isLecturer: false,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AnnouncementDetailPage(announcement: data),
-                    ),
-                  );
-                },
-              );
+                  announcement: data,
+                  isLecturer: false,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AnnouncementDetailPage(announcement: data),
+                      ),
+                    );
+                  },
+                );
               }).toList(),
 
             const SizedBox(

@@ -1,42 +1,66 @@
 import 'package:sigma/core/network/mongo_database.dart';
 import 'package:mongo_dart/mongo_dart.dart';
-import 'package:sigma/core/network/mongo_database.dart';
 
 /// Service layer untuk operasi jadwal langsung ke MongoDB.
-/// Dipakai oleh SchedulingController (Tim Penjadwalan).
+/// Dipakai oleh SchedulingController (Tim Penjadwalan) dan ScheduleViewModel.
 class ScheduleService {
-  Future<List<Map<String, dynamic>>> getSchedules({String? idJurusan}) async {
+  Future<List<Map<String, dynamic>>> getSchedules([String filter = '']) async {
     try {
-      final selector = idJurusan != null && idJurusan.isNotEmpty
-          ? where
-                .eq('id_jurusan', ObjectId.parse(idJurusan))
-                .eq('status', 'PUBLISHED')
-          : where.eq('status', 'PUBLISHED');
+      // Selalu ambil yang statusnya PUBLISHED
+      SelectorBuilder selector = where.eq('status', 'PUBLISHED');
 
-      final data = await MongoDatabase.schedulesCollection
-          .find(selector)
-          .toList();
+      if (filter.isNotEmpty) {
+        // 1. Cek apakah ini ID Mahasiswa / ID Kelas (ObjectId / Hex 24 Karakter)
+        if (filter.length == 24 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(filter)) {
+          selector = selector.eq('id_kelas', ObjectId.parse(filter));
+          
+          // 🔥 TAMBAHAN: Opsional jika Anda punya parameter semester yang dikirim
+          // selector = selector.eq('semester', 'GENAP'); // Contoh memfilter khusus genap
+        } 
+        // 2. Pencarian untuk Dosen
+        else {
+          selector = where.raw({
+            r'$and': [
+              {'status': 'PUBLISHED'},
+              {
+                r'$or': [
+                  {'kelas': {r'$regex': filter, r'$options': 'i'}},
+                  {'nama_dosen': {r'$regex': filter, r'$options': 'i'}},
+                ]
+              }
+            ]
+          });
+        }
+      }
+
+      final data = await MongoDatabase.runSafe(() => 
+          MongoDatabase.schedulesCollection.find(selector).toList()
+      );
+      
       return data;
     } catch (e) {
-      print("Error in ScheduleService: $e");
+      print("Error in ScheduleService (getSchedules): $e");
       return [];
     }
   }
 
-  // khusus dosen, filter by kode_dosen
+  // Khusus dosen, filter by kode_dosen
   Future<List<Map<String, dynamic>>> getSchedulesByKodeDosen(
     String kodeDosen,
   ) async {
     try {
-      final data = await MongoDatabase.schedulesCollection
-          .find(
-            where.eq('status', 'PUBLISHED').raw({
-              'kode_dosen': {
-                r'$elemMatch': {r'$eq': kodeDosen},
-              },
-            }),
-          )
-          .toList();
+      // 🔥 BUNGKUS DENGAN RUNSAFE
+      final data = await MongoDatabase.runSafe(() => 
+        MongoDatabase.schedulesCollection
+            .find(
+              where.eq('status', 'PUBLISHED').raw({
+                'kode_dosen': {
+                  r'$elemMatch': {r'$eq': kodeDosen},
+                },
+              }),
+            )
+            .toList()
+      );
       return data;
     } catch (e) {
       print("Error getSchedulesByKodeDosen: $e");
@@ -44,7 +68,7 @@ class ScheduleService {
     }
   }
 
-  // cek ruangan tersedia
+  // Cek ruangan tersedia
   Future<List<String>> getRuanganTersedia({
     required String hari,
     required String jamMulai,
@@ -52,9 +76,11 @@ class ScheduleService {
     String? excludeScheduleId,
   }) async {
     try {
-      final allRuangan = await MongoDatabase.schedulesCollection.distinct(
-        'ruangan',
+      // 🔥 BUNGKUS DENGAN RUNSAFE
+      final allRuangan = await MongoDatabase.runSafe(() => 
+         MongoDatabase.schedulesCollection.distinct('ruangan')
       );
+      
       final semua = List<String>.from(allRuangan['values'] ?? []);
 
       final selector = where.eq('hari', hari).ne('status', 'DRAFT').raw({
@@ -62,18 +88,20 @@ class ScheduleService {
         'jam_selesai': {r'$gt': jamMulai},
       });
 
-      if (excludeScheduleId != null) {
+      if (excludeScheduleId != null && excludeScheduleId.isNotEmpty) {
         selector.ne('_id', ObjectId.parse(excludeScheduleId));
       }
 
-      final bentrok = await MongoDatabase.schedulesCollection
-          .find(selector)
-          .toList();
+      // 🔥 BUNGKUS DENGAN RUNSAFE
+      final bentrok = await MongoDatabase.runSafe(() => 
+          MongoDatabase.schedulesCollection.find(selector).toList()
+      );
+          
       final terpakai = bentrok
           .map((s) => s['ruangan']?.toString() ?? '')
           .toSet();
 
-      return semua.where((r) => !terpakai.contains(r)).toList()..sort();
+      return semua.where((r) => r.isNotEmpty && !terpakai.contains(r)).toList()..sort();
     } catch (e) {
       print("Error getRuanganTersedia: $e");
       return [];

@@ -18,14 +18,13 @@ class ManajemenMainPage extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFF1F1F3D), // primaryBlue Sigma
         actions: [
-          // Tombol Keluar (Logout)
+
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Keluar',
-            onPressed: () {
-              // Jika Anda punya fungsi logout di LoginViewModel, panggil di sini
-              // context.read<LoginViewModel>().logout();
-
+            onPressed: () async {
+              await context.read<LoginViewModel>().logout();
+              if (!context.mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -35,7 +34,6 @@ class ManajemenMainPage extends StatelessWidget {
           ),
         ],
       ),
-      // Langsung tembak ke halaman Pengumuman tanpa BottomNavigationBar
       body: const AdminAnnouncementPage(),
     );
   }

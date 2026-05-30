@@ -57,6 +57,16 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
         }
+      } else if (user.role.toUpperCase() == 'ADMIN_TU') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminMainPage()),
+        );
+      } else if (user.role.toUpperCase() == 'MANAJEMEN') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ManajemenMainPage()),
+        );
       }
     }
   }
@@ -106,14 +116,16 @@ class _LoginPageState extends State<LoginPage> {
           context,
           MaterialPageRoute(builder: (_) => const HomePageMhs()),
         );
-      } else if (user.role?.toUpperCase() == 'ADMIN_TU') {
+      } else if (role == 'ADMIN_TU') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminMainPage()),
-        );  
-      } else if (user.role.toUpperCase() == 'MANAJEMEN') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ManajemenMainPage()));
-      } 
+        );
+      } else if (role == 'MANAJEMEN') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ManajemenMainPage()),
+        );
       } else if (role == 'TIM_PENJADWALAN') {
         final tim = viewModel.timPenjadwalan;
         if (tim != null) {
@@ -132,11 +144,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
         }
-      } else if (role == 'ADMIN_TU' || role == 'MANAJEMEN') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminMainPage()),
-        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

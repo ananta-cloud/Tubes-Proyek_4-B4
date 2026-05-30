@@ -74,7 +74,7 @@ class MongoDatabase {
 
   static Future<void> ensureConnected() async {
     try {
-      if (db.state == State.OPEN) {
+      if (db.isConnected) {
         await db.serverStatus();
         isOffline = false;
         return;

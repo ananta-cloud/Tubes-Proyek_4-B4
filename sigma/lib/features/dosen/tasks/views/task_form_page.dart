@@ -1,14 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// import 'package:file_picker/file_picker.dart';
 import '../viewmodels/task_form_viewmodel.dart';
 import '../../../../data/models/task_model.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/dosen_model.dart';
-import '../../../../data/models/pengajaran_model.dart';
 import '../../../../core/network/mongo_database.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' show where;
 import 'package:hive/hive.dart';
 import 'package:sigma/shared/app_colors.dart';
@@ -24,10 +22,9 @@ class TaskFormPage extends StatefulWidget {
 
 class _TaskFormPageState extends State<TaskFormPage> {
   // Warna Tema SIGMA
-  // static const navyDark = Color(0xFF1F1F3D);
   static const secondaryBlue = Color(0xFF3F5DB3);
-
-  // static const bgColor = Color(0xFFEAF3FA);
+  static const accentOrange = Color(0xFFFF7A36);
+  static const navyDark = Color(0xFF1F1F3D);
 
   late TaskFormViewModel _viewModel;
 
@@ -131,6 +128,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
     super.dispose();
   }
 
+  // =========================================================================
+  // FUNGSI PICK FILE (Langsung Menambahkan File Tanpa Dialog)
+  // =========================================================================
   Future<void> _pickFile() async {
     try {
       final file = await _viewModel.pickFile(); // Mengambil PlatformFile
@@ -158,9 +158,10 @@ class _TaskFormPageState extends State<TaskFormPage> {
           return;
         }
 
-        // Web tidak memiliki 'path' absolut, maka gunakan fallback
         final filePath = file.path ?? 'Web_File_$fileName';
-        _showAddAttachmentDialog('File', fileName, filePath);
+        
+        // Langsung masukkan ke state ViewModel
+        _viewModel.addAttachment('file', fileName, filePath);
       }
     } catch (e) {
       print('❌ Error picking file: $e');
@@ -174,69 +175,62 @@ class _TaskFormPageState extends State<TaskFormPage> {
     }
   }
 
-  void _showAddAttachmentDialog(
-    String type,
-    String? initialTitle,
-    String? initialUri,
-  ) {
-    final titleController = TextEditingController(text: initialTitle ?? '');
-    final uriController = TextEditingController(text: initialUri ?? '');
-    String selectedType = type;
+  // =========================================================================
+  // FUNGSI PREVIEW LAMPIRAN
+  // =========================================================================
+  void _previewAttachment(String uriString, String fileName) async {
+    if (uriString.isEmpty) return;
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Tambah Lampiran'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+    final isImage = fileName.toLowerCase().endsWith('.png') ||
+                    fileName.toLowerCase().endsWith('.jpg') ||
+                    fileName.toLowerCase().endsWith('.jpeg');
+
+    if (isImage) {
+      // Tampilkan popup Image Preview
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              DropdownButtonFormField<String>(
-                value: selectedType,
-                decoration: const InputDecoration(labelText: 'Tipe Lampiran'),
-                items: ['File', 'Link'].map((type) {
-                  return DropdownMenuItem(value: type, child: Text(type));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => selectedType = value!);
-                },
+              InteractiveViewer(
+                child: uriString.startsWith('http')
+                    ? Image.network(uriString, fit: BoxFit.contain)
+                    : Image.file(File(uriString), fit: BoxFit.contain),
               ),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Judul'),
-              ),
-              TextField(
-                controller: uriController,
-                decoration: InputDecoration(
-                  labelText: selectedType == 'File' ? 'Path File' : 'URL Link',
+              Positioned(
+                top: 10,
+                right: 10,
+                child: CircleAvatar(
+                  backgroundColor: Colors.black54,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
-                readOnly: selectedType == 'File',
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (titleController.text.isNotEmpty &&
-                    uriController.text.isNotEmpty) {
-                  _viewModel.addAttachment(
-                    selectedType.toLowerCase(),
-                    titleController.text,
-                    uriController.text,
-                  );
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Tambah'),
-            ),
-          ],
         ),
-      ),
-    );
+      );
+    } else {
+      // Jika bukan gambar (misal PDF)
+      if (uriString.startsWith('http')) {
+        final Uri url = Uri.parse(uriString);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Preview untuk dokumen lokal ($fileName) tidak tersedia. File akan dapat diakses setelah tugas disimpan."),
+            backgroundColor: accentOrange,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -252,7 +246,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back_ios_new,
-              color: AppColors.navyDark,
+              color: navyDark,
               size: 20,
             ),
             onPressed: () => Navigator.pop(context),
@@ -260,7 +254,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
           title: Text(
             isEditMode ? "Edit Tugas" : "Buat Tugas Baru",
             style: const TextStyle(
-              color: AppColors.navyDark,
+              color: navyDark,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -355,7 +349,6 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           isExpanded: true,
-                          // CEK APAKAH VALUE ADA DI LIST, JIKA TIDAK BERI NULL
                           value:
                               viewModel.uniqueMatkulList.contains(
                                 viewModel.selectedMatkulDisplay,
@@ -384,7 +377,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 const SizedBox(height: 20),
 
                 // =========================================================================
-                // DROPDOWN 2: PILIH TARGET KELAS (AKAN AKTIF JIKA DROPDOWN 1 SUDAH DIPILIH)
+                // DROPDOWN 2: PILIH TARGET KELAS
                 // =========================================================================
                 Consumer<TaskFormViewModel>(
                   builder: (context, viewModel, _) {
@@ -415,8 +408,8 @@ class _TaskFormPageState extends State<TaskFormPage> {
                               ),
                             )
                           : Wrap(
-                              spacing: 8.0, // Jarak antar tombol ke samping
-                              runSpacing: 4.0, // Jarak antar tombol ke bawah
+                              spacing: 8.0,
+                              runSpacing: 4.0, 
                               children: viewModel.availableKelasList.map((
                                 kelas,
                               ) {
@@ -434,7 +427,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? Colors.white
-                                        : AppColors.navyDark,
+                                        : navyDark,
                                     fontWeight: isSelected
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -480,7 +473,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       labelText: "Deadline Tugas",
                       prefixIcon: const Icon(
                         Icons.access_time_filled,
-                        color: AppColors.gold,
+                        color: accentOrange,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -492,7 +485,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                           : "Pilih Tanggal & Waktu",
                       style: TextStyle(
                         color: viewModel.selectedDeadline != null
-                            ? AppColors.navyDark
+                            ? navyDark
                             : Colors.grey.shade600,
                         fontSize: 16,
                       ),
@@ -501,58 +494,35 @@ class _TaskFormPageState extends State<TaskFormPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Lampiran Section
+                // =========================================================================
+                // LAMPIRAN SECTION
+                // =========================================================================
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Lampiran",
+                      "Lampiran File",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.navyDark,
+                        color: navyDark,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: _pickFile,
-                            icon: const Icon(Icons.attach_file, size: 14),
-                            label: const Text("File"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: secondaryBlue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          ElevatedButton.icon(
-                            onPressed: () =>
-                                _showAddAttachmentDialog('Link', null, null),
-                            icon: const Icon(Icons.link, size: 14),
-                            label: const Text("Link"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.gold,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ),
-                        ],
+                    ElevatedButton.icon(
+                      onPressed: _pickFile,
+                      icon: const Icon(Icons.attach_file, size: 14),
+                      label: const Text("Pilih Dokumen / Gambar"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: secondaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ],
@@ -570,7 +540,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.navyDark,
+                          color: navyDark,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -581,75 +551,29 @@ class _TaskFormPageState extends State<TaskFormPage> {
                           itemCount: viewModel.lampiran.length,
                           itemBuilder: (context, index) {
                             final attachment = viewModel.lampiran[index];
+                            final fileName = attachment['title'] ?? 'File';
+                            
                             return Card(
                               margin: const EdgeInsets.only(bottom: 6),
                               elevation: 1,
                               child: ListTile(
                                 dense: true,
-                                // =======================================================
-                                // FUNGSI BARU: ON TAP UNTUK PREVIEW / DOWNLOAD
-                                // =======================================================
-                                onTap: () async {
-                                  final uriString = attachment['uri'] ?? '';
-                                  if (uriString.isEmpty) return;
-
-                                  // Cek apakah ini link web / file dari server (http/https)
-                                  if (uriString.startsWith('http')) {
-                                    final Uri url = Uri.parse(uriString);
-                                    if (await canLaunchUrl(url)) {
-                                      // Buka di browser bawaan HP
-                                      await launchUrl(
-                                        url,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    } else {
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            "Tidak dapat membuka tautan ini.",
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  } else {
-                                    // Jika ini file lokal yang baru saja dipilih (belum di-upload)
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          "📄 Ini adalah draf file lokal Anda. Preview/Download akan tersedia setelah Anda menyimpan tugas ini.",
-                                        ),
-                                        duration: Duration(seconds: 3),
-                                        backgroundColor: AppColors.accent,
-                                      ),
-                                    );
-                                  }
-                                },
-
-                                // =======================================================
-                                leading: Icon(
-                                  attachment['type'] == 'file'
-                                      ? Icons.insert_drive_file
-                                      : Icons.link,
+                                // FUNGSI PREVIEW LAMPIRAN
+                                onTap: () => _previewAttachment(attachment['uri'] ?? '', fileName),
+                                leading: const Icon(
+                                  Icons.insert_drive_file,
                                   size: 18,
-                                  color: attachment['type'] == 'file'
-                                      ? secondaryBlue
-                                      : AppColors.gold,
+                                  color: secondaryBlue
                                 ),
                                 title: Text(
-                                  attachment['title'] ?? '',
+                                  fileName,
                                   style: const TextStyle(fontSize: 12),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                subtitle: Text(
-                                  attachment['type'] == 'file'
-                                      ? 'File'
-                                      : 'Link',
-                                  style: const TextStyle(fontSize: 11),
+                                subtitle: const Text(
+                                  'Tap untuk melihat',
+                                  style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
                                 trailing: SizedBox(
                                   width: 36,
@@ -676,7 +600,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                     height: 40,
                     child: Center(
                       child: Text(
-                        "Belum ada lampiran",
+                        "Belum ada file yang dipilih",
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ),
@@ -690,7 +614,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
             padding: const EdgeInsets.all(24),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
+                backgroundColor: accentOrange,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -706,13 +630,11 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
                   bool success;
                   if (isEditMode) {
-                    // Kirim taskLama dan currentUser
                     success = await _viewModel.updateTaskForStudents(
                       widget.taskToEdit!,
                       currentUser,
                     );
                   } else {
-                    // Kirim currentUser
                     success = await _viewModel.createTaskForStudents(
                       currentUser,
                     );

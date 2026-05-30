@@ -463,8 +463,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 ],
                               ),
                             ),
-                            // Jika Role MANAJEMEN, kita sembunyikan dropdown prodi statis ini
-                            // karena mereka akan punya Dropdown khusus di bawah.
+                            // Sembunyikan dropdown prodi statis jika Role MANAJEMEN
                             if (!isManajemen) ...[
                               const SizedBox(width: 12),
                               Expanded(
@@ -478,6 +477,24 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         children: [
                                           const _FieldLabel(label: 'Prodi (Opsional)'),
                                           const SizedBox(width: 4),
+                                          if (!_isTargetMahasiswa)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.textSub.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: const Text(
+                                                'nonaktif',
+                                                style: TextStyle(
+                                                  color: AppColors.textSub,
+                                                  fontSize: 9,
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 6),
@@ -487,9 +504,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         items: _prodiList,
                                         labelBuilder: (e) => e,
                                         onChanged: _isTargetMahasiswa
-                                            ? (v) => setState(
-                                                  () => _selectedProdi = v,
-                                                )
+                                            ? (v) => setState(() => _selectedProdi = v)
                                             : null,
                                       ),
                                     ],
@@ -506,61 +521,24 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: SigmaColors.navy.withOpacity(0.04),
+                              color: AppColors.navy.withOpacity(0.04),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: SigmaColors.navy.withOpacity(0.1)),
+                              border: Border.all(color: AppColors.navy.withOpacity(0.1)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.business_rounded, size: 16, color: SigmaColors.navy),
+                                    Icon(Icons.business_rounded, size: 16, color: AppColors.navy),
                                     SizedBox(width: 6),
                                     Text(
                                       'Target Spesifik (Khusus Manajemen)',
                                       style: TextStyle(
-                                        color: SigmaColors.navy,
+                                        color: AppColors.navy,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
-                                    Row(
-                                      children: [
-                                        const _FieldLabel(label: 'Prodi'),
-                                        const SizedBox(width: 4),
-                                        if (!_isTargetMahasiswa)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.textSub
-                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              'nonaktif',
-                                              style: TextStyle(
-                                                color: AppColors.textSub,
-                                                fontSize: 9,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _SigmaDropdown<String>(
-                                      value: _selectedProdi,
-                                      hint: 'Semua prodi',
-                                      items: _prodiList,
-                                      labelBuilder: (e) => e,
-                                      onChanged: _isTargetMahasiswa
-                                          ? (v) => setState(
-                                              () => _selectedProdi = v,
-                                            )
-                                          : null,
                                     ),
                                   ],
                                 ),
@@ -702,7 +680,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                         const SizedBox(height: 16),
 
                         // ── Tingkat Kepentingan ────────────────────────────
-                        // Manual jika tanpa deadline; dikunci otomatis jika deadline diisi
                         Row(
                           children: [
                             const _FieldLabel(label: 'Tingkat Kepentingan'),
@@ -736,9 +713,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.textSub.withOpacity(
-                                          0.08,
-                                        ),
+                                        color: AppColors.textSub.withOpacity(0.08),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: const Text(
@@ -759,23 +734,18 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           ) {
                             final isSelected = _selectedTingkat == tingkat;
                             final isLocked = _selectedDeadline != null;
-                            final color =
-                                _tingkatColors[tingkat] ?? AppColors.textSub;
+                            final color = _tingkatColors[tingkat] ?? AppColors.textSub;
                             return Expanded(
                               child: GestureDetector(
                                 onTap: isLocked
                                     ? null
-                                    : () => setState(
-                                        () => _selectedTingkat = tingkat,
-                                      ),
+                                    : () => setState(() => _selectedTingkat = tingkat),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   margin: EdgeInsets.only(
                                     right: tingkat != 'SANGAT PENTING' ? 8 : 0,
                                   ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 10,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? color.withOpacity(0.12)
@@ -796,18 +766,14 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                             : tingkat == 'PENTING'
                                             ? Icons.warning_amber_rounded
                                             : Icons.error_rounded,
-                                        color: isSelected
-                                            ? color
-                                            : AppColors.textSub,
+                                        color: isSelected ? color : AppColors.textSub,
                                         size: 18,
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         tingkat,
                                         style: TextStyle(
-                                          color: isSelected
-                                              ? color
-                                              : AppColors.textSub,
+                                          color: isSelected ? color : AppColors.textSub,
                                           fontSize: 9,
                                           fontWeight: isSelected
                                               ? FontWeight.w700
@@ -1010,9 +976,6 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 ? 'Pengumuman ini dapat difilter spesifik untuk Jurusan dan Prodi yang Anda pilih di atas.'
                                 : 'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
                             style: const TextStyle(
-                              color: SigmaColors.navy,
-                            'Pengumuman ini akan otomatis ditargetkan ke jurusan Anda. Pilih target spesifik untuk mempersempit jangkauan.',
-                            style: TextStyle(
                               color: AppColors.navy,
                               fontSize: 11,
                               height: 1.5,

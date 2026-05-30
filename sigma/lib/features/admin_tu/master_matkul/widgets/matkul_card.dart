@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/shared/app_colors.dart';
-import '../models/matkul_model.dart';
+import 'package:sigma/data/models/matkul_model.dart';
 
 class MatkulCard extends StatelessWidget {
   const MatkulCard({

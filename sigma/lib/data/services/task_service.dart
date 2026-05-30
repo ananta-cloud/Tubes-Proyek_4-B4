@@ -16,13 +16,14 @@ class TaskService {
   Future<List<Map<String, dynamic>>> getTasksByUser(String userId) async {
     try {
       final data = await MongoDatabase.runSafe(
+        // BUG FIX: .find() mengembalikan Cursor, jadi kita harus menggunakan .toList()
         () => MongoDatabase.tasksCollection
             .find(where.eq('id_user', _safeObjectId(userId)))
             .toList(),
       );
       return data;
     } catch (e) {
-      print(" Error Get Tasks (Mongo): $e");
+      print("❌ Error Get Tasks (Mongo): $e");
       return [];
     }
   }
@@ -52,11 +53,20 @@ class TaskService {
 
           // Perbaiki juga data di layar HP (Hive) agar langsung berubah tanpa perlu refresh
           task.namaMkSnapshot = namaAsli;
-          if (task.isInBox) await task.save();
+          if (task.isInBox) {
+            await task.save();
+          }
         }
       }
 
       doc['is_synced'] = true;
+      
+      if (doc['target_kelas'] is List) {
+        doc['target_kelas'] = (doc['target_kelas'] as List)
+            .where((id) => id != null && id.toString().trim().isNotEmpty)
+            .map((id) => _safeObjectId(id.toString()))
+            .toList();
+      }
 
       await MongoDatabase.runSafe(
         () => MongoDatabase.tasksCollection.insert(doc),
@@ -64,7 +74,7 @@ class TaskService {
       print("✅ SUKSES MENGIRIM TUGAS BARU KE MONGODB!");
       return true;
     } catch (e) {
-      print(" Error Create Task (Mongo): $e");
+      print("❌ Error Create Task (Mongo): $e");
       return false;
     }
   }
@@ -81,7 +91,7 @@ class TaskService {
       print("✅ SUKSES UPDATE STATUS TUGAS DI MONGODB!");
       return true;
     } catch (e) {
-      print(" Error Update Task Status (Mongo): $e");
+      print("❌ Error Update Task Status (Mongo): $e");
       return false;
     }
   }
@@ -94,10 +104,10 @@ class TaskService {
           where.eq('_id', _safeObjectId(taskId)),
         ),
       );
-      print("SUKSES MENGHAPUS TUGAS DARI MONGODB!");
+      print("✅ SUKSES MENGHAPUS TUGAS DARI MONGODB!");
       return true;
     } catch (e) {
-      print(" Error Delete Task (Mongo): $e");
+      print("❌ Error Delete Task (Mongo): $e");
       return false;
     }
   }
@@ -120,7 +130,9 @@ class TaskService {
           
           // Perbaiki juga data di layar HP
           task.namaMkSnapshot = finalNamaMk;
-          if (task.isInBox) await task.save();
+          if (task.isInBox) {
+            await task.save();
+          }
         }
       }
 
@@ -134,7 +146,15 @@ class TaskService {
               .set('nama_mk_snapshot', finalNamaMk) // Masukkan nama yang sudah bersih
               .set('deadline', task.deadline)
               .set('lampiran', task.lampiran)
-              .set('target_kelas', task.targetKelas?.map((id) => _safeObjectId(id)).toList() ?? [])
+              // BUG FIX: Tangani map List string -> ObjectId dengan null-safety yang baik
+              .set(
+                'target_kelas', 
+                task.targetKelas
+                    ?.where((id) => id.trim().isNotEmpty)
+                    .map((id) => _safeObjectId(id))
+                    .toList() ?? 
+                []
+              )
               .set('nama_dosen', task.namaDosen)
               .set('updated_at', DateTime.now()),
         ),
@@ -153,19 +173,18 @@ class TaskService {
     String? kelas,
   ) async {
     try {
+      // BUG FIX: .find() mengembalikan Cursor, pastikan diakhiri dengan .toList()
       final personalTasks = await MongoDatabase.runSafe(
         () => MongoDatabase.tasksCollection
             .find(where.eq('id_user', _safeObjectId(userId)))
+            .toList(),
+      );
+      
       // Ambil tugas Dosen berdasarkan Kelas Mahasiswa
       List<Map<String, dynamic>> dosenTasks = [];
 
       if (kelas != null && kelas.isNotEmpty) {
-        // Karena sekarang 'target_kelas' berupa Array ObjectId,
-        // kita cari ObjectId dari kelas si Mahasiswa ini terlebih dahulu.
-
-        String namaKelasSaja = kelas
-            .split('-')[0]
-            .trim(); // Ambil "1B" dari "1B-D3"
+        String namaKelasSaja = kelas.split('-')[0].trim(); // Ambil "1B" dari "1B-D3"
 
         final kelasDoc = await MongoDatabase.runSafe(
           () => MongoDatabase.kelasCollection.findOne(
@@ -195,14 +214,12 @@ class TaskService {
                 .toList(),
           );
         }
-        print(
-          "📚 [TaskService] Tugas dari Dosen untuk kelas $kelas: ${dosenTasks.length}",
-        );
+        print("📚 [TaskService] Tugas dari Dosen untuk kelas $kelas: ${dosenTasks.length}");
       }
 
       return [...personalTasks, ...dosenTasks];
     } catch (e) {
-      print(" Error Get Tasks For Mahasiswa (Mongo): $e");
+      print("❌ Error Get Tasks For Mahasiswa (Mongo): $e");
       return [];
     }
   }

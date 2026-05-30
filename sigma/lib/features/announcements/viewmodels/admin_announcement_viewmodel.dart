@@ -240,6 +240,17 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     _drainQueue();
   }
 
+  // 💡 HELPER: Untuk merapikan dan memastikan parsing ObjectId aman
+  ObjectId _safeParseObjectId(dynamic val1, dynamic val2) {
+    if (val1 != null && val1.toString().trim().isNotEmpty) {
+      return ObjectId.parse(val1.toString().trim());
+    }
+    if (val2 != null && val2.toString().trim().isNotEmpty) {
+      return ObjectId.parse(val2.toString().trim());
+    }
+    return ObjectId(); // Fallback ke ID baru jika sama sekali tidak ada
+  }
+
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -269,8 +280,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
           }
 
           final doc = {
-            // ─── GANTI MENJADI ObjectId.parse ───
-            '_id': ObjectId.parse(op['id']),
+            '_id': ObjectId.parse(op['id'].toString()),
             'judul': op['judul'],
             'isi': op['isi'],
             'kategori': kategoriList,
@@ -285,35 +295,24 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             if (op['deadline'] != null)
               'deadline': DateTime.parse(op['deadline']),
 
-            // ─── GANTI MENJADI ObjectId.parse ───
-            'id_publisher':
-                (op['id_publisher'] != null &&
-                    op['id_publisher'].toString().isNotEmpty)
-                ? ObjectId.parse(op['id_publisher'])
-                : (op['idPublisher'] != null &&
-                      op['idPublisher'].toString().isNotEmpty)
-                ? ObjectId.parse(op['idPublisher'])
-                : ObjectId(),
-            'nama_publisher':
-                op['nama_publisher'] ?? op['namaPublisher'] ?? 'Admin',
-            'role_publisher':
-                op['role_publisher'] ?? op['rolePublisher'] ?? 'ADMIN_TU',
+            // 🔥 Menggunakan fungsi helper agar lebih rapi dan bebas syntax error!
+            'id_publisher': _safeParseObjectId(op['id_publisher'], op['idPublisher']),
+            'nama_publisher': op['nama_publisher'] ?? op['namaPublisher'] ?? 'Admin',
+            'role_publisher': op['role_publisher'] ?? op['rolePublisher'] ?? 'ADMIN_TU',
           };
 
-          // ─── GANTI MENJADI ObjectId.parse ───
-          if (op['id_jurusan'] != null &&
-              op['id_jurusan'].toString().isNotEmpty) {
-            doc['id_jurusan'] = ObjectId.parse(op['id_jurusan']);
-          } else if (op['idJurusan'] != null &&
-              op['idJurusan'].toString().isNotEmpty) {
-            doc['id_jurusan'] = ObjectId.parse(op['idJurusan']);
+          // Validasi opsi Jurusan
+          if (op['id_jurusan'] != null && op['id_jurusan'].toString().isNotEmpty) {
+            doc['id_jurusan'] = ObjectId.parse(op['id_jurusan'].toString());
+          } else if (op['idJurusan'] != null && op['idJurusan'].toString().isNotEmpty) {
+            doc['id_jurusan'] = ObjectId.parse(op['idJurusan'].toString());
           }
 
+          // Validasi opsi Prodi
           if (op['id_prodi'] != null && op['id_prodi'].toString().isNotEmpty) {
-            doc['id_prodi'] = ObjectId.parse(op['id_prodi']);
-          } else if (op['idProdi'] != null &&
-              op['idProdi'].toString().isNotEmpty) {
-            doc['id_prodi'] = ObjectId.parse(op['idProdi']);
+            doc['id_prodi'] = ObjectId.parse(op['id_prodi'].toString());
+          } else if (op['idProdi'] != null && op['idProdi'].toString().isNotEmpty) {
+            doc['id_prodi'] = ObjectId.parse(op['idProdi'].toString());
           }
 
           await MongoDatabase.runSafe(

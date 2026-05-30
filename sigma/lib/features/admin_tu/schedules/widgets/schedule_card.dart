@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/shared/app_colors.dart';
-import '../models/schedule_model.dart';
+import 'package:sigma/data/models/schedule_model.dart';
 import 'schedule_chips.dart';
 import 'sync_indicator_badge.dart';
 

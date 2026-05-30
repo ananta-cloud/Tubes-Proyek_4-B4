@@ -19,18 +19,26 @@ class MahasiswaModel {
 
   factory MahasiswaModel.fromJson(Map<String, dynamic> json) {
     return MahasiswaModel(
-      id: json['_id']?.toString() ?? json['id'] ?? '',
+      // 1. Pastikan id tidak null dan aman diubah ke string
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      nim: json['nim'] ?? '',
-      nama: json['nama'] ?? '',
+      
+      // 2. Tambahkan .toString() untuk mencegah crash jika nim terbaca sebagai Integer
+      nim: json['nim']?.toString() ?? '', 
+      nama: json['nama']?.toString() ?? '',
+      
       idKelas: json['id_kelas']?.toString(),
-      kelas: json['kelas'] != null ? KelasModel.fromJson(json['kelas']) : null,
+      
+      // 3. Gunakan Map.from() untuk mencegah error "type '_Map' is not a subtype of Map<String, dynamic>"
+      kelas: json['kelas'] != null 
+          ? KelasModel.fromJson(Map<String, dynamic>.from(json['kelas'])) 
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'email':email,
+        'email': email,
         'nim': nim,
         'nama': nama,
         'id_kelas': idKelas,

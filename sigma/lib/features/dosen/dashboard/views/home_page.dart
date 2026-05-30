@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
 
 import 'package:sigma/data/models/announcement_model.dart';
@@ -16,6 +17,8 @@ import 'package:sigma/features/dosen/tasks/views/task_management_page.dart';
 import 'package:sigma/features/dosen/schedules/views/jadwal_mengajar_page.dart';
 import 'package:sigma/features/dosen/requests/views/my_requests_page.dart';
 import '../widgets/home_page_widget.dart';
+
+import 'package:sigma/features/mahasiswa/schedules/viewmodels/schedule_viewmodel.dart'; 
 
 class HomePageDsn extends StatefulWidget {
   final UserModel user;
@@ -47,6 +50,9 @@ class _HomePageDsnState extends State<HomePageDsn> {
       }
       context.read<AnnouncementViewModel>().setUserRole('DOSEN');
       context.read<AnnouncementViewModel>().syncAnnouncements();
+      
+      // SINKRONISASI JADWAL MENGAJAR DOSEN SAAT INIT
+      context.read<ScheduleViewModel>().syncSchedules(widget.user);
     });
   }
 
@@ -89,26 +95,14 @@ class _HomePageDsnState extends State<HomePageDsn> {
     final activeUser = context.watch<LoginViewModel>().user;
     final activeDosen = context.watch<LoginViewModel>().dosen ?? widget.dosen;
 
-    final namaLengkap = (activeUser?.nama.isNotEmpty == true)
-        ? activeUser!.nama
-        : activeDosen.namaDosen.isNotEmpty
-        ? activeDosen.namaDosen
-        : 'Dosen SIGMA';
-
     return Scaffold(
       extendBody: true,
       backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            DosenHomeHeader(
-              greeting: 'Selamat Datang,',
-              lecturerName: namaLengkap,
-              onLogout: () => _handleLogout(context),
-              showNotification: true,
-              backgroundColor: primaryBlue,
-              gradient: null,
-            ),
+            // 🔥 HEADER DIGANTI MENJADI CUSTOM SEPERTI MAHASISWA
+            _header(context, activeUser, activeDosen),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -143,9 +137,151 @@ class _HomePageDsnState extends State<HomePageDsn> {
     );
   }
 
+  // ================= HEADER CUSTOM =================
+  Widget _header(BuildContext context, UserModel? activeUser, DosenModel activeDosen) {
+    final namaLengkap = (activeUser?.nama.isNotEmpty == true)
+        ? activeUser!.nama
+        : activeDosen.namaDosen.isNotEmpty
+        ? activeDosen.namaDosen
+        : 'Dosen SIGMA';
+        
+    final kodeDosen = activeDosen.kodeDosen.isNotEmpty ? activeDosen.kodeDosen : "-";
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
+      decoration: BoxDecoration(
+        color: primaryBlue,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 20,
+            color: Colors.black.withOpacity(0.25),
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: Colors.white.withOpacity(0.15),
+                child: const Icon(Icons.person, color: Colors.white, size: 30),
+              ),
+              const SizedBox(width: 15),
+              
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Selamat Datang,",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      namaLengkap,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    
+                    // 🔥 INDIKATOR ONLINE/OFFLINE
+                    StreamBuilder<List<ConnectivityResult>>(
+                      stream: Connectivity().onConnectivityChanged,
+                      builder: (context, snapshot) {
+                        bool isOffline = false;
+                        if (snapshot.hasData) {
+                          isOffline = snapshot.data!.contains(ConnectivityResult.none);
+                        }
+
+                        return Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isOffline ? Colors.redAccent : Colors.greenAccent,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isOffline ? "Offline" : "Online",
+                              style: TextStyle(
+                                color: isOffline ? Colors.redAccent : Colors.greenAccent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _buildInfoBadge("Dosen"),
+                        _buildInfoBadge("Kode: $kodeDosen"),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              GestureDetector(
+                onTap: () => _handleLogout(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoBadge(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   Future<void> _authenticateToRevealPassword(String email) async {
     bool authenticated = false;
-
     try {
       final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
       final bool canAuthenticate =
@@ -173,7 +309,6 @@ class _HomePageDsnState extends State<HomePageDsn> {
   Future<bool> _showOtpDialog(String email) async {
     final otpCtrl = TextEditingController();
     bool isSuccess = false;
-
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -229,7 +364,6 @@ class _HomePageDsnState extends State<HomePageDsn> {
         ],
       ),
     );
-
     return isSuccess;
   }
 
@@ -249,9 +383,15 @@ class _HomePageDsnState extends State<HomePageDsn> {
           data.targetAudience != 'MAHASISWA';
     }).toList();
 
+    final scheduleViewModel = context.watch<ScheduleViewModel>();
+    final todaySchedules = scheduleViewModel.todaySchedules;
+
     return RefreshIndicator(
       color: accentOrange,
-      onRefresh: () async => viewModel.syncAnnouncements(),
+      onRefresh: () async {
+         await viewModel.syncAnnouncements();
+         await scheduleViewModel.syncSchedules(widget.user);
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -264,6 +404,97 @@ class _HomePageDsnState extends State<HomePageDsn> {
               color: darkText,
             ),
           ),
+          const SizedBox(height: 15),
+          
+          if (scheduleViewModel.isLoading && todaySchedules.isEmpty)
+             const Center(child: CircularProgressIndicator())
+          else if (todaySchedules.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: const Center(
+                child: Text(
+                  'Tidak ada jadwal mengajar hari ini',
+                  style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+              ),
+            )
+          else
+            ...todaySchedules.map((jadwal) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: primaryBlue,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          jadwal.namaMatkul,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryBlue,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Text(
+                              "${jadwal.ruangan} • Kelas ${jadwal.kelas}",
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        jadwal.jamMulai,
+                        style: TextStyle(fontWeight: FontWeight.bold, color: darkText),
+                      ),
+                      Text(
+                        jadwal.jamSelesai,
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )),
+
           const SizedBox(height: 25),
           Text(
             'Pengumuman Terbaru',
@@ -356,6 +587,7 @@ class _HomePageDsnState extends State<HomePageDsn> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     radius: 30,
@@ -375,8 +607,10 @@ class _HomePageDsnState extends State<HomePageDsn> {
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: darkText,
+                            height: 1.2,
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           widget.user.role.isNotEmpty
                               ? widget.user.role
@@ -603,7 +837,6 @@ class _HomePageDsnState extends State<HomePageDsn> {
               ),
               actions: [
                 TextButton(
-                  // Nonaktifkan tombol batal saat loading
                   onPressed: isSubmitting
                       ? null
                       : () => Navigator.pop(dialogContext),
