@@ -3,8 +3,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' show ObjectId, where;
 import 'package:file_picker/file_picker.dart';
-import 'dart:io' show Platform;
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
 
 import '../../../../data/models/task_model.dart';
 import '../../../../data/models/user_model.dart';
@@ -14,6 +15,8 @@ import '../../../../data/repositories/pengajaran_repository.dart';
 import '../../../../data/services/task_service.dart';
 import '../../../../data/services/pengajaran_service.dart';
 import '../../../../core/network/mongo_database.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class TaskFormViewModel extends ChangeNotifier {
   final TaskService _taskService = TaskService();
@@ -40,7 +43,6 @@ class TaskFormViewModel extends ChangeNotifier {
   final Map<String, String> _kelasCacheNames = {};
   final Map<String, String> _kelasNameToIdMap = {};
 
-  // 🔥 MAP BARU: Menyimpan nama asli mata kuliah agar dropdown tidak error
   final Map<String, String> _matkulRealNames = {};
 
   void initializeForEdit(TaskModel task) {
@@ -125,7 +127,7 @@ class TaskFormViewModel extends ChangeNotifier {
       listPengajaran = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
       if (listPengajaran.isNotEmpty && !isDisposed) {
-        await _generateUniqueMatkul(); // 🔥 Await agar matkul asli tercari
+        await _generateUniqueMatkul(); 
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
         notifyListeners();
       }
@@ -137,7 +139,7 @@ class TaskFormViewModel extends ChangeNotifier {
           (updatedList.length != listPengajaran.length ||
               listPengajaran.isEmpty)) {
         listPengajaran = updatedList;
-        await _generateUniqueMatkul(); // 🔥 Await agar matkul asli tercari
+        await _generateUniqueMatkul(); 
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
         notifyListeners();
       }
@@ -288,24 +290,41 @@ class TaskFormViewModel extends ChangeNotifier {
   }
 
   Future<PlatformFile?> pickFile() async {
-    try {
-      if (Platform.isAndroid || Platform.isIOS) {
-        var storageStatus = await Permission.storage.status;
-        if (!storageStatus.isGranted) await Permission.storage.request();
-        var photosStatus = await Permission.photos.status;
-        if (!photosStatus.isGranted) await Permission.photos.request();
+  try {
+    // 1. Cek dan Minta Izin sesuai versi Android
+    if (Platform.isAndroid) {
+      final info = await DeviceInfoPlugin().androidInfo;
+      
+      bool granted = false;
+      if (info.version.sdkInt >= 33) {
+        // Android 13+
+        granted = await Permission.photos.request().isGranted || 
+                  await Permission.mediaLibrary.request().isGranted;
+      } else {
+        // Android < 13
+        granted = await Permission.storage.request().isGranted;
       }
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      if (result != null) return result.files.single;
-    } catch (e) {
-      print('Error picking file: $e');
+
+      if (!granted) {
+        print("❌ Izin akses penyimpanan ditolak");
+        return null; 
+      }
     }
-    return null;
+
+    // 2. Buka FilePicker
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      allowMultiple: false,
+    );
+
+    if (result != null) {
+      return result.files.single;
+    }
+  } catch (e) {
+    print('❌ Error picking file: $e');
   }
+  return null;
+}
 
   // =========================================================================
   // FUNGSI CREATE
@@ -313,16 +332,12 @@ class TaskFormViewModel extends ChangeNotifier {
   Future<bool> createTaskForStudents(UserModel currentUser) async {
     if (namaTugasController.text.isEmpty ||
         selectedDeadline == null ||
-        selectedTargetKelas.isEmpty)
-      return false;
+        selectedTargetKelas.isEmpty) return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
 
-    final String cleanUserId = currentUser.id.replaceAll(
-      RegExp(r'ObjectId\(|"|\)'),
-      '',
-    );
+    final String cleanUserId = currentUser.id.replaceAll(RegExp(r'ObjectId\(|"|\)'), '');
     final String newTaskId = ObjectId().toHexString();
 
     List<String> idsUntukDatabase = selectedTargetKelas
@@ -330,18 +345,15 @@ class TaskFormViewModel extends ChangeNotifier {
         .where((id) => id.isNotEmpty)
         .toList();
 
-    // 🔥 Gunakan nama bersih yang sudah dicegat
     String namaRealMatkul = _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
 
     final newTask = TaskModel(
       id: newTaskId,
       idUser: cleanUserId,
       namaTugas: namaTugasController.text,
-      deskripsi: deskripsiController.text.isNotEmpty
-          ? deskripsiController.text
-          : null,
+      deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
       kodeMk: matched.kodeMk,
-      namaMkSnapshot: namaRealMatkul, // Menyimpan nama matkul yang bersih
+      namaMkSnapshot: namaRealMatkul,
       deadline: selectedDeadline!,
       status: 'BELUM',
       isSynced: false,
@@ -355,26 +367,22 @@ class TaskFormViewModel extends ChangeNotifier {
     try {
       final taskBox = Hive.box<TaskModel>('tasks');
       await taskBox.put(newTaskId, newTask);
+      
+      // Jalankan sync tanpa menunggu (fire and forget)
       _backgroundSync(newTask, isCreate: true);
       notifyListeners();
       return true;
     } catch (e) {
-      print("❌ Error Create: $e");
+      debugPrint("❌ Error Create Task: $e");
       return false;
     }
   }
 
-  // =========================================================================
-  // FUNGSI EDIT
-  // =========================================================================
-  Future<bool> updateTaskForStudents(
-    TaskModel taskLama,
-    UserModel currentUser,
-  ) async {
-    if (namaTugasController.text.isEmpty ||
-        selectedDeadline == null ||
-        selectedTargetKelas.isEmpty)
-      return false;
+  // ===========================================================================
+  // FUNGSI EDIT (DIPERBAIKI)
+  // ===========================================================================
+  Future<bool> updateTaskForStudents(TaskModel taskLama, UserModel currentUser) async {
+    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
@@ -382,82 +390,53 @@ class TaskFormViewModel extends ChangeNotifier {
     try {
       final taskBox = Hive.box<TaskModel>('tasks');
 
-      final listTugasSejenis = taskBox.values.where((t) {
-        bool isNameSame = t.namaTugas == taskLama.namaTugas;
-        bool isTimeSame =
-            t.deadline.year == taskLama.deadline.year &&
-            t.deadline.month == taskLama.deadline.month &&
-            t.deadline.day == taskLama.deadline.day &&
-            t.deadline.hour == taskLama.deadline.hour &&
-            t.deadline.minute == taskLama.deadline.minute;
-        bool isMatkulSame = t.kodeMk == taskLama.kodeMk;
-        return isNameSame && isTimeSame && isMatkulSame;
-      }).toList();
+      // Update data di model lokal
+      taskLama.namaTugas = namaTugasController.text;
+      taskLama.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
+      taskLama.kodeMk = matched.kodeMk;
+      taskLama.namaMkSnapshot = _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
+      taskLama.deadline = selectedDeadline!;
+      taskLama.lampiran = lampiran.isNotEmpty ? lampiran : null;
+      taskLama.updatedAt = DateTime.now();
+      taskLama.targetKelas = selectedTargetKelas.map((n) => _kelasNameToIdMap[n]!).toList();
+      taskLama.isSynced = false; // Tandai perlu sync ulang
 
-      if (listTugasSejenis.isEmpty) return false;
-
-      List<String> idsUntukDatabase = selectedTargetKelas
-          .map((nama) => _kelasNameToIdMap[nama] ?? '')
-          .where((id) => id.isNotEmpty)
-          .toList();
-
-      // 🔥 Gunakan nama bersih yang sudah dicegat
-      String namaRealMatkul =
-          _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
-
-      TaskModel tToUpdate = listTugasSejenis[0];
-
-      tToUpdate.namaTugas = namaTugasController.text;
-      tToUpdate.deskripsi = deskripsiController.text.isNotEmpty
-          ? deskripsiController.text
-          : null;
-      tToUpdate.kodeMk = matched.kodeMk;
-      tToUpdate.namaMkSnapshot = namaRealMatkul;
-      tToUpdate.deadline = selectedDeadline!;
-      tToUpdate.lampiran = lampiran.isNotEmpty ? lampiran : null;
-      tToUpdate.updatedAt = DateTime.now();
-      tToUpdate.isSynced = false;
-      tToUpdate.targetKelas = idsUntukDatabase;
-      tToUpdate.namaDosen = currentUser.nama;
-
-      await tToUpdate.save();
-      _backgroundSync(tToUpdate, isCreate: false);
-
-      for (int i = 1; i < listTugasSejenis.length; i++) {
-        TaskModel tToDelete = listTugasSejenis[i];
-        await taskBox.delete(tToDelete.id);
-        _taskService.deleteTask(tToDelete.id);
-      }
+      // Simpan perubahan ke Hive
+      await taskBox.put(taskLama.id, taskLama);
+      
+      // Sync ke server
+      _backgroundSync(taskLama, isCreate: false);
 
       notifyListeners();
       return true;
     } catch (e) {
-      print("❌ Error Update: $e");
+      debugPrint("❌ Error Update Task: $e");
       return false;
     }
   }
 
+  // ===========================================================================
+  // SYNC (DIPERBAIKI)
+  // ===========================================================================
   Future<void> _backgroundSync(TaskModel task, {required bool isCreate}) async {
     try {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOnline = !(connectivityResult as List).contains(
-        ConnectivityResult.none,
-      );
+      final result = await Connectivity().checkConnectivity();
+      bool isOnline = !(result as List).contains(ConnectivityResult.none);
 
       if (isOnline) {
         bool cloudSuccess = isCreate
             ? await _taskService.createTask(task)
             : await _taskService.updateTask(task);
+
         if (cloudSuccess) {
           task.isSynced = true;
-          // ❌ HAPUS INI: await task.save();
-          // ✅ GANTI MENJADI:
           final taskBox = Hive.box<TaskModel>('tasks');
           await taskBox.put(task.id, task);
+          notifyListeners(); // Update UI setelah sync
         }
       }
     } catch (e) {
-      print("☁️ Background Sync Error: $e");
+      debugPrint("☁️ Background Sync Error: $e");
     }
   }
 

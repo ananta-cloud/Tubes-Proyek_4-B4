@@ -4,7 +4,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center, Size;
 import 'package:file_picker/file_picker.dart';
-import 'dart:io' show Platform;
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
+import 'package:open_filex/open_filex.dart';
 import 'dart:async';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -61,7 +63,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   // ===========================================================================
   Future<String> _resolveNamaKelas(String idKelasHex) async {
     if (idKelasHex.length != 24) return idKelasHex;
-    
+
     // 1. Cek di memori RAM (Paling Cepat)
     if (_kelasCacheNames.containsKey(idKelasHex)) {
       return _kelasCacheNames[idKelasHex]!;
@@ -78,11 +80,13 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     // 3. Jika di memori tidak ada, baru cari ke MongoDB (Harus Online)
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOfflineNetwork = (connectivityResult as List).contains(ConnectivityResult.none);
+      bool isOfflineNetwork = (connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
 
       if (isOfflineNetwork || MongoDatabase.isOffline) {
         // Jika offline dan tidak pernah dicache, kembalikan ID sementara
-        return "Kelas (${idKelasHex.substring(0, 4)})"; 
+        return "Kelas (${idKelasHex.substring(0, 4)})";
       }
 
       final kelasDoc = await MongoDatabase.kelasCollection.findOne(
@@ -115,16 +119,16 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
 
         _kelasCacheNames[idKelasHex] = name;
-        
+
         // 🔥 SIMPAN KE HIVE AGAR PAGE MANAGEMENT TIDAK ERROR SAAT OFFLINE
         await cacheBox.put(idKelasHex, name);
-        
+
         return name;
       }
       return "Unknown";
     } catch (e) {
       debugPrint("Error resolve kelas: $e");
-      return "Kelas (${idKelasHex.substring(0, 4)})"; 
+      return "Kelas (${idKelasHex.substring(0, 4)})";
     }
   }
 
@@ -270,7 +274,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     try {
       final user = context.read<LoginViewModel>().user;
       if (user == null) return;
-      
+
       String cleanId = user.id
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
@@ -290,12 +294,12 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       List<Map<String, dynamic>> rawCloudTasks = await _taskService
           .getTasksByUser(cleanId);
       List<TaskModel> cloudTasks = [];
-      
+
       for (var data in rawCloudTasks) {
         try {
           final t = TaskModel.fromMongo(data);
           // 🔥 2. WAJIB: Tandai tugas dari server sebagai tersinkronisasi
-          t.isSynced = true; 
+          t.isSynced = true;
           cloudTasks.add(t);
         } catch (_) {}
       }
@@ -646,9 +650,9 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: secondaryBlue.withOpacity(0.08), 
+                    color: secondaryBlue.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: secondaryBlue.withOpacity(0.15)), 
+                    border: Border.all(color: secondaryBlue.withOpacity(0.15)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,10 +663,12 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: secondaryBlue, 
-                            height: 1.3, // Menambah sedikit spasi antar baris jika teks panjang
+                            color: secondaryBlue,
+                            height:
+                                1.3, // Menambah sedikit spasi antar baris jika teks panjang
                           ),
-                          softWrap: true, // Memastikan teks panjang membentang ke bawah
+                          softWrap:
+                              true, // Memastikan teks panjang membentang ke bawah
                           // Tidak ada maxLines agar judul bisa tampil utuh tanpa terpotong
                         ),
                       ),
@@ -676,7 +682,10 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
 
                 // --- Info: Mata Kuliah & Kelas ---
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -684,7 +693,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.school_outlined, size: 16, color: secondaryBlue),
+                      const Icon(
+                        Icons.school_outlined,
+                        size: 16,
+                        color: secondaryBlue,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: RichText(
@@ -697,7 +710,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                             ),
                             children: [
                               TextSpan(
-                                text: "(${daftarKelasText.isEmpty ? 'Semua Kelas' : daftarKelasText})",
+                                text:
+                                    "(${daftarKelasText.isEmpty ? 'Semua Kelas' : daftarKelasText})",
                                 style: TextStyle(
                                   fontWeight: FontWeight.normal,
                                   color: Colors.grey.shade600,
@@ -715,27 +729,43 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 // --- Info: Deadline & Lampiran ---
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded, size: 15, color: Colors.grey),
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 15,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Deadline: ${_formatDateTime(groupedTask.deadline)}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     if (representatifTask.lampiran != null &&
                         representatifTask.lampiran!.isNotEmpty) ...[
                       const SizedBox(width: 12),
                       const Text('•', style: TextStyle(color: Colors.grey)),
                       const SizedBox(width: 12),
-                      const Icon(Icons.attach_file_rounded, size: 15, color: Colors.grey),
+                      const Icon(
+                        Icons.attach_file_rounded,
+                        size: 15,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${representatifTask.lampiran!.length}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ],
                 ),
-                
+
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1, thickness: 1),
@@ -772,7 +802,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         ),
                       ],
                     ),
-                    
+
                     // Tombol Aksi (Edit & Hapus)
                     Row(
                       children: [
@@ -780,14 +810,21 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           onTap: () => _navigateToEditTask(representatifTask),
                           borderRadius: BorderRadius.circular(20),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: secondaryBlue.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.edit_rounded, size: 14, color: secondaryBlue),
+                                Icon(
+                                  Icons.edit_rounded,
+                                  size: 14,
+                                  color: secondaryBlue,
+                                ),
                                 SizedBox(width: 4),
                                 Text(
                                   'Edit',
@@ -806,14 +843,21 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           onTap: () => _deleteGroupedTask(groupedTask),
                           borderRadius: BorderRadius.circular(20),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.delete_outline_rounded, size: 14, color: Colors.red),
+                                Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 14,
+                                  color: Colors.red,
+                                ),
                                 SizedBox(width: 4),
                                 Text(
                                   'Hapus',
@@ -894,6 +938,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Garis handle abu-abu di atas
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 12, bottom: 16),
@@ -932,12 +977,44 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDetailRow(
-                        Icons.assignment,
-                        "Nama Tugas",
-                        groupedTask.namaTugas,
+                      // 🔥 HEADER: Nama Tugas dengan Background Biru Lembut
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: secondaryBlue.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: secondaryBlue.withOpacity(0.15),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Nama Tugas",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: secondaryBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              groupedTask.namaTugas,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: secondaryBlue,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
+
+                      // Info lainnya
                       _buildDetailRow(
                         Icons.book,
                         "Mata Kuliah",
@@ -959,6 +1036,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         iconColor: accentOrange,
                       ),
                       const SizedBox(height: 24),
+
                       const Text(
                         "Deskripsi",
                         style: TextStyle(
@@ -985,6 +1063,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           ),
                         ),
                       ),
+
+                      // Daftar Lampiran
                       if (representatifTask.lampiran != null &&
                           representatifTask.lampiran!.isNotEmpty) ...[
                         const SizedBox(height: 24),
@@ -997,26 +1077,75 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        ...representatifTask.lampiran!.map(
-                          (lamp) => ListTile(
+                        ...representatifTask.lampiran!.map((lamp) {
+                          final fileName = lamp['title'] ?? 'Lampiran';
+                          return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              lamp['type'] == 'file'
-                                  ? Icons.insert_drive_file
-                                  : Icons.link,
-                              color: secondaryBlue,
+                            onTap: () async {
+                              String uriString = lamp['uri'] ?? '';
+                              if (uriString.isEmpty) return;
+
+                              final file = File(uriString);
+
+                              // Cek apakah file benar-benar ada di storage HP
+                              if (await file.exists()) {
+                                try {
+                                  // open_file akan otomatis mencarikan aplikasi PDF Viewer/Image Viewer di HP
+                                  final result = await OpenFilex.open(uriString);
+                                  
+                                  if (result.type != ResultType.done) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("Tidak dapat membuka file: ${result.message}")),
+                                    );
+                                  }
+                                } catch (e) {
+                                  print("Error membuka file: $e");
+                                }
+                              } else {
+                                // 🔥 Jika file tidak ditemukan (karena cache dibersihkan/reinstall)
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("⚠️ File tidak ditemukan di perangkat. Harap lampirkan ulang tugas."),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: secondaryBlue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                lamp['type'] == 'file'
+                                    ? Icons.insert_drive_file
+                                    : Icons.link,
+                                color: secondaryBlue,
+                                size: 20,
+                              ),
                             ),
                             title: Text(
-                              lamp['title'] ?? 'Lampiran',
-                              style: const TextStyle(fontSize: 14),
+                              fileName,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             subtitle: Text(
-                              lamp['type'] == 'file' ? 'File' : 'Tautan Web',
+                              lamp['type'] == 'file'
+                                  ? 'Ketuk untuk melihat file'
+                                  : 'Tautan Web',
                               style: const TextStyle(fontSize: 12),
                             ),
-                          ),
-                        ),
+                          );
+                        }),
                       ],
+                      const SizedBox(
+                        height: 40,
+                      ), // Jarak kosong di paling bawah scroll
                     ],
                   ),
                 ),

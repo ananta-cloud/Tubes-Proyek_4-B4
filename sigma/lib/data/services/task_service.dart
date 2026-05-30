@@ -1,6 +1,9 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import '../../core/network/mongo_database.dart';
 import '../models/task_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:convert';  
 
 class TaskService {
   ObjectId _safeObjectId(String id) {
@@ -223,4 +226,21 @@ class TaskService {
       return [];
     }
   }
+
+  Future<String?> uploadFileToServer(File file) async {
+  try {
+    var request = http.MultipartRequest('POST', Uri.parse('https://api.sigma.com/api/upload'));
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    var response = await request.send();
+    
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
+      final json = jsonDecode(responseData);
+      return json['url']; // URL publik dari Laravel
+    }
+  } catch (e) {
+    print("Error uploading: $e");
+  }
+  return null;
+}
 }
