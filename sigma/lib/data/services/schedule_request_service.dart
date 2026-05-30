@@ -168,11 +168,29 @@ class ScheduleRequestService {
 
   Future<Map<String, int>> getStats(String idJurusan) async {
     try {
-      final schedules = await _schCol
-          .find(where.eq('id_jurusan', ObjectId.parse(idJurusan)))
+      final cleanId = idJurusan
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+
+      final dosenList = await MongoDatabase.db
+          .collection('dosen')
+          .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanId)))
           .toList();
-      final ids = schedules.map((s) => s['_id']).toList();
-      if (ids.isEmpty) return {'pending': 0, 'approved': 0, 'rejected': 0};
+      if (dosenList.isEmpty)
+        return {'pending': 0, 'approved': 0, 'rejected': 0};
+
+      final kodeDosens = dosenList
+          .map((d) => d['kode_dosen']?.toString())
+          .where((k) => k != null)
+          .toList();
+
+      final schedules = await _schCol
+          .find(where.oneFrom('kode_dosen', kodeDosens))
+          .toList();
+      if (schedules.isEmpty)
+        return {'pending': 0, 'approved': 0, 'rejected': 0};
+
+      final ids = schedules.map((s) => s['_id'] as ObjectId).toList();
 
       final pending = await _reqCol.count(
         where.oneFrom('id_schedule', ids).eq('status', 'PENDING'),
@@ -183,6 +201,7 @@ class ScheduleRequestService {
       final rejected = await _reqCol.count(
         where.oneFrom('id_schedule', ids).eq('status', 'REJECTED'),
       );
+
       return {'pending': pending, 'approved': approved, 'rejected': rejected};
     } catch (_) {
       return {'pending': 0, 'approved': 0, 'rejected': 0};
@@ -264,6 +283,7 @@ class ScheduleRequestService {
       );
       return true;
     } catch (e) {
+      print('_doApprove ERROR: $e');
       return false;
     }
   }
@@ -276,6 +296,7 @@ class ScheduleRequestService {
     required String processorId,
     required String catatanAdmin,
   }) async {
+    print('rejectRequest isOffline=${MongoDatabase.isOffline}');
     if (MongoDatabase.isOffline) {
       _enqueueAction({
         'type': 'REJECT',
@@ -284,8 +305,10 @@ class ScheduleRequestService {
         'catatanAdmin': catatanAdmin,
         'queuedAt': DateTime.now().toIso8601String(),
       });
+      print('rejectRequest enqueued');
       return true;
     }
+    print('rejectRequest online, calling _doReject');
     return _doReject(
       requestId: requestId,
       processorId: processorId,
@@ -299,16 +322,24 @@ class ScheduleRequestService {
     required String catatanAdmin,
   }) async {
     try {
+      final cleanReqId = requestId
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+      final cleanProcId = processorId
+          .replaceAll('ObjectId("', '')
+          .replaceAll('")', '');
+
       await _reqCol.updateOne(
-        where.id(ObjectId.parse(requestId)),
+        where.id(ObjectId.fromHexString(cleanReqId)),
         modify
             .set('status', 'REJECTED')
             .set('catatan_admin', catatanAdmin)
-            .set('id_processor', ObjectId.parse(processorId))
+            .set('id_processor', ObjectId.fromHexString(cleanProcId))
             .set('updated_at', DateTime.now()),
       );
       return true;
     } catch (e) {
+      print('_doReject ERROR: $e');
       return false;
     }
   }

@@ -360,12 +360,12 @@ class DosenRequestController extends ChangeNotifier {
     final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
 
     final hariTanggalBaru = _hariDari(selectedTanggalBaru!);
-    final samaTanggal = hariTanggalBaru == hariLama;
+    final samaHari = hariTanggalBaru == hariLama;
     final samaJamMulai = (selectedJamMulaiBaru ?? jamMulaiLama) == jamMulaiLama;
     final samaJamSelesai =
         (selectedJamSelesaiBaru ?? jamSelesaiLama) == jamSelesaiLama;
 
-    if (samaTanggal && samaJamMulai && samaJamSelesai) return 'PINDAH_RUANGAN';
+    if (samaHari && samaJamMulai && samaJamSelesai) return 'PINDAH_RUANGAN';
     return 'KEDUANYA';
   }
 
