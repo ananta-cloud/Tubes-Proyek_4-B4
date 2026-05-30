@@ -94,7 +94,15 @@ class ScheduleRequestService {
       final cleanId = idJurusan
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
-      await MongoDatabase.ensureConnected();
+      for (int i = 0; i < 5; i++) {
+        try {
+          await MongoDatabase.ensureConnected();
+          if (!MongoDatabase.isOffline) break;
+        } catch (_) {
+          await Future.delayed(const Duration(milliseconds: 800));
+        }
+        if (MongoDatabase.isOffline) return _loadCache(idJurusan, statusKey);
+      }
 
       print('DEBUG idJurusan=$cleanId');
 

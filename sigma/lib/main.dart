@@ -147,10 +147,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sigma',
-      debugShowCheckedModeBanner: false,
-      home: const _ConnectivityListenerWrapper(),
+    return _ConnectivityListener(
+      child: MaterialApp(
+        title: 'Sigma',
+        debugShowCheckedModeBanner: false,
+        home: const LoginPage(),
+      ),
     );
   }
 }
@@ -179,7 +181,13 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     super.initState();
     Connectivity().onConnectivityChanged.listen((result) {
       final isOffline = (result as List).contains(ConnectivityResult.none);
+      debugPrint('CONNECTIVITY CHANGED: isOffline=$isOffline');
 
+      MongoDatabase.isOffline = isOffline;
+      if (mounted) {
+        context.read<ScheduleRequestController>().setOffline(isOffline);
+        debugPrint('setOffline called: $isOffline');
+      }
       if (isOffline) {
         MongoDatabase.isOffline = true;
         if (mounted) {
@@ -197,7 +205,13 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
 
   Future<void> _syncAll() async {
     if (!mounted) return;
-    await MongoDatabase.ensureConnected();
+    try {
+      await MongoDatabase.ensureConnected();
+    } catch (e) {
+      debugPrint('ensureConnected gagal: $e');
+      return;
+    }
+    await Future.delayed(const Duration(milliseconds: 2000));
     await DosenCacheService.warmUp();
 
     final user = context.read<LoginViewModel>().user;

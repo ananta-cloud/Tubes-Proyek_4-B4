@@ -12,6 +12,7 @@ class ScheduleRequestController extends ChangeNotifier {
   bool isOffline = MongoDatabase.isOffline;
   bool justSynced = false;
   String? errorMsg;
+  bool isSyncing = false;
 
   int countPending = 0;
   int countApproved = 0;
@@ -43,6 +44,7 @@ class ScheduleRequestController extends ChangeNotifier {
       debugPrint('DEBUG loadRequests catch isOffline=$isOffline');
 
       errorMsg = e.toString();
+      await _loadStats(idJurusan);
     }
 
     _setLoading(false);
@@ -54,7 +56,12 @@ class ScheduleRequestController extends ChangeNotifier {
       countPending = stats['pending'] ?? 0;
       countApproved = stats['approved'] ?? 0;
       countRejected = stats['rejected'] ?? 0;
-    } catch (_) {}
+    } catch (_) {
+      countPending = requests.where((r) => r.status == 'PENDING').length;
+      countApproved = requests.where((r) => r.status == 'APPROVED').length;
+      countRejected = requests.where((r) => r.status == 'REJECTED').length;
+    }
+    notifyListeners();
   }
 
   // ─────────────────────────────────────────────
@@ -107,20 +114,25 @@ class ScheduleRequestController extends ChangeNotifier {
   // SYNC (dipanggil dari _ConnectivityListener)
   // ─────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
-    int retries = 0;
-    while (MongoDatabase.isOffline && retries < 5) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      retries++;
-    }
+    isSyncing = true;
+    isOffline = false; // ← set false duluan
+    notifyListeners();
 
-    if (MongoDatabase.isOffline) return;
+    try {
+      await MongoDatabase.ensureConnected();
+      await Future.delayed(const Duration(milliseconds: 1500)); // ← tambah
 
-    final synced = await service.flushQueue();
-    if (_lastIdJurusan != null) {
-      await loadRequests(_lastIdJurusan!);
-    }
-    if (synced > 0) {
-      justSynced = true;
+      final synced = await service.flushQueue();
+      if (_lastIdJurusan != null) {
+        await loadRequests(_lastIdJurusan!);
+      }
+      if (synced > 0) {
+        justSynced = true;
+      }
+    } catch (e) {
+      debugPrint('onConnectionRestored ERROR: $e');
+    } finally {
+      isSyncing = false;
       notifyListeners();
     }
   }

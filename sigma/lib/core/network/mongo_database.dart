@@ -20,7 +20,11 @@ class MongoDatabase {
 
   static Future<void> connect() async {
     // Sudah konek, skip
-    if (!isOffline && db.state == State.OPEN) return;
+    print('connect: called, isOffline=$isOffline _isConnecting=$_isConnecting');
+    if (!isOffline && db.state == State.OPEN) {
+      print('connect: already open, skip');
+      return;
+    }
 
     // Sedang konek, tunggu yang sedang berjalan
     if (_isConnecting) {
@@ -71,8 +75,22 @@ class MongoDatabase {
   }
 
   static Future<void> ensureConnected() async {
-    if (!isOffline && db.state == State.OPEN) return;
-    await connect();
+    print('ensureConnected: isOffline=$isOffline state=${db.state}');
+
+    if (isOffline) {
+      await connect();
+      return;
+    }
+
+    // Verifikasi koneksi benar-benar masih hidup
+    try {
+      await db.serverStatus();
+      print('ensureConnected: connection verified');
+    } catch (e) {
+      print('ensureConnected: connection dead, reconnecting...');
+      isOffline = true;
+      await connect();
+    }
   }
 
   static String _addParam(String url, String param) {
