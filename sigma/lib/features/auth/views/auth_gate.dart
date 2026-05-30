@@ -4,7 +4,8 @@ import 'package:sigma/features/auth/viewmodels/login_viewmodel.dart';
 import 'package:sigma/features/auth/views/login_page.dart';
 import 'package:sigma/features/mahasiswa/dashboard/view/home_page.dart';
 import 'package:sigma/features/dosen/dashboard/views/home_page.dart';
-import 'package:sigma/features/penjadwalan/penjadwalan_main_page.dart'; // ← tambah
+import 'package:sigma/features/penjadwalan/penjadwalan_main_page.dart';
+import 'package:sigma/features/admin_tu/main/views/admin_main_page.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -70,7 +71,13 @@ class _AuthGateState extends State<AuthGate> {
           MaterialPageRoute(builder: (_) => const LoginPage()),
         );
       }
+    } else if (role == 'ADMIN_TU') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminMainPage()),
+      );
     } else {
+      // fallback: MAHASISWA
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomePageMhs()),

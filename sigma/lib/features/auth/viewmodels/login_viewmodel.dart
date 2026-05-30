@@ -108,11 +108,11 @@ class LoginViewModel extends ChangeNotifier {
 
   DosenModel? get dosenData {
     if (_user == null) return null;
-    
+
     try {
       // Buka box tempat Anda menyimpan data dosen (Sesuaikan nama box-nya, misal 'dosen_box' atau 'dosen')
-      final box = Hive.box<DosenModel>('dosen_box'); 
-      
+      final box = Hive.box<DosenModel>('dosen_box');
+
       // Cari dosen yang userId-nya sama dengan ID user yang sedang login
       return box.values.firstWhere((dosen) => dosen.userId == _user!.id);
     } catch (e) {
