@@ -148,7 +148,9 @@ class ScheduleRequestModel {
       namaMk:
           jadwal?['nama_matkul'] ??
           jadwal?['nama_mk'] ??
-          'Mata Kuliah Tidak Terdefinisi',
+          json['nama_matkul'] ??
+          json['nama_mk'] ??
+          'Jadwal telah diubah',
       kodeMk: jadwal?['kode_mk'],
       hariJadwal: jadwal?['hari'],
       jamMulaiJadwal: jadwal?['jam_mulai'],

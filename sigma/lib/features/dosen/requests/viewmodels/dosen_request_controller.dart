@@ -246,6 +246,8 @@ class DosenRequestController extends ChangeNotifier {
         'nama_dosen': namaDosen,
         'tipe_request': autoTipeRequest ?? 'KEDUANYA',
         'alasan': alasan,
+        'nama_matkul':
+            selectedJadwal!['nama_matkul'] ?? selectedJadwal!['nama_mk'] ?? '',
         'status': 'PENDING',
         'offline_id': offlineId,
         'detail_perubahan': {
@@ -270,6 +272,8 @@ class DosenRequestController extends ChangeNotifier {
       tipeRequest: autoTipeRequest ?? 'KEDUANYA',
       detailPerubahan: detailPerubahan,
       alasan: alasan,
+      namaMatkul:
+          selectedJadwal!['nama_matkul'] ?? selectedJadwal!['nama_mk'] ?? '',
       offlineId: DateTime.now().millisecondsSinceEpoch.toString(),
     );
 
@@ -352,20 +356,31 @@ class DosenRequestController extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _normalizeJam(String jam) => jam.replaceAll('.', ':');
+
   String? get autoTipeRequest {
     if (selectedJadwal == null || selectedTanggalBaru == null) return null;
 
     final hariLama = selectedJadwal!['hari']?.toString() ?? '';
-    final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
-    final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
+    final jamMulaiLama = _normalizeJam(
+      selectedJadwal!['jam_mulai']?.toString() ?? '',
+    );
+    final jamSelesaiLama = _normalizeJam(
+      selectedJadwal!['jam_selesai']?.toString() ?? '',
+    );
+    final ruanganLama = selectedJadwal!['ruangan']?.toString() ?? '';
 
     final hariTanggalBaru = _hariDari(selectedTanggalBaru!);
     final samaHari = hariTanggalBaru == hariLama;
-    final samaJamMulai = (selectedJamMulaiBaru ?? jamMulaiLama) == jamMulaiLama;
+    final samaJamMulai =
+        _normalizeJam(selectedJamMulaiBaru ?? jamMulaiLama) == jamMulaiLama;
     final samaJamSelesai =
-        (selectedJamSelesaiBaru ?? jamSelesaiLama) == jamSelesaiLama;
+        _normalizeJam(selectedJamSelesaiBaru ?? jamSelesaiLama) ==
+        jamSelesaiLama;
+    final samaRuangan = (selectedRuanganBaru ?? ruanganLama) == ruanganLama;
 
     if (samaHari && samaJamMulai && samaJamSelesai) return 'PINDAH_RUANGAN';
+    if (samaRuangan) return 'PINDAH_JAM';
     return 'KEDUANYA';
   }
 
@@ -413,6 +428,7 @@ class DosenRequestController extends ChangeNotifier {
             tipeRequest: data['tipe_request'],
             detailPerubahan: detail,
             alasan: data['alasan'],
+            namaMatkul: data['nama_matkul'] ?? '',
             offlineId: data['offline_id'],
           );
           if (ok) await _pendingBox.delete(key);

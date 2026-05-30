@@ -106,9 +106,10 @@ void main() async {
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();
-
-  await DosenCacheService.warmUp();
-  await MongoDatabase.connect();
+  if (!MongoDatabase.isOffline) {
+    await DosenCacheService.warmUp();
+  }
+  // await MongoDatabase.connect();
   runApp(
     MultiProvider(
       providers: [

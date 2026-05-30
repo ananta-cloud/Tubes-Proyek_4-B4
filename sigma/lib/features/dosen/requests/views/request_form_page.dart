@@ -206,7 +206,11 @@ class _RequestFormPageState extends State<RequestFormPage> {
           icon: Icons.info_outline,
           color: const Color(0xFF3F5DB3),
           text:
-              "Tipe: ${ctrl.autoTipeRequest == 'PINDAH_RUANGAN' ? 'Hanya Pindah Ruangan' : 'Pindah Jam & Ruangan'}",
+              "Tipe: ${ctrl.autoTipeRequest == 'PINDAH_RUANGAN'
+                  ? 'Hanya Pindah Ruangan'
+                  : ctrl.autoTipeRequest == 'PINDAH_JAM'
+                  ? 'Hanya Pindah Jam'
+                  : 'Pindah Jam & Ruangan'}",
         ),
 
       const SizedBox(height: 20),
