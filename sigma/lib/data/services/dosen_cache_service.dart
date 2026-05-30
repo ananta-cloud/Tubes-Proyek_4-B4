@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 
-import '../../../../../core/network/mongo_database.dart';
+import '../../../core/network/mongo_database.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DosenCacheService
@@ -76,3 +76,4 @@ class DosenCacheService {
     return result;
   }
 }
+//new

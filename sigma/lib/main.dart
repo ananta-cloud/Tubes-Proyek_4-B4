@@ -18,15 +18,15 @@ import 'features/auth/views/login_page.dart';
 import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
 import 'data/models/task_model.dart';
-import 'features/admin_tu/master_matkul/models/matkul_model.dart';
-import 'features/admin_tu/schedules/models/schedule_model.dart';
+import 'data/models/matkul_model.dart';
+import 'data/models/schedule_model.dart';
 import 'data/models/pengajaran_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
 import 'data/services/announcement_service.dart';
 import 'data/repositories/auth_repository.dart';
-import 'features/admin_tu/schedules/services/dosen_cache_service.dart';
+import 'data/services/dosen_cache_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
@@ -174,7 +174,7 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
 
       await announcementVM.syncOfflineActions();
       await announcementVM.syncAnnouncements();
-      await taskVM.syncTasks(user); 
+      await taskVM.syncTasks(user);
       await scheduleVM.syncSchedules();
     }
   }
@@ -182,3 +182,4 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
   @override
   Widget build(BuildContext context) => widget.child;
 }
+//new
