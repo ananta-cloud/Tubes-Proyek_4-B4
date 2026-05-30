@@ -4,9 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center;
 
-import '../../../../../core/network/mongo_database.dart';
-import '../../../../data/models/schedule_model.dart';
 import '../../../core/network/mongo_database.dart';
+import '../models/schedule_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Nama box Hive yang dipakai untuk lookup offline
@@ -459,3 +458,4 @@ class _RawRow {
     tahunAkademik: tahunAkademik,
   );
 }
+//new
