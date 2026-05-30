@@ -48,21 +48,18 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       _listJurusan = docs;
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Error fetchJurusan: $e');
+      debugPrint('Error fetchJurusan: $e');
     }
   }
 
   Future<void> fetchProdiByJurusan(String idJurusanHex) async {
     try {
-      _selectedProdiId = null; // Reset prodi tiap kali jurusan diganti
+      _selectedProdiId = null;
 
-      // Bersihkan string dari spasi tersembunyi
       final cleanId = idJurusanHex.trim();
       final objId = ObjectId.parse(cleanId);
 
-      // Gunakan query builder 'where.eq' asli dari mongo_dart
       final docs = await MongoDatabase.runSafe(
-        // PASTIKAN NAMA COLLECTION DI BAWAH INI SAMA PERSIS DENGAN DI MONGODB COMPASS ANDA
         () => MongoDatabase.db
             .collection('program_studi')
             .find(where.eq('id_jurusan', objId))
@@ -70,10 +67,10 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       );
 
       _listProdi = docs;
-      debugPrint('✅ Ditemukan ${docs.length} prodi untuk jurusan $cleanId');
+      debugPrint('Ditemukan ${docs.length} prodi untuk jurusan $cleanId');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Error fetchProdi: $e');
+      debugPrint('Error fetchProdi: $e');
     }
   }
 
@@ -166,7 +163,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
         _loadFromLocal();
       }
     } catch (e) {
-      debugPrint('❌ AdminAnnouncementViewModel.syncFromMongo: $e');
+      debugPrint('AdminAnnouncementViewModel.syncFromMongo: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -182,7 +179,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     required String tingkatKepentingan,
     DateTime? deadline,
     List<Map<String, String>> attachments = const [],
-    // ─── TAMBAHKAN 5 PARAMETER INI ───
     String idPublisher = '',
     String namaPublisher = 'Admin',
     String rolePublisher = 'ADMIN_TU',
@@ -203,7 +199,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       attachments: attachments,
       createdAt: now,
       updatedAt: now,
-      // Masukkan data publisher & jurusan/prodi ke model lokal
       idPublisher: idPublisher,
       namaPublisher: namaPublisher,
       rolePublisher: rolePublisher,
@@ -215,7 +210,8 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     _pendingIds.add(newId);
     notifyListeners();
 
-    // 2. Simpan ke Queue (Antrean Hive) untuk background sync
+    // 2. Simpan ke Queue — gunakan key 'kategori' secara konsisten
+    //    dan simpan sebagai List<String> (bukan dikonversi ke String)
     await _queueBox.put(newId, {
       'id': newId,
       'action': 'create',
@@ -227,8 +223,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       if (deadline != null) 'deadline': deadline.toIso8601String(),
       'attachments': attachments,
       'timestamp': now.toIso8601String(),
-
-      // ─── SIMPAN DATA INI KE QUEUE ───
       'id_publisher': idPublisher,
       'nama_publisher': namaPublisher,
       'role_publisher': rolePublisher,
@@ -240,7 +234,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     _drainQueue();
   }
 
-  // 💡 HELPER: Untuk merapikan dan memastikan parsing ObjectId aman
+  // ─── Helper: parse ObjectId dengan aman ──────────────────────────────────
   ObjectId _safeParseObjectId(dynamic val1, dynamic val2) {
     if (val1 != null && val1.toString().trim().isNotEmpty) {
       return ObjectId.parse(val1.toString().trim());
@@ -248,9 +242,40 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     if (val2 != null && val2.toString().trim().isNotEmpty) {
       return ObjectId.parse(val2.toString().trim());
     }
-    return ObjectId(); // Fallback ke ID baru jika sama sekali tidak ada
+    return ObjectId();
   }
 
+  List<String> _parseKategoriFromQueue(dynamic raw) {
+    if (raw == null) return ['Umum'];
+
+    if (raw is List) {
+      // Kasus normal: List<String> atau List<dynamic>
+      final result = raw
+          .map((e) => e.toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return result.isEmpty ? ['Umum'] : result;
+    }
+
+    if (raw is String) {
+      final cleaned = raw.trim();
+      if (cleaned.isEmpty) return ['Umum'];
+      // Strip kurung siku jika ada: "[Umum, Karir]" → "Umum, Karir"
+      final stripped = cleaned.startsWith('[') && cleaned.endsWith(']')
+          ? cleaned.substring(1, cleaned.length - 1)
+          : cleaned;
+      final parts = stripped
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? ['Umum'] : parts;
+    }
+
+    return ['Umum'];
+  }
+
+  // ─── Drain Queue ──────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
     if (!isOnline || _queueBox.isEmpty) return;
@@ -272,12 +297,9 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
       try {
         if (op['operation'] == 'create' || op['action'] == 'create') {
-          List<String> kategoriList = [];
-          if (op['kategoriList'] is List) {
-            kategoriList = List<String>.from(op['kategoriList']);
-          } else if (op['kategori'] != null) {
-            kategoriList = [op['kategori'].toString()];
-          }
+          final List<String> kategoriList = _parseKategoriFromQueue(
+            op['kategori'] ?? op['kategoriList'],
+          );
 
           final doc = {
             '_id': ObjectId.parse(op['id'].toString()),
@@ -294,24 +316,30 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             'attachments': op['attachments'] ?? [],
             if (op['deadline'] != null)
               'deadline': DateTime.parse(op['deadline']),
-
-            // 🔥 Menggunakan fungsi helper agar lebih rapi dan bebas syntax error!
-            'id_publisher': _safeParseObjectId(op['id_publisher'], op['idPublisher']),
-            'nama_publisher': op['nama_publisher'] ?? op['namaPublisher'] ?? 'Admin',
-            'role_publisher': op['role_publisher'] ?? op['rolePublisher'] ?? 'ADMIN_TU',
+            'id_publisher': _safeParseObjectId(
+              op['id_publisher'],
+              op['idPublisher'],
+            ),
+            'nama_publisher':
+                op['nama_publisher'] ?? op['namaPublisher'] ?? 'Admin',
+            'role_publisher':
+                op['role_publisher'] ?? op['rolePublisher'] ?? 'ADMIN_TU',
           };
 
-          // Validasi opsi Jurusan
-          if (op['id_jurusan'] != null && op['id_jurusan'].toString().isNotEmpty) {
+          // Validasi opsional Jurusan
+          if (op['id_jurusan'] != null &&
+              op['id_jurusan'].toString().isNotEmpty) {
             doc['id_jurusan'] = ObjectId.parse(op['id_jurusan'].toString());
-          } else if (op['idJurusan'] != null && op['idJurusan'].toString().isNotEmpty) {
+          } else if (op['idJurusan'] != null &&
+              op['idJurusan'].toString().isNotEmpty) {
             doc['id_jurusan'] = ObjectId.parse(op['idJurusan'].toString());
           }
 
-          // Validasi opsi Prodi
+          // Validasi opsional Prodi
           if (op['id_prodi'] != null && op['id_prodi'].toString().isNotEmpty) {
             doc['id_prodi'] = ObjectId.parse(op['id_prodi'].toString());
-          } else if (op['idProdi'] != null && op['idProdi'].toString().isNotEmpty) {
+          } else if (op['idProdi'] != null &&
+              op['idProdi'].toString().isNotEmpty) {
             doc['id_prodi'] = ObjectId.parse(op['idProdi'].toString());
           }
 
@@ -324,16 +352,19 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             isi: op['isi'],
             module: 'pengumuman',
             targetAudience: op['target'],
-            tingkatKepentingan: op['tingkatKepentingan'] ?? 'BIASA',
+            tingkatKepentingan:
+                op['tingkat_kepentingan'] ??
+                op['tingkatKepentingan'] ??
+                'BIASA',
           );
         }
 
         await _queueBox.delete(key);
         final syncedId = op['id']?.toString();
         if (syncedId != null) _pendingIds.remove(syncedId);
-        debugPrint(' ✅ Announcement queue item $key synced');
+        debugPrint('Announcement queue item $key synced');
       } catch (e) {
-        debugPrint(' ❌ AdminAnnouncementViewModel._drainQueue key=$key: $e');
+        debugPrint('AdminAnnouncementViewModel._drainQueue key=$key: $e');
         allSuccess = false;
         break;
       }
@@ -356,7 +387,7 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
   // ─── Connection restored ──────────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
-    debugPrint(' Connection restored — draining announcement queue...');
+    debugPrint('Connection restored — draining announcement queue...');
     await _drainQueue();
     await syncFromMongo();
   }

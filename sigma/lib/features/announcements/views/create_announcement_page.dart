@@ -209,7 +209,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     }
 
     final vm = context.read<AdminAnnouncementViewModel>();
-    
+
     // Panggil fungsi create yang sudah dilengkapi publisher & jurusan/prodi
     await vm.createAnnouncement(
       judul: _judulCtrl.text.trim(),
@@ -471,21 +471,30 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                   duration: const Duration(milliseconds: 200),
                                   opacity: _isTargetMahasiswa ? 1.0 : 0.35,
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const _FieldLabel(label: 'Prodi (Opsional)'),
+                                          const Flexible(
+                                            child: _FieldLabel(
+                                              label: 'Prodi (Opsional)',
+                                            ),
+                                          ),
                                           const SizedBox(width: 4),
                                           if (!_isTargetMahasiswa)
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                                vertical: 2,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: AppColors.textSub.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(4),
+                                                color: AppColors.textSub
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
                                               ),
                                               child: const Text(
                                                 'nonaktif',
@@ -504,14 +513,16 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         items: _prodiList,
                                         labelBuilder: (e) => e,
                                         onChanged: _isTargetMahasiswa
-                                            ? (v) => setState(() => _selectedProdi = v)
+                                            ? (v) => setState(
+                                                () => _selectedProdi = v,
+                                              )
                                             : null,
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-                            ]
+                            ],
                           ],
                         ),
 
@@ -523,14 +534,20 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                             decoration: BoxDecoration(
                               color: AppColors.navy.withOpacity(0.04),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.navy.withOpacity(0.1)),
+                              border: Border.all(
+                                color: AppColors.navy.withOpacity(0.1),
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.business_rounded, size: 16, color: AppColors.navy),
+                                    Icon(
+                                      Icons.business_rounded,
+                                      size: 16,
+                                      color: AppColors.navy,
+                                    ),
                                     SizedBox(width: 6),
                                     Text(
                                       'Target Spesifik (Khusus Manajemen)',
@@ -548,44 +565,70 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                 _SigmaDropdown<String>(
                                   value: vm.selectedJurusanId,
                                   hint: 'Pilih Jurusan...',
-                                  items: vm.listJurusan.map((j) => (j['_id'] as ObjectId).toHexString()).toList(),
+                                  items: vm.listJurusan
+                                      .map(
+                                        (j) => (j['_id'] as ObjectId)
+                                            .toHexString(),
+                                      )
+                                      .toList(),
                                   labelBuilder: (id) {
                                     try {
-                                      return vm.listJurusan.firstWhere(
-                                        (j) => (j['_id'] as ObjectId).toHexString() == id
-                                      )['nama_jurusan'].toString();
+                                      return vm.listJurusan
+                                          .firstWhere(
+                                            (j) =>
+                                                (j['_id'] as ObjectId)
+                                                    .toHexString() ==
+                                                id,
+                                          )['nama_jurusan']
+                                          .toString();
                                     } catch (e) {
                                       return 'Unknown';
                                     }
                                   },
-                                  onChanged: (val) => context.read<AdminAnnouncementViewModel>().setJurusan(val),
+                                  onChanged: (val) => context
+                                      .read<AdminAnnouncementViewModel>()
+                                      .setJurusan(val),
                                 ),
                                 const SizedBox(height: 12),
                                 const _FieldLabel(label: 'Program Studi'),
                                 const SizedBox(height: 6),
                                 _SigmaDropdown<String>(
                                   value: vm.selectedProdiId,
-                                  hint: vm.listProdi.isEmpty ? 'Pilih Jurusan dahulu...' : 'Semua Prodi di Jurusan ini...',
-                                  items: vm.listProdi.map((p) => (p['_id'] as ObjectId).toHexString()).toList(),
+                                  hint: vm.listProdi.isEmpty
+                                      ? 'Pilih Jurusan dahulu...'
+                                      : 'Semua Prodi di Jurusan ini...',
+                                  items: vm.listProdi
+                                      .map(
+                                        (p) => (p['_id'] as ObjectId)
+                                            .toHexString(),
+                                      )
+                                      .toList(),
                                   labelBuilder: (id) {
                                     try {
-                                      return vm.listProdi.firstWhere(
-                                        (p) => (p['_id'] as ObjectId).toHexString() == id
-                                      )['nama_prodi'].toString();
+                                      return vm.listProdi
+                                          .firstWhere(
+                                            (p) =>
+                                                (p['_id'] as ObjectId)
+                                                    .toHexString() ==
+                                                id,
+                                          )['nama_prodi']
+                                          .toString();
                                     } catch (e) {
                                       return 'Unknown';
                                     }
                                   },
                                   onChanged: vm.listProdi.isEmpty
                                       ? null
-                                      : (val) => context.read<AdminAnnouncementViewModel>().setProdi(val),
+                                      : (val) => context
+                                            .read<AdminAnnouncementViewModel>()
+                                            .setProdi(val),
                                 ),
                               ],
                             ),
                           ),
                         ],
-                        // ────────────────────────────────────────────────────────
 
+                        // ────────────────────────────────────────────────────────
                         const SizedBox(height: 16),
 
                         // ── Deadline (opsional) ────────────────────────────
@@ -713,7 +756,9 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.textSub.withOpacity(0.08),
+                                        color: AppColors.textSub.withOpacity(
+                                          0.08,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: const Text(
@@ -734,18 +779,23 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                           ) {
                             final isSelected = _selectedTingkat == tingkat;
                             final isLocked = _selectedDeadline != null;
-                            final color = _tingkatColors[tingkat] ?? AppColors.textSub;
+                            final color =
+                                _tingkatColors[tingkat] ?? AppColors.textSub;
                             return Expanded(
                               child: GestureDetector(
                                 onTap: isLocked
                                     ? null
-                                    : () => setState(() => _selectedTingkat = tingkat),
+                                    : () => setState(
+                                        () => _selectedTingkat = tingkat,
+                                      ),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   margin: EdgeInsets.only(
                                     right: tingkat != 'SANGAT PENTING' ? 8 : 0,
                                   ),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? color.withOpacity(0.12)
@@ -766,14 +816,18 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
                                             : tingkat == 'PENTING'
                                             ? Icons.warning_amber_rounded
                                             : Icons.error_rounded,
-                                        color: isSelected ? color : AppColors.textSub,
+                                        color: isSelected
+                                            ? color
+                                            : AppColors.textSub,
                                         size: 18,
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         tingkat,
                                         style: TextStyle(
-                                          color: isSelected ? color : AppColors.textSub,
+                                          color: isSelected
+                                              ? color
+                                              : AppColors.textSub,
                                           fontSize: 9,
                                           fontWeight: isSelected
                                               ? FontWeight.w700
@@ -1096,6 +1150,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel({required this.label, this.required = false});
   final String label;
@@ -1104,13 +1159,16 @@ class _FieldLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.navy,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        Flexible(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.navy,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         if (required)

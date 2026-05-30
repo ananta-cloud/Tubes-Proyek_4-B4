@@ -68,21 +68,41 @@ class AnnouncementModel extends HiveObject {
     this.attachments = const [],
   });
 
+  // ─── Helper: parse kategori dari format apapun ──────────────────────────
+  // Menangani: List<String>, List<dynamic>, String "[A, B, C]", String "A"
+  static List<String> _parseKategoriSafe(dynamic raw) {
+    if (raw == null) return ['Umum'];
+
+    if (raw is List) {
+      final result = raw
+          .map((e) => e.toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return result.isEmpty ? ['Umum'] : result;
+    }
+
+    if (raw is String) {
+      final cleaned = raw.trim();
+      if (cleaned.isEmpty) return ['Umum'];
+      // Strip kurung siku jika ada: "[Umum, Karir]" → "Umum, Karir"
+      final stripped = cleaned.startsWith('[') && cleaned.endsWith(']')
+          ? cleaned.substring(1, cleaned.length - 1)
+          : cleaned;
+      final parts = stripped
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? ['Umum'] : parts;
+    }
+
+    return ['Umum'];
+  }
+
+  // ─── fromMongo ───────────────────────────────────────────────────────────
   factory AnnouncementModel.fromMongo(Map<String, dynamic> map) {
     try {
-      // 1. Parsing Kategori
-      List<String> parsedKategori = [];
-      if (map['kategori'] != null) {
-        if (map['kategori'] is List) {
-          parsedKategori = List<String>.from(
-            map['kategori'].map((e) => e.toString()),
-          );
-        } else {
-          parsedKategori = [map['kategori'].toString()];
-        }
-      }
-
-      // 2. Parsing Target Angkatan
+      // 1. Parsing Target Angkatan
       List<String>? parsedTargetAngkatan;
       if (map['target_angkatan'] != null) {
         if (map['target_angkatan'] is List) {
@@ -94,7 +114,7 @@ class AnnouncementModel extends HiveObject {
         }
       }
 
-      // 3. Parsing Attachments
+      // 2. Parsing Attachments
       List<Map<String, dynamic>> parsedAttachments = [];
       if (map['attachments'] != null && map['attachments'] is List) {
         parsedAttachments = (map['attachments'] as List)
@@ -133,19 +153,20 @@ class AnnouncementModel extends HiveObject {
             ? parseId(map['id_jurusan'])
             : null,
         targetAngkatan: parsedTargetAngkatan,
-        kategori: parsedKategori,
+        kategori: _parseKategoriSafe(map['kategori']),
         tingkatKepentingan: map['tingkat_kepentingan']?.toString() ?? 'BIASA',
         createdAt: parseDate(map['created_at']),
         updatedAt: parseDate(map['updated_at']),
         attachments: parsedAttachments,
       );
     } catch (e) {
-      print("❌ ERROR PARSING DARI MONGO: $e");
+      print("ERROR PARSING DARI MONGO: $e");
       print("DATA YANG ERROR: $map");
       rethrow;
     }
   }
 
+  // ─── fromJson (dari Hive cache) ──────────────────────────────────────────
   factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
     List<Map<String, dynamic>> parsedAttachments = [];
     if (json['attachments'] != null && json['attachments'] is List) {
@@ -172,8 +193,10 @@ class AnnouncementModel extends HiveObject {
       targetAngkatan: json['target_angkatan'] != null
           ? List<String>.from(json['target_angkatan'])
           : null,
-      kategori: List<String>.from(json['kategori'] ?? []),
-      tingkatKepentingan: json['tingkat_kepentingan'] ?? '',
+      kategori: _parseKategoriSafe(json['kategori']),
+      tingkatKepentingan:
+          (json['tingkat_kepentingan'] ?? json['tingkatKepentingan'] ?? 'BIASA')
+              .toString(),
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
@@ -184,6 +207,7 @@ class AnnouncementModel extends HiveObject {
     );
   }
 
+  // ─── toJson (simpan ke Hive cache) ──────────────────────────────────────
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -197,7 +221,7 @@ class AnnouncementModel extends HiveObject {
       'id_jurusan': idJurusan,
       'target_angkatan': targetAngkatan,
       'kategori': kategori,
-      'tingkatKepentingan': tingkatKepentingan,
+      'tingkat_kepentingan': tingkatKepentingan,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'attachments': attachments,

@@ -33,10 +33,6 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kategori = announcement.kategori.isNotEmpty
-        ? announcement.kategori.first
-        : 'Umum';
-    final kategoriColor = _kategoriColors[kategori] ?? AppColors.accent;
     final tingkatColor =
         _tingkatColors[announcement.tingkatKepentingan] ?? AppColors.textSub;
     final tingkatIcon =
@@ -46,6 +42,8 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
       'd MMMM yyyy, HH:mm',
       'id_ID',
     ).format(announcement.createdAt);
+
+    final List<String> kategoriList = _parseKategori(announcement.kategori);
 
     return Scaffold(
       backgroundColor: AppColors.bgPage,
@@ -111,28 +109,36 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Kategori + Tingkat
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: kategoriColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: Text(
-                                kategori,
-                                style: TextStyle(
-                                  color: kategoriColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                            // ── Semua badge kategori ──
+                            ...kategoriList.map((k) {
+                              final color =
+                                  _kategoriColors[k] ?? AppColors.accent;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: Text(
+                                  k,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              );
+                            }),
+
+                            // ── Badge tingkat kepentingan ──
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -190,11 +196,14 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                                   color: AppColors.textSub,
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
-                                  'Target: ${announcement.targetAudience}',
-                                  style: const TextStyle(
-                                    color: AppColors.textSub,
-                                    fontSize: 12,
+                                Flexible(
+                                  child: Text(
+                                    'Target: ${announcement.targetAudience}',
+                                    style: const TextStyle(
+                                      color: AppColors.textSub,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -220,23 +229,26 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person_outline_rounded,
-                              size: 13,
-                              color: AppColors.textSub,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Oleh: ${announcement.namaPublisher}',
-                              style: const TextStyle(
-                                color: AppColors.textSub,
-                                fontSize: 12,
-                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 13,
+                                  color: AppColors.textSub,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'Oleh: ${announcement.namaPublisher}',
+                                    style: const TextStyle(
+                                      color: AppColors.textSub,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -307,6 +319,32 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<String> _parseKategori(dynamic raw) {
+    if (raw == null) return ['Umum'];
+
+    // Jika sudah List<String>, langsung kembalikan
+    if (raw is List) {
+      final result = raw.map((e) => e.toString().trim()).toList();
+      return result.isEmpty ? ['Umum'] : result;
+    }
+
+    // Jika String (misal "[Umum, Pengajaran, Beasiswa]"), strip kurung lalu split
+    if (raw is String) {
+      final cleaned = raw.trim();
+      if (cleaned.isEmpty) return ['Umum'];
+      // Hapus karakter [ dan ]
+      final stripped = cleaned.replaceAll('[', '').replaceAll(']', '');
+      final parts = stripped
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? ['Umum'] : parts;
+    }
+
+    return ['Umum'];
   }
 }
 
