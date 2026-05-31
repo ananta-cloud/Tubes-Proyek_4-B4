@@ -103,22 +103,33 @@ class TaskFormViewModel extends ChangeNotifier {
 
   Future<void> loadPengajaran(DosenModel currentDosen, {TaskModel? taskToEdit}) async {
     if (isDisposed) return;
-    isLoadingPengajaran = true;
-    notifyListeners();
+    
+    // 🔥 PERBAIKAN: Hanya tampilkan indikator loading jika memori benar-benar masih kosong
+    if (listPengajaran.isEmpty) {
+      isLoadingPengajaran = true;
+      notifyListeners();
+    }
 
     try {
       String kodeDosenLogin = currentDosen.kodeDosen;
+      
+      // 1. Tarik dari Memori Lokal (Instan)
       listPengajaran = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
       if (listPengajaran.isNotEmpty && !isDisposed) {
         await _generateUniqueMatkul();
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
+        
+        // Matikan loading karena data lokal sudah siap dipakai
+        isLoadingPengajaran = false;
         notifyListeners();
       }
 
+      // 2. Tarik dari MongoDB (Background Sync / Diam-diam)
       await _pengajaranRepo.syncPengajaran(kodeDosenLogin);
       final updatedList = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
+      // 3. Update UI hanya jika ada kelas/mata kuliah baru dari server
       if (!isDisposed && (updatedList.length != listPengajaran.length || listPengajaran.isEmpty)) {
         listPengajaran = updatedList;
         await _generateUniqueMatkul();
@@ -126,7 +137,7 @@ class TaskFormViewModel extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('❌ Error loading pengajaran: $e');
+      debugPrint('❌ Error loading pengajaran: $e');
     } finally {
       if (!isDisposed) {
         isLoadingPengajaran = false;

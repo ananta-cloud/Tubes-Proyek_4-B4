@@ -6,33 +6,30 @@ import 'package:sigma/data/services/schedule_service.dart';
 
 class ScheduleController extends ChangeNotifier {
   final ScheduleService service;
-
   ScheduleController(this.service);
 
   List<ScheduleLocalModel> schedules = [];
-
   bool isLoading = false;
   String? errorMsg;
+  
+  bool _hasLoaded = false;
 
-  Future<void> syncSchedules() async {
+  Future<void> syncSchedules({bool forceRefresh = false}) async {
+    if (_hasLoaded && !forceRefresh && schedules.isNotEmpty) return;
+
     isLoading = true;
     notifyListeners();
 
     final box = Hive.box<ScheduleLocalModel>('schedules');
 
     try {
-      //  Ambil langsung dari Mongo
       final List<Map<String, dynamic>> list = await service.getSchedules();
 
-      print("MONGO DATA: ${list.length}");
-
-      //  Clear cache lama
       await box.clear();
 
-      //  Mapping Mongo → Model
       for (var item in list) {
         final schedule = ScheduleLocalModel(
-          id: item['_id'].toString(), // ObjectId → String
+          id: item['_id'].toString(), 
           namaMk: item['nama_mk'] ?? '-',
           hari: item['hari'] ?? '-',
           jamMulai: item['jam_mulai'] ?? '-',
@@ -40,20 +37,15 @@ class ScheduleController extends ChangeNotifier {
           ruangan: item['ruangan'] ?? '-',
           dosen: item['nama_dosen'] ?? '-',
         );
-
         await box.put(schedule.id, schedule);
       }
 
-      //  Load ke state
       schedules = box.values.toList();
-
-      print("SYNC SUCCESS: ${schedules.length} schedules loaded");
+      _hasLoaded = true; 
+      
     } catch (e) {
       print("ERROR MONGO SYNC: $e");
-
-      //  fallback ke cache lokal
       schedules = box.values.toList();
-      print("FALLBACK HIVE: ${schedules.length}");
     }
 
     isLoading = false;

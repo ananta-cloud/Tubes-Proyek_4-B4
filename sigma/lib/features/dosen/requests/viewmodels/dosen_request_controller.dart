@@ -17,6 +17,10 @@ class DosenRequestController extends ChangeNotifier {
 
   bool _isSyncing = false;
 
+  // 🔥 PENANDA CACHE RAM UNTUK MENCEGAH FREEZE / LOADING BERULANG
+  bool _hasLoadedSchedules = false;
+  bool _hasLoadedRequests = false;
+
   List<Map<String, dynamic>> mySchedules = [];
   List<ScheduleRequestModel> myRequests = [];
   List<String> ruanganTersedia = [];
@@ -39,8 +43,6 @@ class DosenRequestController extends ChangeNotifier {
 
   // Form
   Map<String, dynamic>? selectedJadwal;
-  // String? selectedTipeRequest; // PINDAH_JAM | PINDAH_RUANGAN | KEDUANYA
-  // String? selectedHariBaru;
   DateTime? selectedTanggalBaru;
   String? selectedJamMulaiBaru;
   String? selectedJamSelesaiBaru;
@@ -60,17 +62,23 @@ class DosenRequestController extends ChangeNotifier {
   }
 
   // ─────────────────────────────────────────────────
-  // LOAD JADWAL MILIK DOSEN
+  // LOAD JADWAL MILIK DOSEN (DENGAN CACHE RAM)
   // ─────────────────────────────────────────────────
 
-  Future<void> loadMySchedules(String kodeDosen) async {
+  Future<void> loadMySchedules(String kodeDosen, {bool forceRefresh = false}) async {
     if (kodeDosen.isEmpty) {
       print('⚠️ loadMySchedules dibatalkan karena kodeDosen kosong');
       return;
     }
 
+    if (isLoadingSchedules) return;
+    if (_hasLoadedSchedules && !forceRefresh && mySchedules.isNotEmpty) {
+      return; // Instan 0 detik, UI tidak akan ter-freeze
+    }
+
     isLoadingSchedules = true;
-    notifyListeners();
+    Future.microtask(() => notifyListeners());
+
     try {
       print('🔄 Memulai fetch jadwal untuk kode dosen: "$kodeDosen"');
       final rawSchedules = await service.getMySchedules(kodeDosen);
@@ -106,6 +114,8 @@ class DosenRequestController extends ChangeNotifier {
         }
       }
       mySchedules = _mergeJadwal(tempSchedules);
+      _hasLoadedSchedules = true; // Tandai cache sukses
+
       print(
         'Selesai menyaring! Jadwal lolos filter untuk $targetKode: ${mySchedules.length} data.',
       );
@@ -113,8 +123,9 @@ class DosenRequestController extends ChangeNotifier {
       errorMsg = e.toString();
       print('❌ Error saat load/filter MySchedules: $e');
     }
+    
     isLoadingSchedules = false;
-    notifyListeners();
+    Future.microtask(() => notifyListeners());
   }
 
   List<Map<String, dynamic>> _mergeJadwal(List<Map<String, dynamic>> raw) {
@@ -158,30 +169,6 @@ class DosenRequestController extends ChangeNotifier {
   // CEK RUANGAN TERSEDIA
   // ─────────────────────────────────────────────────
 
-  // Future<void> checkRuangan({
-  //   required String hari,
-  //   required String jamMulai,
-  //   required String jamSelesai,
-  //   String? excludeScheduleId,
-  // }) async {
-  //   isCheckingRuangan = true;
-  //   ruanganTersedia = [];
-  //   notifyListeners();
-
-  //   try {
-  //     ruanganTersedia = await service.getRuanganTersedia(
-  //       hari: hari,
-  //       jamMulai: jamMulai,
-  //       jamSelesai: jamSelesai,
-  //       excludeScheduleId: excludeScheduleId,
-  //     );
-  //   } catch (e) {
-  //     errorMsg = e.toString();
-  //   }
-
-  //   isCheckingRuangan = false;
-  //   notifyListeners();
-  // }
   Future<void> checkRuangan({String? excludeScheduleId}) async {
     if (selectedTanggalBaru == null) return;
 
@@ -223,7 +210,7 @@ class DosenRequestController extends ChangeNotifier {
   }) async {
     if (selectedJadwal == null || selectedTanggalBaru == null) return false;
     print('DEBUG selectedJadwal: $selectedJadwal');
-    // final hariLama = selectedJadwal!['hari']?.toString() ?? '';
+    
     final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
     final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
 
@@ -278,9 +265,7 @@ class DosenRequestController extends ChangeNotifier {
       'ruangan': selectedJadwal!['ruangan'],
     };
     print('DEBUG jadwalLama: $jadwalLamaData');
-    print(
-      'DEBUG jadwalLama: ${{'hari': selectedJadwal!['hari'], 'jam_mulai': selectedJadwal!['jam_mulai'], 'jam_selesai': selectedJadwal!['jam_selesai'], 'ruangan': selectedJadwal!['ruangan']}}',
-    );
+    
     final ok = await service.submitRequest(
       idSchedule: selectedJadwal!['_id'].toString(),
       idDosen: idDosen,
@@ -299,33 +284,46 @@ class DosenRequestController extends ChangeNotifier {
       offlineId: DateTime.now().millisecondsSinceEpoch.toString(),
     );
 
-    if (ok) resetForm();
+    if (ok) {
+      resetForm();
+      _hasLoadedRequests = false; // Memaksa refresh riwayat
+      await loadMyRequests(idDosen, forceRefresh: true);
+    }
+    
     isSubmitting = false;
     notifyListeners();
     return ok;
   }
 
   // ─────────────────────────────────────────────────
-  // RIWAYAT REQUEST
+  // RIWAYAT REQUEST (DENGAN CACHE RAM)
   // ─────────────────────────────────────────────────
 
-  Future<void> loadMyRequests(String idDosen) async {
+  Future<void> loadMyRequests(String idDosen, {bool forceRefresh = false}) async {
+    if (isLoadingRequests) return;
+
+    if (_hasLoadedRequests && _lastIdDosen == idDosen && !forceRefresh && myRequests.isNotEmpty) {
+      return; 
+    }
+
     _lastIdDosen = idDosen;
     isLoadingRequests = true;
-    notifyListeners();
+    Future.microtask(() => notifyListeners());
 
     try {
       myRequests = await service.getMyRequests(idDosen);
+      _hasLoadedRequests = true; // Tandai cache sukses
     } catch (e) {
       errorMsg = e.toString();
     }
 
     isLoadingRequests = false;
-    notifyListeners();
+    Future.microtask(() => notifyListeners());
   }
 
   List<String> get cancelQueueIds =>
       _cancelQueue.values.map((e) => e.toString()).toList();
+      
   Future<bool> cancelRequest(String requestId, String idDosen) async {
     final connectivity = await Connectivity().checkConnectivity();
 
@@ -336,7 +334,7 @@ class DosenRequestController extends ChangeNotifier {
     }
 
     final ok = await service.cancelRequest(requestId);
-    if (ok) await loadMyRequests(idDosen);
+    if (ok) await loadMyRequests(idDosen, forceRefresh: true);
     return ok;
   }
 
@@ -471,7 +469,7 @@ class DosenRequestController extends ChangeNotifier {
       }
 
       if (_pendingBox.isEmpty && _cancelQueue.isEmpty && _lastIdDosen != null) {
-        await loadMyRequests(_lastIdDosen!);
+        await loadMyRequests(_lastIdDosen!, forceRefresh: true);
         _justSynced = true;
       }
     } finally {

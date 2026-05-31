@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:sigma/data/repositories/auth_repository.dart';
+import 'package:sigma/data/services/notification_service.dart';
+import 'package:hive/hive.dart';
+
 import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/models/dosen_model.dart';
 import 'package:sigma/data/models/tpj_model.dart';
-import 'package:sigma/data/services/notification_service.dart';
-import 'package:hive/hive.dart';
+
+// 🔥 IMPORT INI WAJIB ADA UNTUK CLEAR CACHE SAAT LOGOUT
+import 'package:sigma/data/models/schedule_local_model.dart';
+import 'package:sigma/data/models/task_model.dart';
+import 'package:sigma/data/models/announcement_model.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepo;
@@ -108,21 +114,47 @@ class LoginViewModel extends ChangeNotifier {
     if (_user == null) return null;
 
     try {
+      if (!Hive.isBoxOpen('dosen_box')) return null;
       final box = Hive.box<DosenModel>('dosen_box');
-
-      // Cari dosen yang userId-nya sama dengan ID user yang sedang login
       return box.values.firstWhere((dosen) => dosen.userId == _user!.id);
     } catch (e) {
-      print("⚠️ Dosen data tidak ditemukan di Hive: $e");
+      debugPrint("⚠️ Dosen data tidak ditemukan di Hive: $e");
       return null;
     }
   }
 
   Future<void> logout() async {
-    await _authRepo.logout();
-    _user = null;
-    _dosen = null;
-    _timPenjadwalan = null;
-    notifyListeners();
+    try {
+      // 1. Hapus kredensial / token dari Repository
+      await _authRepo.logout();
+
+      // 2. Bersihkan Data Cache Hive dengan Tipe yang Aman
+      if (Hive.isBoxOpen('schedules')) {
+        await Hive.box<ScheduleLocalModel>('schedules').clear();
+      }
+      if (Hive.isBoxOpen('tasks')) {
+        await Hive.box<TaskModel>('tasks').clear();
+      }
+      if (Hive.isBoxOpen('announcements')) {
+        await Hive.box<AnnouncementModel>('announcements').clear();
+      }
+      if (Hive.isBoxOpen('bookmarks')) {
+        await Hive.box<AnnouncementModel>('bookmarks').clear();
+      }
+      if (Hive.isBoxOpen('dosen_box')) {
+        await Hive.box<DosenModel>('dosen_box').clear();
+      }
+      if (Hive.isBoxOpen('kelasCacheBox')) {
+        await Hive.box<String>('kelasCacheBox').clear();
+      }
+    } catch (e) {
+      debugPrint("❌ Error saat membersihkan data Hive waktu logout: $e");
+    } finally {
+      // 3. Hapus status user di RAM dan Update UI
+      _user = null;
+      _dosen = null;
+      _timPenjadwalan = null;
+      notifyListeners();
+    }
   }
 }
