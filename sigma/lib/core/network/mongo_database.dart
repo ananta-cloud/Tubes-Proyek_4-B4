@@ -69,7 +69,6 @@ class MongoDatabase {
       kelasCollection = db.collection('kelas');
       prodiCollection = db.collection('program_studi');
       dosenCollection = db.collection('dosen');
-      dosenCollection = db.collection('dosen');
       timPenjadwalanCollection = db.collection('tim_penjadwalan');
 
       _dbInitialized = true;
@@ -111,12 +110,6 @@ class MongoDatabase {
       isOffline = true;
       await connect();
     }
-  }
-
-  static String _addParam(String url, String param) {
-    if (url.contains(param.split('=')[0])) return url;
-    final sep = url.contains('?') ? '&' : '?';
-    return '$url$sep$param';
   }
 
   static Future<T> runSafe<T>(Future<T> Function() operation) async {

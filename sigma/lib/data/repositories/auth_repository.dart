@@ -18,11 +18,11 @@ class AuthRepository {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   // ===============================================
-  // 1. FUNGSI LOGIN (UPDATE: Ambil Data Relasi Mahasiswa & Kelas)
+  // 1. FUNGSI LOGIN
   // ===============================================
   Future<UserModel?> login(String email, String password) async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isPhysicalOffline = (connectivityResult as List).contains(
+    final bool isPhysicalOffline = (connectivityResult as List).contains(
       ConnectivityResult.none,
     );
 
@@ -45,101 +45,44 @@ class AuthRepository {
 
     try {
       if (!MongoDatabase.db.isConnected) {
-        print("Mencoba menyambung ulang ke MongoDB...");
+        debugPrint("Mencoba menyambung ulang ke MongoDB...");
         await MongoDatabase.db.open();
       }
 
-      // 1. Cari user di collection 'users'
+      // Cari user
       final user = await MongoDatabase.usersCollection.findOne({
         "email": email,
       });
       if (user == null) return null;
 
-      // 2. Cek Password
-      final hashedPassword = user["password"];
-      final isValid = BCrypt.checkpw(password, hashedPassword);
-      if (!isValid) return null;
+      // Cek password
+      if (!BCrypt.checkpw(password, user["password"] as String)) return null;
 
-      Map<String, dynamic>? profilLengkap;
-      // Gunakan nama bawaan jika ada, jika tidak, pakai "Pengguna Tanpa Nama"
-      String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama"; 
-
-      // 4. Jika ia MAHASISWA, ambil data relasinya!
-      if (user["role"] == "MAHASISWA") {
-        // 🔥 PERBAIKAN: Cari berdasarkan email dari tabel users, bukan user_id!
-        final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
-          "email": user["email"], 
-        });
-
-        if (profilMahasiswa != null) {
-          // 3A. Ambil Data Kelas
-          if (profilMahasiswa["id_kelas"] != null) {
-            var searchIdKelas = profilMahasiswa["id_kelas"];
-            if (searchIdKelas is String && searchIdKelas.length == 24) {
-              searchIdKelas = ObjectId.fromHexString(searchIdKelas);
-            }
-            final dataKelas = await MongoDatabase.kelasCollection.findOne({
-              "_id": searchIdKelas,
-            });
-            profilMahasiswa["kelas"] = dataKelas;
-          }
-
-          // 3B. Ambil Data Prodi (Terdapat di profilMahasiswa atau Kelas)
-          // Kode kueri prodi Anda yang kemarin ditaruh di sini tetap sama dan aman
-          var searchIdProdi = profilMahasiswa["id_prodi"] ?? (profilMahasiswa["kelas"] != null ? profilMahasiswa["kelas"]["id_prodi"] : null);
-          if (searchIdProdi != null) {
-            if (searchIdProdi is String && searchIdProdi.length == 24) {
-              searchIdProdi = ObjectId.fromHexString(searchIdProdi);
-            }
-            final dataProdi = await MongoDatabase.prodiCollection.findOne({
-              "_id": searchIdProdi
-            });
-            if (dataProdi != null) {
-              if (profilMahasiswa["kelas"] != null) {
-                profilMahasiswa["kelas"]["nama_prodi"] = dataProdi["nama_prodi"] ?? dataProdi["nama"];
-              } else {
-                profilMahasiswa["kelas"] = {"nama_prodi": dataProdi["nama_prodi"] ?? dataProdi["nama"]};
-              }
-            }
-          }
-          
-          profilLengkap = profilMahasiswa;
-          print("✅ PROFIL MAHASISWA DITEMUKAN VIA EMAIL: ${profilLengkap['nama']}");
-        } else {
-          print("❌ WARNING: Profil mahasiswa TIDAK DITEMUKAN untuk email: ${user["email"]}");
-        }
-      }
-
-      // 4. Saring Data Mentah ke Model
-      MahasiswaModel? modelMahasiswa;
-      if (user["role"] == "MAHASISWA" && profilLengkap != null) {
-        modelMahasiswa = MahasiswaModel.fromJson(profilLengkap);
-      }
-
-      // 🔥 PERBAIKAN NAMA: Prioritaskan nama dari koleksi MAHASISWA!
-      final String safeId = (user["_id"] is ObjectId) ? (user["_id"] as ObjectId).toHexString() : user["_id"].toString();
-      
-      final String namaDariProfil = profilLengkap?["nama"]?.toString() ?? "";
-      final String namaDariUser = user["nama"]?.toString() ?? "";
-      
-      
+      final String safeId = (user["_id"] is ObjectId)
+          ? (user["_id"] as ObjectId).toHexString()
+          : user["_id"].toString();
+      final String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama";
       final String safeEmail = user["email"]?.toString() ?? "";
       final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
 
-      // 5. Simpan ke Secure Storage
-      await _storage.write(key: "user_id", value: safeId);
-      await _storage.write(key: "user_nama", value: safeNama); // Nama sekarang pasti benar!
-      await _storage.write(key: "user_role", value: safeRole);
-      await _storage.write(key: "user_email", value: safeEmail);
-      
-      if (modelMahasiswa != null) {
-        await _storage.write(
-          key: "user_profil",
-          value: jsonEncode(modelMahasiswa.toJson()),
-        );
+      MahasiswaModel? modelMahasiswa;
+
+      if (safeRole == "MAHASISWA") {
+        modelMahasiswa = await _fetchProfilMahasiswa(safeEmail);
+      } else if (safeRole == "DOSEN") {
+        await _fetchAndSaveDosen(user["_id"]);
+      } else if (safeRole == "TIM_PENJADWALAN") {
+        await _fetchAndSaveTPJ(user["_id"]);
       }
 
-      // 6. Kembalikan UserModel
+      await _saveUserSession(
+        id: safeId,
+        nama: safeNama,
+        role: safeRole,
+        email: safeEmail,
+        mahasiswa: modelMahasiswa,
+      );
+
       return UserModel(
         id: safeId,
         nama: safeNama,
@@ -153,9 +96,89 @@ class AuthRepository {
     }
   }
 
+  // Ambil dan susun profil mahasiswa beserta relasi kelas & prodi
+  Future<MahasiswaModel?> _fetchProfilMahasiswa(String email) async {
+    final profil = await MongoDatabase.mahasiswaCollection.findOne({
+      "email": email,
+    });
+    if (profil == null) {
+      debugPrint(
+        "WARNING: Profil mahasiswa tidak ditemukan untuk email: $email",
+      );
+      return null;
+    }
+
+    // Ambil data kelas
+    if (profil["id_kelas"] != null) {
+      var idKelas = profil["id_kelas"];
+      if (idKelas is String && idKelas.length == 24) {
+        idKelas = ObjectId.fromHexString(idKelas);
+      }
+      final dataKelas = await MongoDatabase.kelasCollection.findOne({
+        "_id": idKelas,
+      });
+      profil["kelas"] = dataKelas;
+    }
+
+    // Ambil data prodi
+    var idProdi = profil["id_prodi"] ?? profil["kelas"]?["id_prodi"];
+    if (idProdi != null) {
+      if (idProdi is String && idProdi.length == 24) {
+        idProdi = ObjectId.fromHexString(idProdi);
+      }
+      final dataProdi = await MongoDatabase.prodiCollection.findOne({
+        "_id": idProdi,
+      });
+      if (dataProdi != null) {
+        final namaProdi = dataProdi["nama_prodi"] ?? dataProdi["nama"];
+        if (profil["kelas"] != null) {
+          profil["kelas"]["nama_prodi"] = namaProdi;
+        } else {
+          profil["kelas"] = {"nama_prodi": namaProdi};
+        }
+      }
+    }
+
+    debugPrint("✅ PROFIL MAHASISWA DITEMUKAN: ${profil['nama']}");
+    return MahasiswaModel.fromJson(profil);
+  }
+
+  // Ambil dan simpan data dosen
+  Future<void> _fetchAndSaveDosen(dynamic userId) async {
+    final dosenDoc = await MongoDatabase.dosenCollection.findOne({
+      "user_id": userId,
+    });
+    if (dosenDoc == null) return;
+
+    await _storage.write(
+      key: "dosen_id",
+      value: (dosenDoc["_id"] as ObjectId).toHexString(),
+    );
+    await _storage.write(
+      key: "dosen_kode",
+      value: dosenDoc["kode_dosen"]?.toString() ?? '',
+    );
+    await _storage.write(
+      key: "dosen_nama",
+      value: dosenDoc["nama_dosen"]?.toString() ?? '',
+    );
+  }
+
+  // Ambil dan simpan data tim penjadwalan
+  Future<void> _fetchAndSaveTPJ(dynamic userId) async {
+    final tpjDoc = await MongoDatabase.timPenjadwalanCollection.findOne({
+      "user_id": userId,
+    });
+    if (tpjDoc == null) return;
+
+    await _storage.write(
+      key: "tpj_nama",
+      value: tpjDoc["nama"]?.toString() ?? '',
+    );
+  }
+
   Future<DosenModel?> getDosenByUserId(String userId) async {
     try {
-      // Ambil email dari collection users
       final userDoc = await MongoDatabase.usersCollection.findOne({
         "_id": ObjectId.fromHexString(userId),
       });
@@ -164,7 +187,6 @@ class AuthRepository {
       final email = userDoc["email"]?.toString();
       if (email == null || email.isEmpty) return null;
 
-      // Query dosen menggunakan email
       final doc = await MongoDatabase.dosenCollection.findOne({"email": email});
       if (doc == null) return null;
       return DosenModel.fromMongo(doc);
@@ -187,16 +209,34 @@ class AuthRepository {
     }
   }
 
+  Future<void> _saveUserSession({
+    required String id,
+    required String nama,
+    required String role,
+    required String email,
+    MahasiswaModel? mahasiswa,
+  }) async {
+    await _storage.write(key: "user_id", value: id);
+    await _storage.write(key: "user_nama", value: nama);
+    await _storage.write(key: "user_role", value: role);
+    await _storage.write(key: "user_email", value: email);
+
+    if (mahasiswa != null) {
+      await _storage.write(
+        key: "user_profil",
+        value: jsonEncode(mahasiswa.toJson()),
+      );
+    }
+  }
+
   // ===============================================
-  // 2. FUNGSI CEK STATUS LOGIN (Bypass Login)
+  // 2. CEK STATUS LOGIN (Bypass Login)
   // ===============================================
   Future<UserModel?> checkLoginStatus() async {
     try {
       final userDataString = await _storage.read(key: "user_data");
-
       if (userDataString != null && userDataString.isNotEmpty) {
-        final Map<String, dynamic> userMap = jsonDecode(userDataString);
-        return UserModel.fromJson(userMap);
+        return UserModel.fromJson(jsonDecode(userDataString));
       }
     } catch (e) {
       debugPrint("AUTO LOGIN ERROR: $e");
@@ -205,35 +245,31 @@ class AuthRepository {
   }
 
   // ===============================================
-  // 3. FUNGSI AUTO-LOGIN OFFLINE
+  // 3. AUTO-LOGIN OFFLINE
   // ===============================================
   Future<UserModel?> checkAutoLogin() async {
     try {
       final userId = await _storage.read(key: "user_id");
-      print('DEBUG checkAutoLogin: userId=$userId');
+      if (userId == null) return null;
 
-      if (userId == null) return null; // Belum login
-
-      final nama = await _storage.read(key: "user_nama") ?? "Mahasiswa";
       final role = await _storage.read(key: "user_role") ?? "MAHASISWA";
       final email = await _storage.read(key: "user_email") ?? "";
+      String nama = await _storage.read(key: "user_nama") ?? "Mahasiswa";
 
-      // Ambil dan Decode kembali profil yang tadi disimpan sebagai JSON String
-      final profilString = await _storage.read(key: "user_profil");
-      Map<String, dynamic>? profilMap;
-      if (profilString != null && profilString.isNotEmpty) {
-        profilMap = jsonDecode(profilString);
-      }
-      String resolvedNama = nama;
       if (role == 'DOSEN') {
         final dosenNama = await _storage.read(key: "dosen_nama");
-        if (dosenNama != null && dosenNama.isNotEmpty) {
-          resolvedNama = dosenNama;
-        }
-      }
-      if (role == 'TIM_PENJADWALAN') {
+        if (dosenNama != null && dosenNama.isNotEmpty) nama = dosenNama;
+      } else if (role == 'TIM_PENJADWALAN') {
         final tpjNama = await _storage.read(key: "tpj_nama");
-        if (tpjNama != null && tpjNama.isNotEmpty) resolvedNama = tpjNama;
+        if (tpjNama != null && tpjNama.isNotEmpty) nama = tpjNama;
+      }
+
+      MahasiswaModel? profilMahasiswa;
+      if (role == 'MAHASISWA') {
+        final profilString = await _storage.read(key: "user_profil");
+        if (profilString != null && profilString.isNotEmpty) {
+          profilMahasiswa = MahasiswaModel.fromJson(jsonDecode(profilString));
+        }
       }
 
       return UserModel(
@@ -241,34 +277,31 @@ class AuthRepository {
         nama: nama,
         email: email,
         role: role,
-        profilMahasiswa: (role == 'MAHASISWA' && profilMap != null)
-            ? MahasiswaModel.fromJson(profilMap)
-            : null,
+        profilMahasiswa: profilMahasiswa,
       );
     } catch (e) {
-      print("AUTO-LOGIN ERROR: $e");
+      debugPrint("AUTO-LOGIN ERROR: $e");
       return null;
     }
   }
 
   // ===============================================
-  // 4. FUNGSI LOGOUT
+  // 4. LOGOUT
   // ===============================================
   Future<void> logout() async {
-    await _storage.delete(key: "user_id");
-    await _storage.delete(key: "user_nama");
-    await _storage.delete(key: "user_role");
-    await _storage.delete(key: "user_email");
-    await _storage.delete(key: "user_profil");
-    await _storage.delete(key: "user_data");
+    await Future.wait([
+      _storage.delete(key: "user_id"),
+      _storage.delete(key: "user_nama"),
+      _storage.delete(key: "user_role"),
+      _storage.delete(key: "user_email"),
+      _storage.delete(key: "user_profil"),
+      _storage.delete(key: "user_data"),
+      _storage.delete(key: "dosen_id"),
+      _storage.delete(key: "dosen_kode"),
+      _storage.delete(key: "dosen_nama"),
+      _storage.delete(key: "tpj_nama"),
+    ]);
 
-    await _storage.delete(key: "dosen_id");
-    await _storage.delete(key: "dosen_kode");
-    await _storage.delete(key: "dosen_nama");
-
-    await _storage.delete(key: "tpj_nama");
-
-    // Bersihkan data Hive
     await Hive.box<ScheduleModel>('schedules').clear();
     await Hive.box<AnnouncementModel>('announcements').clear();
     await Hive.box<PengajaranModel>('pengajaran').clear();
@@ -278,7 +311,7 @@ class AuthRepository {
   }
 
   // ===============================================
-  // 5. FUNGSI GANTI PASSWORD (TETAP)
+  // 5. GANTI PASSWORD
   // ===============================================
   Future<bool> changePassword(
     String userId,
@@ -286,32 +319,20 @@ class AuthRepository {
     String newPassword,
   ) async {
     try {
-      String cleanUserId = userId
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+      final cleanId = userId.replaceAll('ObjectId("', '').replaceAll('")', '');
+      final objId = ObjectId.fromHexString(cleanId);
 
-      final user = await MongoDatabase.usersCollection.findOne({
-        "_id": ObjectId.fromHexString(cleanUserId),
-      });
-
+      final user = await MongoDatabase.usersCollection.findOne({"_id": objId});
       if (user == null) return false;
 
-      final currentHashedPassword = user["password"];
-      final isOldPasswordCorrect = BCrypt.checkpw(
-        oldPassword,
-        currentHashedPassword,
-      );
-
-      if (!isOldPasswordCorrect) {
+      if (!BCrypt.checkpw(oldPassword, user["password"] as String)) {
         throw Exception("Password lama salah");
       }
 
-      final newHashedPassword = BCrypt.hashpw(newPassword, BCrypt.gensalt());
-
       final result = await MongoDatabase.usersCollection.updateOne(
-        where.id(ObjectId.fromHexString(cleanUserId)),
+        where.id(objId),
         modify
-            .set("password", newHashedPassword)
+            .set("password", BCrypt.hashpw(newPassword, BCrypt.gensalt()))
             .set("updated_at", DateTime.now()),
       );
 
