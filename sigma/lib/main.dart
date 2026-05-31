@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -22,12 +23,17 @@ import 'data/models/task_model.dart';
 import 'data/models/matkul_model.dart';
 import 'data/models/schedule_model.dart';
 import 'data/models/pengajaran_model.dart';
+import 'data/models/schedule_request_model.dart';
+import 'data/models/dosen_model.dart';
+import 'data/models/tpj_model.dart';
 
 // ================= IMPORT SERVICES & REPOS =================
 import 'data/services/schedule_service.dart';
 import 'data/services/announcement_service.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/services/dosen_cache_service.dart';
+import 'data/services/schedule_request_service.dart';
+import 'data/services/dosen_request_service.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
@@ -50,7 +56,8 @@ void main() async {
   print("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  final storage = FlutterSecureStorage();
+  await storage.deleteAll();
   // Initialize Hive
   await Hive.initFlutter();
 
@@ -58,13 +65,19 @@ void main() async {
     Hive.registerAdapter(ScheduleLocalModelAdapter());
   if (!Hive.isAdapterRegistered(2))
     Hive.registerAdapter(AnnouncementModelAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(TaskModelAdapter());
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(MatkulModelAdapter());
+  if (!Hive.isAdapterRegistered(3))
+    Hive.registerAdapter(DetailPerubahanAdapter());
+  if (!Hive.isAdapterRegistered(4))
+    Hive.registerAdapter(ScheduleRequestModelAdapter());
   if (!Hive.isAdapterRegistered(5))
     Hive.registerAdapter(ScheduleModelAdapter());
-  if (!Hive.isAdapterRegistered(6)) {
+  if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(MatkulModelAdapter());
+  if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(DosenModelAdapter());
+  if (!Hive.isAdapterRegistered(8))
+    Hive.registerAdapter(TimPenjadwalanModelAdapter());
+  if (!Hive.isAdapterRegistered(9))
     Hive.registerAdapter(PengajaranModelAdapter());
-  }
+  if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(TaskModelAdapter());
 
   // ── MongoDB ────────────────────────────────────────────────────────────────
   try {
@@ -78,6 +91,9 @@ void main() async {
   await Hive.openBox<AnnouncementModel>('announcements');
   await Hive.openBox<TaskModel>('tasks');
   await Hive.openBox<AnnouncementModel>('bookmarks');
+  await Hive.openBox('pending_requests');
+  await Hive.openBox('schedule_cache');
+  await Hive.openBox('cancel_queue');
   await Hive.openBox('student_action_queue');
 
   await Hive.openBox<AnnouncementModel>('admin_announcements');
@@ -90,6 +106,7 @@ void main() async {
   await Hive.openBox<ScheduleModel>('admin_schedules');
   await Hive.openBox<Map>('schedule_queue');
   await Hive.openBox<PengajaranModel>('pengajaran');
+  await ScheduleRequestService.openBoxes();
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();
@@ -113,6 +130,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AdminScheduleViewModel()),
         ChangeNotifierProvider(create: (_) => AdminAnnouncementViewModel()),
         ChangeNotifierProvider(create: (_) => AdminMatkulViewModel()),
+        ChangeNotifierProvider(
+          create: (_) => DosenRequestController(DosenRequestService()),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => ScheduleRequestController(ScheduleRequestService()),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -215,4 +239,3 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
   @override
   Widget build(BuildContext context) => widget.child;
 }
-//new

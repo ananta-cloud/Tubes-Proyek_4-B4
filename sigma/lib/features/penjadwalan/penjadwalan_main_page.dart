@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -32,10 +31,6 @@ class _PenjadwalanMainPageState extends State<PenjadwalanMainPage> {
   int _currentIndex = 0;
   late final List<Widget> _pages;
 
-  // StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
-  // bool _isSyncing = false;
-  // bool _wasOffline = false;
-
   @override
   void initState() {
     super.initState();
@@ -53,55 +48,7 @@ class _PenjadwalanMainPageState extends State<PenjadwalanMainPage> {
         context.read<ScheduleRequestController>().setOffline(isOffline);
       }
     });
-
-    // _initConnectivity();
   }
-
-  // @override
-  // void dispose() {
-  //   _connectivitySub?.cancel();
-  //   super.dispose();
-  // }
-
-  // void _initConnectivity() {
-  //   // Cek status awal
-  //   Connectivity().checkConnectivity().then((results) {
-  //     final isOffline = results.contains(ConnectivityResult.none);
-  //     MongoDatabase.isOffline = isOffline;
-  //     if (mounted) {
-  //       context.read<ScheduleRequestController>().setOffline(isOffline);
-  //       _wasOffline = isOffline;
-  //     }
-  //   });
-
-  //   // Listen perubahan
-  //   _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-  //     final isOffline = results.contains(ConnectivityResult.none);
-  //     MongoDatabase.isOffline = isOffline;
-
-  //     if (!mounted) return;
-  //     final ctrl = context.read<ScheduleRequestController>();
-  //     ctrl.setOffline(isOffline);
-
-  //     if (_wasOffline && !isOffline) {
-  //       // Baru kembali online — sync
-  //       _doSync(ctrl);
-  //     }
-  //     _wasOffline = isOffline;
-  //   });
-  // }
-
-  // Future<void> _doSync(ScheduleRequestController ctrl) async {
-  //   if (_isSyncing) return;
-  //   setState(() => _isSyncing = true);
-
-  //   try {
-  //     await MongoDatabase.ensureConnected();
-  //     await ctrl.onConnectionRestored();
-  //   } finally {
-  //     if (mounted) setState(() => _isSyncing = false);
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {

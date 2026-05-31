@@ -56,7 +56,7 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
     final ctrl = context.watch<DosenRequestController>();
     final filtered = _filtered(ctrl.mySchedules);
 
-    // Snackbar sync — sama seperti my_requests_page
+    // Snackbar sync
     if (ctrl.justSynced) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -81,7 +81,7 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
 
     return Column(
       children: [
-        // Banner offline — pakai widget yang sama
+        // Banner offline
         if (ctrl.isOffline)
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -186,39 +186,3 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
     return map[hari] ?? hari;
   }
 }
-
-// class _EmptyState extends StatelessWidget {
-//   final bool isOffline;
-//   const _EmptyState({required this.isOffline});
-
-//   @override
-//   Widget build(BuildContext context) => Center(
-//     child: Column(
-//       mainAxisAlignment: MainAxisAlignment.center,
-//       children: [
-//         Icon(
-//           isOffline ? Icons.cloud_off : Icons.event_busy,
-//           size: 52,
-//           color: AppColors.slate300,
-//         ),
-//         const SizedBox(height: 12),
-//         Text(
-//           isOffline ? 'Tidak ada data tersimpan' : 'Belum ada jadwal mengajar',
-//           style: TextStyle(
-//             color: AppColors.slate500,
-//             fontWeight: FontWeight.w600,
-//             fontSize: 14,
-//           ),
-//         ),
-//         const SizedBox(height: 6),
-//         Text(
-//           isOffline
-//               ? 'Buka halaman ini saat online untuk menyimpan data'
-//               : 'Jadwal yang diampu akan muncul di sini',
-//           style: TextStyle(color: AppColors.slate400, fontSize: 12),
-//           textAlign: TextAlign.center,
-//         ),
-//       ],
-//     ),
-//   );
-// }
