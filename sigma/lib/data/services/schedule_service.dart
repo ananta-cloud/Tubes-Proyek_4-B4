@@ -107,4 +107,33 @@ class ScheduleService {
       return [];
     }
   }
+
+  Future<List<Map<String, dynamic>>> getSchedulesMhs([String? kelasMahasiswa]) async {
+    try {
+      // 1. Jika nama kelas kosong atau null, jangan lakukan query yang berat
+      if (kelasMahasiswa == null || kelasMahasiswa.trim().isEmpty) {
+        print("WARNING: getSchedulesMhs dipanggil tanpa nama kelas.");
+        return [];
+      }
+
+      // 2. Bersihkan nama kelas dari spasi berlebih
+      final String safeKelas = kelasMahasiswa.trim();
+
+      // 3. Gunakan SelectorBuilder yang lebih aman
+      final selector = where
+          .eq('status', 'PUBLISHED')
+          // Menggunakan match (regex) agar lebih fleksibel (misal: "D3-A" cocok dengan "D3-A Teknik Informatika")
+          .match('kelas', safeKelas, caseInsensitive: true);
+
+      final data = await MongoDatabase.runSafe(
+        () => MongoDatabase.schedulesCollection.find(selector).toList(),
+      );
+
+      print("MONGO SCHEDULE (Kelas: $safeKelas): Ditemukan ${data.length} jadwal");
+      return data;
+    } catch (e) {
+      print("ERROR getSchedulesMhs: $e");
+      return [];
+    }
+  }
 }

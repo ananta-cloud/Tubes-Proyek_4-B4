@@ -22,76 +22,59 @@ class ScheduleViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      String queryParam = '';
-      final role = user.role.toUpperCase();
-
-      if (role == 'MAHASISWA') {
-        queryParam = user.profilMahasiswa?.idKelas ?? user.profilMahasiswa?.kelas?.id ?? '';
-        
-        if (queryParam.isEmpty) {
-          throw Exception("ID Kelas mahasiswa tidak ditemukan");
-        }
-      } else if (role == 'DOSEN') {
-        queryParam = user.nama; 
-      } else {
-        return;
+      // 👉 2. Ambil nama kelas dari user yang sedang login
+      final String namaKelas = user.profilMahasiswa?.kelas?.namaKelas ?? '';
+      
+      if (namaKelas.isEmpty) {
+        throw Exception("Data kelas mahasiswa tidak ditemukan");
       }
 
-      // 👉 Kirim query (ID Kelas / Nama Dosen) ke Service
-      final rawData = await _service.getSchedules(queryParam);
+      // 👉 3. Kirim nama kelas ke Service
+      final rawData = await _service.getSchedulesMhs(namaKelas);
 
-      // 👉 Parse data DULU sebelum menghapus cache (Mencegah Blank jika jaringan error)
-      final List<ScheduleModel> parsedSchedules = [];
-      for (final item in rawData) {
-        parsedSchedules.add(ScheduleModel.fromJson(item));
-      }
-
-      // Jika parsing aman 100%, baru hapus cache lama dan timpa dengan yang baru
       await box.clear();
-      for (final model in parsedSchedules) {
+      for (final item in rawData) {
+        final model = ScheduleModel.fromJson(item);
         await box.put(model.id, model);
       }
 
       schedules = box.values.toList();
-      print("✅ SCHEDULE SYNCED UNTUK ID/NAMA: $queryParam, TOTAL: ${schedules.length} item");
+      print("SCHEDULE SYNCED UNTUK KELAS $namaKelas: ${schedules.length} item");
     } catch (e) {
-      print("❌ ERROR SCHEDULE SYNC: $e");
-      errorMessage = e.toString();
-      schedules = box.values.toList(); // Tetap tampilkan data lokal jika gagal sync
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      print("ERROR SCHEDULE SYNC: $e");
+      schedules = box.values.toList();
     }
+
+    isLoading = false;
+    notifyListeners();
   }
 
-  // Helper untuk konversi waktu agar sorting presisi
-  int _timeToMinutes(String timeStr) {
-    if (timeStr.isEmpty) return 0;
-    final parts = timeStr.split(RegExp(r'[:.]'));
-    if (parts.length >= 2) {
-      return (int.tryParse(parts[0].trim()) ?? 0) * 60 + (int.tryParse(parts[1].trim()) ?? 0);
-    }
-    return 0;
-  }
-
-  // Kelompokkan jadwal & Gabungkan blok jam (Merge)
+  // ==================================================
+  // 1. Kelompokkan jadwal & Gabungkan blok jam (Merge)
+  // ==================================================
   Map<String, List<ScheduleModel>> get scheduleByDay {
     final Map<String, List<ScheduleModel>> groupedRaw = {};
     
+    // 1. Masukkan semua jadwal ke dalam kelompok harinya masing-masing
     for (final s in schedules) {
-      final hariClean = s.hari.trim().toUpperCase(); 
-      groupedRaw.putIfAbsent(hariClean, () => []).add(s);
+      groupedRaw.putIfAbsent(s.hari, () => []).add(s);
     }
     
     final Map<String, List<ScheduleModel>> mergedAndSorted = {};
-    const urutanHari = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU'];
+    
+    const urutanHari = [
+      'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU',
+    ];
     
     for (final h in urutanHari) {
       if (groupedRaw.containsKey(h)) {
         final listHariIni = groupedRaw[h]!;
         
-        listHariIni.sort((a, b) => _timeToMinutes(a.jamMulai).compareTo(_timeToMinutes(b.jamMulai)));
+        // 2. Urutkan berdasarkan jam mulai (cth: "07.00" lalu "08.40")
+        // String compareTo berfungsi sempurna karena format jam Anda "HH.mm"
+        listHariIni.sort((a, b) => a.jamMulai.compareTo(b.jamMulai));
         
+        // 3. Proses Penggabungan (Merging)
         final List<ScheduleModel> mergedList = [];
         
         for (final item in listHariIni) {
@@ -100,18 +83,23 @@ class ScheduleViewModel extends ChangeNotifier {
           } else {
             final lastItem = mergedList.last;
             
+            // Jika nama matkul, ruangan, dan jenisnya (Teori/Praktik) sama persis
             if (lastItem.namaMatkul == item.namaMatkul && 
                 lastItem.ruangan == item.ruangan &&
                 lastItem.tePr == item.tePr) {
                   
+              // Ganti item terakhir dengan data baru yang 'jamSelesai'-nya diperpanjang
               mergedList[mergedList.length - 1] = lastItem.copyWith(
                 jamSelesai: item.jamSelesai
               );
             } else {
+              // Jika matkul berbeda, tambahkan sebagai jadwal baru di bawahnya
               mergedList.add(item);
             }
           }
         }
+        
+        // Simpan hasil yang sudah rapi
         mergedAndSorted[h] = mergedList;
       }
     }
@@ -119,12 +107,16 @@ class ScheduleViewModel extends ChangeNotifier {
     return mergedAndSorted;
   }
 
-  // Jadwal Hari Ini
+  // ==================================================
+  // 2. Jadwal Hari Ini (Diambil dari data yang sudah di-merge)
+  // ==================================================
   List<ScheduleModel> get todaySchedules {
     const hariMap = {
       1: 'SENIN', 2: 'SELASA', 3: 'RABU', 4: 'KAMIS', 5: 'JUMAT', 6: 'SABTU', 7: 'MINGGU',
     };
     final hariIni = hariMap[DateTime.now().weekday] ?? '';
+    
+    // Karena kita panggil scheduleByDay, 'Hari Ini' otomatis ikut rapi & tergabung!
     return scheduleByDay[hariIni] ?? [];
   }
 }

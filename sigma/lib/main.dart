@@ -16,7 +16,6 @@ import 'core/network/mongo_database.dart';
 import 'features/auth/views/login_page.dart';
 
 // ================= IMPORT MODELS =================
-import 'data/models/schedule_local_model.dart';
 import 'data/models/announcement_model.dart';
 import 'data/models/dosen_model.dart';
 import 'data/models/task_model.dart';
@@ -61,7 +60,6 @@ void main() async {
   await Hive.initFlutter();
 
   // Registrasi Adapter Hive
-  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(ScheduleLocalModelAdapter());
   if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(AnnouncementModelAdapter());
   if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(DetailPerubahanAdapter());
   if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(ScheduleRequestModelAdapter());
@@ -124,11 +122,11 @@ class _SplashScreenLoaderState extends State<SplashScreenLoader> {
   Future<void> _initializeApp() async {
     // Membuka memori Hive secara paralel agar instan
     await Future.wait([
-      Hive.openBox<ScheduleLocalModel>('schedules'),
       Hive.openBox<AnnouncementModel>('announcements'),
       Hive.openBox<TaskModel>('tasks'),
       Hive.openBox<AnnouncementModel>('bookmarks'),
       Hive.openBox('pending_requests'),
+      Hive.openBox<ScheduleModel>('schedules'),
       Hive.openBox('schedule_cache'),
       Hive.openBox('cancel_queue'),
       Hive.openBox('student_action_queue'),
