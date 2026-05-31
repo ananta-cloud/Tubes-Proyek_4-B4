@@ -157,13 +157,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class _ConnectivityListenerWrapper extends StatelessWidget {
-  const _ConnectivityListenerWrapper();
-  @override
-  Widget build(BuildContext context) =>
-      const _ConnectivityListener(child: LoginPage());
-}
-
 // ── Connectivity Listener ──────────────────────────────────────────────────────
 class _ConnectivityListener extends StatefulWidget {
   final Widget child;

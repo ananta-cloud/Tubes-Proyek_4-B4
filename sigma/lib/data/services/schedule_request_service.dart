@@ -143,6 +143,16 @@ class ScheduleRequestService {
         final jadwal = scheduleMap[r['id_schedule']?.toString()];
         return ScheduleRequestModel.fromJson(r, jadwal: jadwal);
       }).toList();
+
+      print('DEBUG requests=${requests.length}');
+      if (requests.isEmpty) {
+        // Cek manual — apakah ada request dengan id_schedule yang ada di schedules?
+        final sampleReq = await _reqCol.findOne(where.exists('id_schedule'));
+        print('DEBUG sample request dari DB: $sampleReq');
+        print(
+          'DEBUG sample objectIdList[0]: ${objectIdList.isNotEmpty ? objectIdList.first : 'kosong'}',
+        );
+      }
       if (requests.isNotEmpty) {
         final r = requests.first;
         final idSch = r['id_schedule'];
