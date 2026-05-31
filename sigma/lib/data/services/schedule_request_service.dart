@@ -132,7 +132,8 @@ class ScheduleRequestService {
       print('DEBUG scheduleIds count=${objectIdList.length}');
 
       // Step 3: ambil requests
-      final selector = where.oneFrom('id_schedule', objectIdList);
+      // final selector = where.oneFrom('id_schedule', objectIdList);
+      final selector = where.exists('id_schedule');
       if (status != null && status != 'SEMUA') selector.eq('status', status);
       selector.sortBy('created_at', descending: true);
 

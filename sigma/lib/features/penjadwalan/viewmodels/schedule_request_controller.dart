@@ -52,14 +52,32 @@ class ScheduleRequestController extends ChangeNotifier {
 
   Future<void> _loadStats(String idJurusan) async {
     try {
-      final stats = await service.getStats(idJurusan);
-      countPending = stats['pending'] ?? 0;
-      countApproved = stats['approved'] ?? 0;
-      countRejected = stats['rejected'] ?? 0;
+      if (filterStatus == 'SEMUA') {
+        countPending = requests
+            .where((r) => r.status.toUpperCase() == 'PENDING')
+            .length;
+        countApproved = requests
+            .where((r) => r.status.toUpperCase() == 'APPROVED')
+            .length;
+        countRejected = requests
+            .where((r) => r.status.toUpperCase() == 'REJECTED')
+            .length;
+      } else {
+        final stats = await service.getStats(idJurusan);
+        countPending = stats['pending'] ?? 0;
+        countApproved = stats['approved'] ?? 0;
+        countRejected = stats['rejected'] ?? 0;
+      }
     } catch (_) {
-      countPending = requests.where((r) => r.status == 'PENDING').length;
-      countApproved = requests.where((r) => r.status == 'APPROVED').length;
-      countRejected = requests.where((r) => r.status == 'REJECTED').length;
+      countPending = requests
+          .where((r) => r.status.toUpperCase() == 'PENDING')
+          .length;
+      countApproved = requests
+          .where((r) => r.status.toUpperCase() == 'APPROVED')
+          .length;
+      countRejected = requests
+          .where((r) => r.status.toUpperCase() == 'REJECTED')
+          .length;
     }
     notifyListeners();
   }
