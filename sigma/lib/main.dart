@@ -56,37 +56,51 @@ void main() async {
   debugPrint("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
 
   await Hive.initFlutter();
 
   // Registrasi Adapter Hive
-  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(ScheduleLocalModelAdapter());
-  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(AnnouncementModelAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(DetailPerubahanAdapter());
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(ScheduleRequestModelAdapter());
-  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(ScheduleModelAdapter());
+  if (!Hive.isAdapterRegistered(1))
+    Hive.registerAdapter(ScheduleLocalModelAdapter());
+  if (!Hive.isAdapterRegistered(2))
+    Hive.registerAdapter(AnnouncementModelAdapter());
+  if (!Hive.isAdapterRegistered(3))
+    Hive.registerAdapter(DetailPerubahanAdapter());
+  if (!Hive.isAdapterRegistered(4))
+    Hive.registerAdapter(ScheduleRequestModelAdapter());
+  if (!Hive.isAdapterRegistered(5))
+    Hive.registerAdapter(ScheduleModelAdapter());
   if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(MatkulModelAdapter());
   if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(DosenModelAdapter());
-  if (!Hive.isAdapterRegistered(8)) Hive.registerAdapter(TimPenjadwalanModelAdapter());
-  if (!Hive.isAdapterRegistered(9)) Hive.registerAdapter(PengajaranModelAdapter());
+  if (!Hive.isAdapterRegistered(8))
+    Hive.registerAdapter(TimPenjadwalanModelAdapter());
+  if (!Hive.isAdapterRegistered(9))
+    Hive.registerAdapter(PengajaranModelAdapter());
   if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(TaskModelAdapter());
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LoginViewModel(AuthRepository())),
-        ChangeNotifierProvider(create: (_) => ScheduleController(ScheduleService())),
+        ChangeNotifierProvider(
+          create: (_) => ScheduleController(ScheduleService()),
+        ),
         ChangeNotifierProvider(create: (_) => TaskViewModel()),
         ChangeNotifierProvider(create: (_) => TaskFormViewModel()),
-        ChangeNotifierProvider(create: (_) => AnnouncementViewModel(AnnouncementService())),
+        ChangeNotifierProvider(
+          create: (_) => AnnouncementViewModel(AnnouncementService()),
+        ),
         ChangeNotifierProvider(create: (_) => ScheduleViewModel()),
         ChangeNotifierProvider(create: (_) => AdminMainViewModel()),
         ChangeNotifierProvider(create: (_) => AdminScheduleViewModel()),
         ChangeNotifierProvider(create: (_) => AdminAnnouncementViewModel()),
         ChangeNotifierProvider(create: (_) => AdminMatkulViewModel()),
-        ChangeNotifierProvider(create: (_) => DosenRequestController(DosenRequestService())),
-        ChangeNotifierProvider(create: (_) => ScheduleRequestController(ScheduleRequestService())),
+        ChangeNotifierProvider(
+          create: (_) => DosenRequestController(DosenRequestService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ScheduleRequestController(ScheduleRequestService()),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -175,9 +189,7 @@ class _SplashScreenLoaderState extends State<SplashScreenLoader> {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Color(0xFF1F1F3D),
-      body: Center(
-        child: CircularProgressIndicator(color: Color(0xFFFF7A36)), 
-      ),
+      body: Center(child: CircularProgressIndicator(color: Color(0xFFFF7A36))),
     );
   }
 }
@@ -185,7 +197,8 @@ class _SplashScreenLoaderState extends State<SplashScreenLoader> {
 class _ConnectivityListenerWrapper extends StatelessWidget {
   const _ConnectivityListenerWrapper();
   @override
-  Widget build(BuildContext context) => const _ConnectivityListener(child: LoginPage());
+  Widget build(BuildContext context) =>
+      const _ConnectivityListener(child: LoginPage());
 }
 
 // ── Connectivity Listener ──────────────────────────────────────────────────────
@@ -204,7 +217,9 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
   @override
   void initState() {
     super.initState();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) {
       final isOffline = result.contains(ConnectivityResult.none);
 
       if (isOffline) {
@@ -224,13 +239,13 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
 
   @override
   void dispose() {
-    _connectivitySubscription.cancel(); 
+    _connectivitySubscription.cancel();
     super.dispose();
   }
 
   Future<void> _syncAll() async {
     if (!mounted) return;
-    
+
     try {
       await MongoDatabase.ensureConnected();
       await DosenCacheService.warmUp();
@@ -241,7 +256,9 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
 
       if (user != null) {
         if (user.role == 'ADMIN_TU' || user.role == 'MANAJEMEN') {
-          await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
+          await context
+              .read<AdminAnnouncementViewModel>()
+              .onConnectionRestored();
           await context.read<AdminMatkulViewModel>().onConnectionRestored();
           await context.read<AdminScheduleViewModel>().onConnectionRestored();
         }
@@ -250,10 +267,10 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
           final announcementVM = context.read<AnnouncementViewModel>();
           final taskVM = context.read<TaskViewModel>();
           final scheduleVM = context.read<ScheduleViewModel>();
-          
+
           await announcementVM.syncOfflineActions();
           await announcementVM.syncAnnouncements();
-          await taskVM.syncTasks(user); 
+          await taskVM.syncTasks(user);
           await scheduleVM.syncSchedules(user);
         }
 
@@ -267,7 +284,9 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
         }
 
         if (user.role == 'TIM_PENJADWALAN') {
-          await context.read<ScheduleRequestController>().onConnectionRestored();
+          await context
+              .read<ScheduleRequestController>()
+              .onConnectionRestored();
         }
       }
     } catch (e) {
