@@ -222,7 +222,7 @@ class DosenRequestController extends ChangeNotifier {
     required String alasan,
   }) async {
     if (selectedJadwal == null || selectedTanggalBaru == null) return false;
-
+    print('DEBUG selectedJadwal: $selectedJadwal');
     // final hariLama = selectedJadwal!['hari']?.toString() ?? '';
     final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
     final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
@@ -251,6 +251,12 @@ class DosenRequestController extends ChangeNotifier {
             selectedJadwal!['nama_matkul'] ?? selectedJadwal!['nama_mk'] ?? '',
         'status': 'PENDING',
         'offline_id': offlineId,
+        'jadwal_lama': {
+          'hari': selectedJadwal!['hari'],
+          'jam_mulai': selectedJadwal!['jam_mulai'],
+          'jam_selesai': selectedJadwal!['jam_selesai'],
+          'ruangan': selectedJadwal!['ruangan'],
+        },
         'detail_perubahan': {
           'tanggal_baru': selectedTanggalBaru!.toIso8601String(),
           'hari_baru': _hariDari(selectedTanggalBaru!),
@@ -265,7 +271,16 @@ class DosenRequestController extends ChangeNotifier {
 
     isSubmitting = true;
     notifyListeners();
-
+    final jadwalLamaData = {
+      'hari': selectedJadwal!['hari'],
+      'jam_mulai': selectedJadwal!['jam_mulai'],
+      'jam_selesai': selectedJadwal!['jam_selesai'],
+      'ruangan': selectedJadwal!['ruangan'],
+    };
+    print('DEBUG jadwalLama: $jadwalLamaData');
+    print(
+      'DEBUG jadwalLama: ${{'hari': selectedJadwal!['hari'], 'jam_mulai': selectedJadwal!['jam_mulai'], 'jam_selesai': selectedJadwal!['jam_selesai'], 'ruangan': selectedJadwal!['ruangan']}}',
+    );
     final ok = await service.submitRequest(
       idSchedule: selectedJadwal!['_id'].toString(),
       idDosen: idDosen,
@@ -429,6 +444,7 @@ class DosenRequestController extends ChangeNotifier {
           final detail = Map<String, dynamic>.from(
             data['detail_perubahan'] ?? {},
           );
+          print('DEBUG sync jadwalLama: ${data['jadwal_lama']}');
           final ok = await service.submitRequest(
             idSchedule: data['id_schedule'],
             idDosen: data['id_dosen'],
@@ -437,15 +453,7 @@ class DosenRequestController extends ChangeNotifier {
             detailPerubahan: detail,
             alasan: data['alasan'],
             namaMatkul: data['nama_matkul'] ?? '',
-            jadwalLama: Map<String, dynamic>.from(
-              data['jadwal_lama'] ??
-                  {
-                    'hari': data['hari'],
-                    'jam_mulai': data['jam_mulai'],
-                    'jam_selesai': data['jam_selesai'],
-                    'ruangan': data['ruangan'],
-                  },
-            ),
+            jadwalLama: Map<String, dynamic>.from(data['jadwal_lama'] ?? {}),
             offlineId: data['offline_id'],
           );
           if (ok) await _pendingBox.delete(key);

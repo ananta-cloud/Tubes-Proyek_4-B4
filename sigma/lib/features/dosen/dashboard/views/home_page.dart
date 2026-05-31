@@ -40,13 +40,13 @@ class _HomePageDsnState extends State<HomePageDsn> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userId = widget.user.id;
-      if (userId.isNotEmpty) {
-        context.read<AnnouncementViewModel>().syncBookmarks(userId);
-      }
       context.read<AnnouncementViewModel>().setUserRole('DOSEN');
-      context.read<AnnouncementViewModel>().syncAnnouncements();
+      if (userId.isNotEmpty) {
+        await context.read<AnnouncementViewModel>().syncBookmarks(userId);
+      }
+      await context.read<AnnouncementViewModel>().syncAnnouncements();
     });
   }
 
@@ -112,23 +112,11 @@ class _HomePageDsnState extends State<HomePageDsn> {
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
-                child: IndexedStack(
-                  key: ValueKey(currentIndex),
-                  index: currentIndex,
-                  children: [
-                    _home(announcementViewModel),
-                    JadwalMengajarPage(
-                      user: activeUser ?? widget.user,
-                      dosen: activeDosen,
-                    ),
-                    MyRequestsPage(
-                      user: activeUser ?? widget.user,
-                      dosen: activeDosen,
-                      isActive: currentIndex == 2,
-                    ),
-                    const TaskManagementPage(),
-                    _buildProfileTab(context, activeUser),
-                  ],
+                child: _buildPage(
+                  currentIndex,
+                  announcementViewModel,
+                  activeUser,
+                  activeDosen,
                 ),
               ),
             ),
@@ -141,6 +129,35 @@ class _HomePageDsnState extends State<HomePageDsn> {
         primaryBlue: primaryBlue,
       ),
     );
+  }
+
+  Widget _buildPage(
+    int index,
+    AnnouncementViewModel vm,
+    UserModel? activeUser,
+    DosenModel activeDosen,
+  ) {
+    switch (index) {
+      case 0:
+        return _home(vm);
+      case 1:
+        return JadwalMengajarPage(
+          user: activeUser ?? widget.user,
+          dosen: activeDosen,
+        );
+      case 2:
+        return MyRequestsPage(
+          user: activeUser ?? widget.user,
+          dosen: activeDosen,
+          isActive: true,
+        );
+      case 3:
+        return const TaskManagementPage();
+      case 4:
+        return _buildProfileTab(context, activeUser);
+      default:
+        return _home(vm);
+    }
   }
 
   Future<void> _authenticateToRevealPassword(String email) async {

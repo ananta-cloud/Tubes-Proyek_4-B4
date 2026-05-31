@@ -282,6 +282,12 @@ class DosenRequestService {
         final model = ScheduleRequestModel.fromJson(req, jadwal: jadwal);
         result.add(model);
 
+        final jadwalLamaRaw = req['jadwal_lama'] != null
+            ? _sanitizeMap(Map<String, dynamic>.from(req['jadwal_lama']))
+            : jadwal != null
+            ? _sanitizeMap(jadwal)
+            : null;
+
         rawForCache.add({
           '_id': model.id,
           'id_schedule': model.idSchedule,
@@ -299,10 +305,11 @@ class DosenRequestService {
           'updated_at': model.updatedAt?.toIso8601String(),
           'nama_mk': model.namaMk,
           'kode_mk': model.kodeMk,
-          'hari': model.hariJadwal,
-          'jam_mulai': model.jamMulaiJadwal,
-          'jam_selesai': model.jamSelesaiJadwal,
-          'ruangan': model.ruanganJadwal,
+          'jadwal_lama': jadwalLamaRaw,
+          'hari': jadwalLamaRaw?['hari'],
+          'jam_mulai': jadwalLamaRaw?['jam_mulai'],
+          'jam_selesai': jadwalLamaRaw?['jam_selesai'],
+          'ruangan': jadwalLamaRaw?['ruangan'],
           'kelas': model.kelas,
         });
       }
@@ -313,6 +320,26 @@ class DosenRequestService {
       print('Error getMyRequests: $e');
       return _getMyRequestsFromCache(idDosen);
     }
+  }
+
+  Map<String, dynamic> _sanitizeMap(Map<String, dynamic> map) {
+    return map.map((k, v) {
+      if (v is ObjectId) return MapEntry(k, v.toHexString());
+      if (v is DateTime) return MapEntry(k, v.toIso8601String());
+      if (v is Map)
+        return MapEntry(k, _sanitizeMap(Map<String, dynamic>.from(v)));
+      if (v is List)
+        return MapEntry(
+          k,
+          v
+              .map(
+                (e) =>
+                    e is Map ? _sanitizeMap(Map<String, dynamic>.from(e)) : e,
+              )
+              .toList(),
+        );
+      return MapEntry(k, v);
+    });
   }
 
   List<ScheduleRequestModel> _getMyRequestsFromCache(String idDosen) {
