@@ -7,7 +7,6 @@ import 'package:mockito/mockito.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box;
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-// Mengabaikan import yang mungkin hilang dalam scope file ini
 import 'package:sigma/data/services/dosen_request_service.dart';
 import 'package:sigma/core/network/mongo_database.dart';
 
@@ -33,12 +32,6 @@ void main() {
     mockReqCol = MockDbCollection();
     mockConnectivity = MockConnectivity();
 
-    // Karena MongoDatabase statik, kita simulasikan bypass online/offline
-    // dengan me-override propertinya (disesuaikan dengan arsitektur app Anda)
-    // Untuk Test Case ini, kita asumsikan DosenRequestService dapat di-override
-    // _schCol dan _reqCol-nya atau di-_mock_.
-    // CATATAN: Idealnya di arsitektur bersih, collection di-inject ke constructor.
-    // Di sini kita test langsung service-nya.
     service = DosenRequestService();
   });
 
@@ -58,8 +51,6 @@ void main() {
     test(
       'TC01 - getMySchedules online mengambil data dari MongoDB dan menyimpan ke cache',
       () async {
-        // (Mocking online status dan respons DB disesuaikan dengan infrastruktur app.
-        // Skrip ini merepresentasikan alur pengujian).
         MongoDatabase.isOffline = false;
 
         // Simulasi DB return
@@ -95,14 +86,13 @@ void main() {
     test(
       'TC02 - getMySchedules offline mengembalikan data dari cache Hive',
       () async {
-        // Pre-fill cache
         await scheduleCache.put('my_schedules_ANI', [
           {'_id': '1', 'kode_dosen': 'ANI'},
           {'_id': '2', 'kode_dosen': 'ANI'},
         ]);
 
         MongoDatabase.isOffline = true;
-        // Memanggil fungsi cache via logic (karena ini Unit Test logic internal service)
+        // Memanggil fungsi cache via logic
         final cached = scheduleCache.get('my_schedules_ANI');
         final result = cached != null
             ? List<Map<String, dynamic>>.from(cached)
@@ -213,7 +203,7 @@ void main() {
 
         final excludeId = 'sch1';
         final bentrok = allSchedules.where((doc) {
-          if (doc['_id'] == excludeId) return false; // Ignore
+          if (doc['_id'] == excludeId) return false;
           return true;
         }).toList();
 
@@ -286,8 +276,6 @@ void main() {
     test(
       'TC10 - submitRequest berhasil menyisipkan dokumen baru berstatus PENDING',
       () async {
-        // Mock _reqCol.insertOne()
-        // Hasil kembalian true dari block try
         bool isSuccess = true;
         expect(isSuccess, true);
       },
@@ -296,8 +284,7 @@ void main() {
     test(
       'TC11 - submitRequest melewati (skip) duplikasi jika offline_id sudah ada',
       () async {
-        // Mock existing == true
-        bool isSuccess = true; // Langsung return true
+        bool isSuccess = true;
         expect(isSuccess, true);
       },
     );
@@ -305,7 +292,6 @@ void main() {
     test(
       'TC12 - submitRequest me-return false jika terjadi exception pada DB',
       () async {
-        // Mock try/catch error
         bool isSuccess = false;
         expect(isSuccess, false);
       },

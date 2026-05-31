@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -27,11 +28,18 @@ void main() {
     );
   }
 
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    dotenv.loadFromString(
+      envString: 'MONGO_URL=mongodb://localhost:27017/fake_db_test',
+    );
+  });
+
   setUp(() {
     mockService = MockScheduleRequestService();
-    // Inisialisasi offline state default (seperti aplikasi normal)
     MongoDatabase.isOffline = false;
     controller = ScheduleRequestController(mockService);
+    controller.onEnsureConnected = () async {};
   });
 
   // ===========================================================================
@@ -77,9 +85,8 @@ void main() {
           mockService.getStats('J01'),
         ).thenAnswer((_) async => {'pending': 2, 'approved': 0, 'rejected': 0});
 
-        // controller.setFilter secara otomatis memanggil loadRequests()
         controller.setFilter('PENDING', 'J01');
-        await Future.delayed(Duration.zero); // Memberikan waktu event loop
+        await Future.delayed(Duration.zero);
 
         expect(controller.filterStatus, 'PENDING');
         expect(controller.requests.length, 2);
@@ -95,7 +102,6 @@ void main() {
         ).thenThrow(Exception('Koneksi Gagal'));
         when(mockService.getStats('J01')).thenThrow(Exception('Koneksi Gagal'));
 
-        // Injeksi data lokal palsu (mensimulasikan list request offline)
         controller.requests = [
           makeReq('1', 'PENDING'),
           makeReq('2', 'APPROVED'),
@@ -107,8 +113,6 @@ void main() {
 
         expect(controller.isOffline, true);
         expect(controller.errorMsg, contains('Koneksi Gagal'));
-
-        // Fallback penghitungan stat internal
         expect(controller.countPending, 1);
         expect(controller.countApproved, 1);
         expect(controller.countRejected, 2);
@@ -150,7 +154,6 @@ void main() {
         );
 
         expect(result, true);
-        // Memastikan flow merefresh UI/data
         verify(
           mockService.getRequests(idJurusan: 'J01', status: null),
         ).called(1);
@@ -169,7 +172,7 @@ void main() {
             catatanAdmin: 'OK',
             request: dummyReq,
           ),
-        ).thenAnswer((_) async => false); // <-- GAGAL
+        ).thenAnswer((_) async => false);
 
         final result = await controller.approve(
           requestId: '1',
@@ -259,16 +262,15 @@ void main() {
       () async {
         MongoDatabase.isOffline = true;
         controller.isOffline = true;
+        controller.onEnsureConnected = () async {};
 
-        when(
-          mockService.flushQueue(),
-        ).thenAnswer((_) async => 0); // 0 data dikirim
+        when(mockService.flushQueue()).thenAnswer((_) async => 0);
 
         await controller.onConnectionRestored();
 
-        expect(controller.isSyncing, false); // Berakhir di finally
+        expect(controller.isSyncing, false);
         expect(controller.isOffline, false);
-        expect(controller.justSynced, false); // Karena result flush = 0
+        expect(controller.justSynced, false);
         verifyNever(
           mockService.getRequests(
             idJurusan: anyNamed('idJurusan'),
@@ -281,19 +283,23 @@ void main() {
     test(
       'TC09 - Menyelesaikan sinkronisasi dengan hasil > 0 dan merefresh data karena idJurusan tersedia',
       () async {
-        MongoDatabase.isOffline = true;
-        controller.isOffline = true;
+        controller.onEnsureConnected = () async {};
 
-        // Inisialisasi mock id jurusan (seolah-olah dosen/admin pernah load data sebelumnya)
+        // loadRequests saat ONLINE agar _lastIdJurusan terisi
+        MongoDatabase.isOffline = false;
+        controller.isOffline = false;
+
         when(
           mockService.getRequests(idJurusan: 'J01', status: null),
         ).thenAnswer((_) async => []);
         when(mockService.getStats('J01')).thenAnswer((_) async => {});
         await controller.loadRequests('J01');
 
-        when(
-          mockService.flushQueue(),
-        ).thenAnswer((_) async => 2); // 2 data dikirim
+        // Simulasikan offline → restored
+        MongoDatabase.isOffline = false;
+        controller.isOffline = true;
+
+        when(mockService.flushQueue()).thenAnswer((_) async => 2);
 
         await controller.onConnectionRestored();
 
@@ -302,7 +308,7 @@ void main() {
         expect(controller.justSynced, true);
         verify(
           mockService.getRequests(idJurusan: 'J01', status: null),
-        ).called(2); // 1 dari init awal + 1 saat koneksi pulih
+        ).called(2);
       },
     );
 
@@ -311,6 +317,7 @@ void main() {
       () async {
         MongoDatabase.isOffline = true;
         controller.isOffline = true;
+        controller.onEnsureConnected = () async {};
 
         when(mockService.flushQueue()).thenThrow(Exception('Sync error'));
 
@@ -338,7 +345,7 @@ void main() {
         isNotified = true;
       });
 
-      controller.isOffline = false; // Initial
+      controller.isOffline = false;
       controller.setOffline(true);
 
       expect(controller.isOffline, true);
@@ -353,11 +360,11 @@ void main() {
           isNotified = true;
         });
 
-        controller.isOffline = false; // Initial
+        controller.isOffline = false;
         controller.setOffline(false);
 
         expect(controller.isOffline, false);
-        expect(isNotified, false); // Should early-return
+        expect(isNotified, false);
       },
     );
   });

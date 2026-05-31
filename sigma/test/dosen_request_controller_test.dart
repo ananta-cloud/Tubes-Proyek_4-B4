@@ -39,7 +39,7 @@ void main() {
 
     // 3. 🔥 FIX PERMANEN: Format loadFromString untuk flutter_dotenv v6.0.0 menggunakan 'lines' berupa List<String>
     dotenv.loadFromString(
-      lines: ['MONGO_URL=mongodb://localhost:27017/fake_db_test'],
+      envString: 'MONGO_URL=mongodb://localhost:27017/fake_db_test',
     );
   });
 

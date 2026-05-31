@@ -85,6 +85,7 @@ class ScheduleRequestService {
   // ─────────────────────────────────────────────
   // READ
   // ─────────────────────────────────────────────
+  Future<void> Function() onEnsureConnected = MongoDatabase.ensureConnected;
   Future<List<ScheduleRequestModel>> getRequests({
     required String idJurusan,
     String? status,
@@ -96,7 +97,7 @@ class ScheduleRequestService {
           .replaceAll('")', '');
       for (int i = 0; i < 5; i++) {
         try {
-          await MongoDatabase.ensureConnected();
+          await onEnsureConnected();
           if (!MongoDatabase.isOffline) break;
         } catch (_) {
           await Future.delayed(const Duration(milliseconds: 800));

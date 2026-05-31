@@ -5,8 +5,8 @@ import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Sesuaikan path import dengan struktur proyek Anda
 import 'package:sigma/core/network/mongo_database.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/data/services/schedule_request_service.dart';
@@ -25,13 +25,20 @@ void main() {
   late MockDbCollection mockDosenCol;
   late Directory tempDir;
 
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    dotenv.loadFromString(
+      envString: 'MONGO_URL=mongodb://localhost:27017/fake_db_test',
+    );
+  });
+
   setUp(() async {
-    // 1. Setup Hive (Cache & Queue Box)
+    // 1. Setup Hive
     tempDir = await Directory.systemTemp.createTemp('hive_tpj_service_test_');
     Hive.init(tempDir.path);
     await ScheduleRequestService.openBoxes();
 
-    // 2. Setup Mock Database & Collections
+    // 2. Setup Mock
     mockDb = MockDb();
     mockReqCol = MockDbCollection();
     mockSchCol = MockDbCollection();
@@ -41,11 +48,11 @@ void main() {
     when(mockDb.collection('schedules')).thenReturn(mockSchCol);
     when(mockDb.collection('dosen')).thenReturn(mockDosenCol);
 
-    // Injeksi mock ke dalam statik property MongoDatabase
     MongoDatabase.db = mockDb;
-    MongoDatabase.isOffline = false; // Default online
+    MongoDatabase.isOffline = false;
 
     service = ScheduleRequestService();
+    service.onEnsureConnected = () async {};
   });
 
   tearDown(() async {
@@ -60,7 +67,7 @@ void main() {
   ScheduleRequestModel generateMockRequest(String id, String tipe) {
     return ScheduleRequestModel(
       id: id,
-      idSchedule: 'sch1',
+      idSchedule: ObjectId().toHexString(),
       idDosen: 'dos1',
       namaDosen: 'Dosen A',
       tipeRequest: tipe,
@@ -81,7 +88,6 @@ void main() {
 
         final idJurusanHex = ObjectId().toHexString();
 
-        // 🔥 PERBAIKAN: Hapus parameter `_` pada callback pencarian Stream jika melempar error positional
         when(mockDosenCol.find(any)).thenAnswer(
           (invocation) => Stream.fromIterable([
             {'_id': ObjectId(), 'kode_dosen': 'DOS01'},
@@ -358,13 +364,14 @@ void main() {
           'type': 'APPROVE',
           'requestId': ObjectId().toHexString(),
           'processorId': ObjectId().toHexString(),
+          'catatanAdmin': null,
           'requestJson': service.modelToMapTestWrapper(dummyReq),
         });
         queueBox.add({
           'type': 'REJECT',
           'requestId': ObjectId().toHexString(),
           'processorId': ObjectId().toHexString(),
-          'catatanAdmin': 'Tolak',
+          'catatanAdmin': 'Y',
         });
 
         when(
@@ -390,14 +397,14 @@ void main() {
 
         queueBox.add({
           'type': 'REJECT',
-          'requestId': 'r1',
-          'processorId': 'p1',
+          'requestId': ObjectId().toHexString(),
+          'processorId': ObjectId().toHexString(),
           'catatanAdmin': 'X',
         });
         queueBox.add({
           'type': 'REJECT',
-          'requestId': 'r2',
-          'processorId': 'p2',
+          'requestId': ObjectId().toHexString(),
+          'processorId': ObjectId().toHexString(),
           'catatanAdmin': 'Y',
         });
 

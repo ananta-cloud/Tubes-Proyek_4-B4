@@ -110,6 +110,8 @@ class ScheduleRequestController extends ChangeNotifier {
     return ok;
   }
 
+  Future<void> Function() onEnsureConnected = MongoDatabase.ensureConnected;
+
   // ─────────────────────────────────────────────
   // SYNC (dipanggil dari _ConnectivityListener)
   // ─────────────────────────────────────────────
@@ -119,7 +121,7 @@ class ScheduleRequestController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await MongoDatabase.ensureConnected();
+      await onEnsureConnected();
       await Future.delayed(const Duration(milliseconds: 1500)); // ← tambah
 
       final synced = await service.flushQueue();
