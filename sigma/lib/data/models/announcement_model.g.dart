@@ -34,13 +34,14 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       attachments: (fields[14] as List)
           .map((dynamic e) => (e as Map).cast<String, dynamic>())
           .toList(),
+      deadline: fields[15] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AnnouncementModel obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -70,7 +71,9 @@ class AnnouncementModelAdapter extends TypeAdapter<AnnouncementModel> {
       ..writeByte(13)
       ..write(obj.tingkatKepentingan)
       ..writeByte(14)
-      ..write(obj.attachments);
+      ..write(obj.attachments)
+      ..writeByte(15)
+      ..write(obj.deadline);
   }
 
   @override

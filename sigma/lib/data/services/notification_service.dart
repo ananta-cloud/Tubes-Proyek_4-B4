@@ -190,9 +190,12 @@ class NotificationService {
   // =========================================================
   // Fungsi untuk mengatur langganan topik berdasarkan Role
   // =========================================================
-  static Future<void> subscribeToRole(String role) async {
+  static Future<void> subscribeToRole(String role, {required String userId}) async {
     final fcm = FirebaseMessaging.instance;
     final userRole = role.trim().toUpperCase();
+
+    // Bersihkan spasi atau karakter aneh pada userId agar valid untuk nama topik FCM
+    final cleanUserId = userId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
 
     // 1. SEMUA ORANG CABUT LANGGANAN DULU
     final allPossibleTopics = [
@@ -208,21 +211,28 @@ class NotificationService {
     for (String topic in allPossibleTopics) {
       await fcm.unsubscribeFromTopic(topic);
     }
+    
+    // Unsubscribe dari topik user lama (jika ada pergantian akun di 1 HP)
+    // Sebaiknya dipanggil secara eksplisit saat fungsi Logout
+    
+    // 2. BERLANGGANAN TOPIK PERSONAL (Untuk notif status request spesifik ke dosen ini)
+    if (cleanUserId.isNotEmpty) {
+      await fcm.subscribeToTopic('user_$cleanUserId');
+      print("Langganan Notif Personal: user_$cleanUserId Aktif");
+    }
 
-    // SEMUA ROLE BERLANGGANAN TOPIK GLOBAL PENGUMUMAN
+    // 3. SEMUA ROLE BERLANGGANAN TOPIK GLOBAL PENGUMUMAN
     await fcm.subscribeToTopic('pengumuman_semua');
 
-    // BERLANGGANAN BERDASARKAN ROLE
+    // 4. BERLANGGANAN BERDASARKAN ROLE
     if (userRole == 'MAHASISWA') {
-      await fcm.subscribeToTopic('pengumuman_semua');
       await fcm.subscribeToTopic('pengumuman_mahasiswa');
       await fcm.subscribeToTopic('task_mahasiswa');
       await fcm.subscribeToTopic('jadwal_mahasiswa');
       print("Langganan Notif: MAHASISWA Aktif");
     } else if (userRole == 'DOSEN') {
-      await fcm.subscribeToTopic('pengumuman_semua');
       await fcm.subscribeToTopic('pengumuman_dosen');
-      await fcm.subscribeToTopic('jadwal_dosen');
+      await fcm.subscribeToTopic('jadwal_dosen'); 
       print("Langganan Notif: DOSEN Aktif");
     } else if (userRole == 'TIM_PENJADWALAN') {
       await fcm.subscribeToTopic('jadwal_tim_penjadwalan');

@@ -7,7 +7,7 @@ import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/models/dosen_model.dart';
 import 'package:sigma/data/models/tpj_model.dart';
 
-// 🔥 IMPORT INI WAJIB ADA UNTUK CLEAR CACHE SAAT LOGOUT
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sigma/data/models/schedule_local_model.dart';
 import 'package:sigma/data/models/task_model.dart';
 import 'package:sigma/data/models/announcement_model.dart';
@@ -40,7 +40,10 @@ class LoginViewModel extends ChangeNotifier {
       _user = result;
 
       if (result != null) {
-        NotificationService.subscribeToRole(result.role).catchError((e) {
+        NotificationService.subscribeToRole(
+          result.role, 
+          userId: result.id
+        ).catchError((e) {
           debugPrint("FCM Subscribe gagal (diabaikan): $e");
         });
 
@@ -91,10 +94,13 @@ class LoginViewModel extends ChangeNotifier {
 
     final result = await _authRepo.checkAutoLogin();
     if (result != null) {
-      _user = result;
-      NotificationService.subscribeToRole(result.role).catchError((e) {
-        debugPrint("FCM Tertunda karena offline: $e");
-      });
+        _user = result;
+        NotificationService.subscribeToRole(
+          result.role, 
+          userId: result.id
+        ).catchError((e) {
+          debugPrint("FCM Tertunda karena offline: $e");
+        });
 
       if (result.isDosen) {
         _dosen = await _authRepo.getDosenByUserId(result.id);
@@ -125,6 +131,15 @@ class LoginViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
+      if (_user != null) {
+        final cleanUserId = _user!.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+        final fcm = FirebaseMessaging.instance;
+        await fcm.unsubscribeFromTopic('user_$cleanUserId');
+          if (_user!.role == 'MAHASISWA') await fcm.unsubscribeFromTopic('pengumuman_mahasiswa');
+          if (_user!.role == 'TIM_PENJADWALAN') await fcm.unsubscribeFromTopic('jadwal_tim_penjadwalan');
+          if (_user!.role == 'ADMIN_TU') await fcm.unsubscribeFromTopic('jadwal_admin_tu');
+        if (_user!.role == 'DOSEN') await fcm.unsubscribeFromTopic('pengumuman_dosen');
+      }
       // 1. Hapus kredensial / token dari Repository
       await _authRepo.logout();
 

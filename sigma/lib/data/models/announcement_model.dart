@@ -50,6 +50,9 @@ class AnnouncementModel extends HiveObject {
   @HiveField(14)
   final List<Map<String, dynamic>> attachments;
 
+  @HiveField(15)
+  final DateTime? deadline;
+
   AnnouncementModel({
     required this.id,
     required this.judul,
@@ -66,6 +69,7 @@ class AnnouncementModel extends HiveObject {
     required this.updatedAt,
     required this.tingkatKepentingan,
     this.attachments = const [],
+    this.deadline,
   });
 
   // ─── Helper: parse kategori dari format apapun ──────────────────────────
@@ -140,6 +144,20 @@ class AnnouncementModel extends HiveObject {
         return value.toString();
       }
 
+      DateTime? parsedDeadline;
+      if (map['deadline'] != null) {
+        if (map['deadline'] is DateTime) {
+          parsedDeadline = map['deadline'];
+        } else if (map['deadline'] is Map &&
+            map['deadline']['\$date'] != null) {
+          parsedDeadline = DateTime.tryParse(
+            map['deadline']['\$date'].toString(),
+          );
+        } else if (map['deadline'] is String) {
+          parsedDeadline = DateTime.tryParse(map['deadline']);
+        }
+      }
+
       return AnnouncementModel(
         id: parseId(map['_id']),
         judul: map['judul']?.toString() ?? 'Tanpa Judul',
@@ -158,6 +176,7 @@ class AnnouncementModel extends HiveObject {
         createdAt: parseDate(map['created_at']),
         updatedAt: parseDate(map['updated_at']),
         attachments: parsedAttachments,
+        deadline: parsedDeadline,
       );
     } catch (e) {
       print("ERROR PARSING DARI MONGO: $e");
@@ -204,6 +223,9 @@ class AnnouncementModel extends HiveObject {
           DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
           DateTime.now(),
       attachments: parsedAttachments,
+      deadline: json['deadline'] != null
+          ? DateTime.tryParse(json['deadline'].toString())
+          : null,
     );
   }
 
@@ -225,6 +247,7 @@ class AnnouncementModel extends HiveObject {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'attachments': attachments,
+      'deadline': deadline?.toIso8601String(),
     };
   }
 }
