@@ -77,7 +77,6 @@ class _AuthGateState extends State<AuthGate> {
         MaterialPageRoute(builder: (_) => const AdminMainPage()),
       );
     } else {
-      // fallback: MAHASISWA
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomePageMhs()),

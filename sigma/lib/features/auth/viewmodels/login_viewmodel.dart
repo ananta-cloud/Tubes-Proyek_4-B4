@@ -4,8 +4,6 @@ import 'package:sigma/data/models/user_model.dart';
 import 'package:sigma/data/models/dosen_model.dart';
 import 'package:sigma/data/models/tpj_model.dart';
 import 'package:sigma/data/services/notification_service.dart';
-import 'package:sigma/data/models/user_model.dart';
-import 'package:sigma/data/models/dosen_model.dart';
 import 'package:hive/hive.dart';
 
 class LoginViewModel extends ChangeNotifier {
@@ -110,7 +108,6 @@ class LoginViewModel extends ChangeNotifier {
     if (_user == null) return null;
 
     try {
-      // Buka box tempat Anda menyimpan data dosen (Sesuaikan nama box-nya, misal 'dosen_box' atau 'dosen')
       final box = Hive.box<DosenModel>('dosen_box');
 
       // Cari dosen yang userId-nya sama dengan ID user yang sedang login
