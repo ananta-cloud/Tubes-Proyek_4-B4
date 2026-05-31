@@ -17,16 +17,12 @@ class MongoDatabase {
   static bool isOffline = true;
   static bool _isConnecting = false;
   static final List<Completer<void>> _waiters = [];
-
+  static bool _dbInitialized = false;
   static Future<void> connect() async {
     // Sudah konek, skip
-    print('connect: called, isOffline=$isOffline _isConnecting=$_isConnecting');
-    if (!isOffline && db.state == State.OPEN) {
-      print('connect: already open, skip');
-      return;
-    }
+    if (_dbInitialized && db.state == State.OPEN && !isOffline) return;
 
-    // Sedang konek, tunggu yang sedang berjalan
+    // Sedang konek, tunggu
     if (_isConnecting) {
       final c = Completer<void>();
       _waiters.add(c);
@@ -59,6 +55,7 @@ class MongoDatabase {
       dosenCollection = db.collection('dosen');
       timPenjadwalanCollection = db.collection('tim_penjadwalan');
 
+      _dbInitialized = true;
       isOffline = false;
       print("Berhasil terkoneksi ke MongoDB!");
 
@@ -75,19 +72,25 @@ class MongoDatabase {
   }
 
   static Future<void> ensureConnected() async {
-    print('ensureConnected: isOffline=$isOffline state=${db.state}');
-
-    if (isOffline) {
+    if (!_dbInitialized || isOffline) {
       await connect();
       return;
     }
 
-    // Verifikasi koneksi benar-benar masih hidup
+    if (db.state != State.OPEN) {
+      await connect();
+      return;
+    }
+
+    // Verifikasi koneksi masih hidup
     try {
-      await db.serverStatus();
-      print('ensureConnected: connection verified');
-    } catch (e) {
-      print('ensureConnected: connection dead, reconnecting...');
+      await db
+          .collection('users')
+          .findOne(where.eq('_id', '000000000000000000000000'))
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Koneksi mati, reconnect
+      _dbInitialized = false;
       isOffline = true;
       await connect();
     }

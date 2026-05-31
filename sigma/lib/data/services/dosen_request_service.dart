@@ -185,6 +185,7 @@ class DosenRequestService {
     required Map<String, dynamic> detailPerubahan,
     required String alasan,
     required String namaMatkul,
+    required Map<String, dynamic> jadwalLama,
     bool isLate = false,
     String? idPeriodeRevisi,
     required String? offlineId,
@@ -218,6 +219,7 @@ class DosenRequestService {
         'detail_perubahan': detailPerubahan,
         'alasan': alasan,
         'nama_matkul': namaMatkul,
+        'jadwal_lama': jadwalLama,
         'status': 'PENDING',
         'is_late': isLate,
         'id_periode_revisi': idPeriodeRevisi != null

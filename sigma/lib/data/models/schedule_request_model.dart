@@ -123,6 +123,10 @@ class ScheduleRequestModel {
     Map<String, dynamic> json, {
     Map<String, dynamic>? jadwal,
   }) {
+    final jadwalLama = json['jadwal_lama'] != null
+        ? Map<String, dynamic>.from(json['jadwal_lama'])
+        : jadwal;
+
     return ScheduleRequestModel(
       id: json['_id']?.toString() ?? '',
       idSchedule: json['id_schedule']?.toString() ?? '',
@@ -144,19 +148,18 @@ class ScheduleRequestModel {
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'].toString())
           : null,
-      // embed dari jadwal
       namaMk:
-          jadwal?['nama_matkul'] ??
-          jadwal?['nama_mk'] ??
+          jadwalLama?['nama_matkul'] ??
+          jadwalLama?['nama_mk'] ??
           json['nama_matkul'] ??
           json['nama_mk'] ??
           'Jadwal telah diubah',
-      kodeMk: jadwal?['kode_mk'],
-      hariJadwal: jadwal?['hari'],
-      jamMulaiJadwal: jadwal?['jam_mulai'],
-      jamSelesaiJadwal: jadwal?['jam_selesai'],
-      ruanganJadwal: jadwal?['ruangan'],
-      kelas: jadwal?['kelas'],
+      kodeMk: jadwalLama?['kode_mk'],
+      hariJadwal: jadwalLama?['hari'],
+      jamMulaiJadwal: jadwalLama?['jam_mulai'],
+      jamSelesaiJadwal: jadwalLama?['jam_selesai'],
+      ruanganJadwal: jadwalLama?['ruangan'],
+      kelas: jadwalLama?['kelas'],
     );
   }
 

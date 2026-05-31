@@ -235,6 +235,11 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     if (user != null && user.role == 'TIM_PENJADWALAN') {
       await context.read<ScheduleRequestController>().onConnectionRestored();
     }
+    if (user != null && user.role == 'DOSEN') {
+      await Future.delayed(const Duration(milliseconds: 500));
+      await MongoDatabase.ensureConnected();
+      await context.read<DosenRequestController>().syncPendingRequests();
+    }
   }
 
   @override

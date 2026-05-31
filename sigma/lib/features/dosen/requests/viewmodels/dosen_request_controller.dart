@@ -4,6 +4,7 @@ import 'package:sigma/data/services/dosen_request_service.dart';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sigma/core/network/mongo_database.dart';
 
 class DosenRequestController extends ChangeNotifier {
   final DosenRequestService service;
@@ -274,6 +275,12 @@ class DosenRequestController extends ChangeNotifier {
       alasan: alasan,
       namaMatkul:
           selectedJadwal!['nama_matkul'] ?? selectedJadwal!['nama_mk'] ?? '',
+      jadwalLama: {
+        'hari': selectedJadwal!['hari'],
+        'jam_mulai': selectedJadwal!['jam_mulai'],
+        'jam_selesai': selectedJadwal!['jam_selesai'],
+        'ruangan': selectedJadwal!['ruangan'],
+      },
       offlineId: DateTime.now().millisecondsSinceEpoch.toString(),
     );
 
@@ -413,6 +420,7 @@ class DosenRequestController extends ChangeNotifier {
     _isSyncing = true;
 
     try {
+      await MongoDatabase.ensureConnected();
       // Sync pending requests
       if (_pendingBox.isNotEmpty) {
         final keys = _pendingBox.keys.toList();
@@ -429,6 +437,15 @@ class DosenRequestController extends ChangeNotifier {
             detailPerubahan: detail,
             alasan: data['alasan'],
             namaMatkul: data['nama_matkul'] ?? '',
+            jadwalLama: Map<String, dynamic>.from(
+              data['jadwal_lama'] ??
+                  {
+                    'hari': data['hari'],
+                    'jam_mulai': data['jam_mulai'],
+                    'jam_selesai': data['jam_selesai'],
+                    'ruangan': data['ruangan'],
+                  },
+            ),
             offlineId: data['offline_id'],
           );
           if (ok) await _pendingBox.delete(key);
