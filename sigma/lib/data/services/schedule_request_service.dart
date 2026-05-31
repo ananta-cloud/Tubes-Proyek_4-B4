@@ -82,6 +82,8 @@ class ScheduleRequestService {
     await Hive.box<Map>(_queueBox).clear();
   }
 
+  Future<void> Function() onEnsureConnected = MongoDatabase.ensureConnected;
+
   // ─────────────────────────────────────────────
   // READ
   // ─────────────────────────────────────────────
@@ -96,7 +98,7 @@ class ScheduleRequestService {
           .replaceAll('")', '');
       for (int i = 0; i < 5; i++) {
         try {
-          await MongoDatabase.ensureConnected();
+          await onEnsureConnected();
           if (!MongoDatabase.isOffline) break;
         } catch (_) {
           await Future.delayed(const Duration(milliseconds: 800));
@@ -133,7 +135,7 @@ class ScheduleRequestService {
 
       // Step 3: ambil requests
       // final selector = where.oneFrom('id_schedule', objectIdList);
-      final selector = where.exists('id_schedule');
+      final selector = where.sortBy('created_at', descending: true);
       if (status != null && status != 'SEMUA') selector.eq('status', status);
       selector.sortBy('created_at', descending: true);
 
@@ -397,5 +399,10 @@ class ScheduleRequestService {
 
     await _clearQueue();
     return synced;
+  }
+
+  Future<void> clearCache(String idJurusan, String status) async {
+    final box = Hive.box<Map>(_cacheBox);
+    box.delete('${idJurusan}_$status');
   }
 }

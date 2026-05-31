@@ -52,32 +52,14 @@ class ScheduleRequestController extends ChangeNotifier {
 
   Future<void> _loadStats(String idJurusan) async {
     try {
-      if (filterStatus == 'SEMUA') {
-        countPending = requests
-            .where((r) => r.status.toUpperCase() == 'PENDING')
-            .length;
-        countApproved = requests
-            .where((r) => r.status.toUpperCase() == 'APPROVED')
-            .length;
-        countRejected = requests
-            .where((r) => r.status.toUpperCase() == 'REJECTED')
-            .length;
-      } else {
-        final stats = await service.getStats(idJurusan);
-        countPending = stats['pending'] ?? 0;
-        countApproved = stats['approved'] ?? 0;
-        countRejected = stats['rejected'] ?? 0;
-      }
+      final stats = await service.getStats(idJurusan);
+      countPending = stats['pending'] ?? 0;
+      countApproved = stats['approved'] ?? 0;
+      countRejected = stats['rejected'] ?? 0;
     } catch (_) {
-      countPending = requests
-          .where((r) => r.status.toUpperCase() == 'PENDING')
-          .length;
-      countApproved = requests
-          .where((r) => r.status.toUpperCase() == 'APPROVED')
-          .length;
-      countRejected = requests
-          .where((r) => r.status.toUpperCase() == 'REJECTED')
-          .length;
+      countPending = requests.where((r) => r.status == 'PENDING').length;
+      countApproved = requests.where((r) => r.status == 'APPROVED').length;
+      countRejected = requests.where((r) => r.status == 'REJECTED').length;
     }
     notifyListeners();
   }
@@ -135,12 +117,16 @@ class ScheduleRequestController extends ChangeNotifier {
     isSyncing = true;
     isOffline = false; // ← set false duluan
     notifyListeners();
+    Future<void> Function() onEnsureConnected = MongoDatabase.ensureConnected;
 
     try {
-      await MongoDatabase.ensureConnected();
+      await onEnsureConnected();
       await Future.delayed(const Duration(milliseconds: 1500)); // ← tambah
 
       final synced = await service.flushQueue();
+      if (synced > 0) {
+        await service.clearCache(_lastIdJurusan!, 'SEMUA');
+      }
       if (_lastIdJurusan != null) {
         await loadRequests(_lastIdJurusan!);
       }
