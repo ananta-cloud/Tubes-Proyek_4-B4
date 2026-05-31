@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -38,6 +39,8 @@ import 'package:sigma/features/admin_tu/schedules/viewmodels/admin_schedule_view
 import 'package:sigma/features/announcements/viewmodels/announcement_viewmodel.dart';
 import 'package:sigma/features/announcements/viewmodels/admin_announcement_viewmodel.dart';
 import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_viewmodel.dart';
+import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
+import 'package:sigma/features/penjadwalan/viewmodels/schedule_request_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -158,24 +161,40 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
 
   Future<void> _syncAll() async {
     if (!mounted) return;
-    await MongoDatabase.ensureConnected();
-
+    try {
+      await MongoDatabase.ensureConnected();
+    } catch (e) {
+      debugPrint('ensureConnected gagal: $e');
+      return;
+    }
+    await Future.delayed(const Duration(milliseconds: 2000));
     await DosenCacheService.warmUp();
 
-    await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
-    await context.read<AdminMatkulViewModel>().onConnectionRestored();
-    await context.read<AdminScheduleViewModel>().onConnectionRestored();
-
     final user = context.read<LoginViewModel>().user;
+
+    if (user != null && (user.role == 'ADMIN_TU' || user.role == 'MANAJEMEN')) {
+      await context.read<AdminAnnouncementViewModel>().onConnectionRestored();
+      await context.read<AdminMatkulViewModel>().onConnectionRestored();
+      await context.read<AdminScheduleViewModel>().onConnectionRestored();
+    }
+
     if (user != null && user.role == 'MAHASISWA') {
       final announcementVM = context.read<AnnouncementViewModel>();
       final taskVM = context.read<TaskViewModel>();
       final scheduleVM = context.read<ScheduleViewModel>();
-
       await announcementVM.syncOfflineActions();
       await announcementVM.syncAnnouncements();
       await taskVM.syncTasks(user);
-      await scheduleVM.syncSchedules();
+      await scheduleVM.syncSchedules(user);
+    }
+
+    if (user != null && user.role == 'TIM_PENJADWALAN') {
+      await context.read<ScheduleRequestController>().onConnectionRestored();
+    }
+    if (user != null && user.role == 'DOSEN') {
+      await Future.delayed(const Duration(milliseconds: 500));
+      await MongoDatabase.ensureConnected();
+      await context.read<DosenRequestController>().syncPendingRequests();
     }
   }
 

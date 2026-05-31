@@ -3,16 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Box, State, Center, Size;
-import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'dart:async';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../data/models/task_model.dart';
 import '../../../../data/models/group_task_model.dart';
-import '../../../../data/models/pengajaran_model.dart';
 import '../../../../data/services/task_service.dart';
 import '../../../auth/viewmodels/login_viewmodel.dart';
 import '../../../../core/network/mongo_database.dart';
@@ -44,40 +43,38 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncDataFromServer();
     });
+
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       result,
     ) {
-      // Cek apakah perangkat sudah tidak "none" (berarti online)
       bool isOnline = !(result as List).contains(ConnectivityResult.none);
-
       if (isOnline) {
         print("🌐 Jaringan kembali ONLINE! Memulai sinkronisasi otomatis...");
-        // Jika online, paksa jalankan sinkronisasi yang akan mengirim tugas tertunda
         _syncDataFromServer();
       }
     });
   }
 
-  // ===========================================================================
-  // RESOLVE KELAS (Mengubah ObjectId menjadi Nama Kelas, misal: "1A-D3")
-  // ===========================================================================
+  // 🔥 Ekstraktor ID universal yang anti-gagal agar data tidak terhapus
+  String _extractId(String rawId) {
+    final match = RegExp(r'[a-fA-F0-9]{24}').firstMatch(rawId);
+    return match?.group(0) ?? rawId;
+  }
+
   Future<String> _resolveNamaKelas(String idKelasHex) async {
-    if (idKelasHex.length != 24) return idKelasHex;
+    final cleanId = _extractId(idKelasHex);
+    if (cleanId.length != 24) return cleanId;
 
-    // 1. Cek di memori RAM (Paling Cepat)
-    if (_kelasCacheNames.containsKey(idKelasHex)) {
-      return _kelasCacheNames[idKelasHex]!;
-    }
+    if (_kelasCacheNames.containsKey(cleanId))
+      return _kelasCacheNames[cleanId]!;
 
-    // 2. Cek di memori internal HP (Hive Box)
     final cacheBox = Hive.box<String>('kelasCacheBox');
-    if (cacheBox.containsKey(idKelasHex)) {
-      String cachedName = cacheBox.get(idKelasHex)!;
-      _kelasCacheNames[idKelasHex] = cachedName; // Masukkan ke RAM lagi
+    if (cacheBox.containsKey(cleanId)) {
+      String cachedName = cacheBox.get(cleanId)!;
+      _kelasCacheNames[cleanId] = cachedName;
       return cachedName;
     }
 
-    // 3. Jika di memori tidak ada, baru cari ke MongoDB (Harus Online)
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
       bool isOfflineNetwork = (connectivityResult as List).contains(
@@ -85,12 +82,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       );
 
       if (isOfflineNetwork || MongoDatabase.isOffline) {
-        // Jika offline dan tidak pernah dicache, kembalikan ID sementara
-        return "Kelas (${idKelasHex.substring(0, 4)})";
+        return "Kelas (${cleanId.substring(0, 4)})";
       }
 
       final kelasDoc = await MongoDatabase.kelasCollection.findOne(
-        where.id(ObjectId.parse(idKelasHex)),
+        where.id(ObjectId.parse(cleanId)),
       );
 
       if (kelasDoc != null && kelasDoc.containsKey('nama_kelas')) {
@@ -100,8 +96,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           final dynamic rawProdiId = kelasDoc['id_prodi'];
           final ObjectId prodiObjId = rawProdiId is ObjectId
               ? rawProdiId
-              : ObjectId.parse(rawProdiId.toString());
-
+              : ObjectId.parse(_extractId(rawProdiId.toString()));
           final prodiDoc = await MongoDatabase.db
               .collection('prodi')
               .findOne(where.id(prodiObjId));
@@ -118,31 +113,24 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           }
         }
 
-        _kelasCacheNames[idKelasHex] = name;
-
-        // 🔥 SIMPAN KE HIVE AGAR PAGE MANAGEMENT TIDAK ERROR SAAT OFFLINE
-        await cacheBox.put(idKelasHex, name);
+        _kelasCacheNames[cleanId] = name;
+        await cacheBox.put(cleanId, name);
 
         return name;
       }
       return "Unknown";
     } catch (e) {
       debugPrint("Error resolve kelas: $e");
-      return "Kelas (${idKelasHex.substring(0, 4)})";
+      return "Kelas (${cleanId.substring(0, 4)})";
     }
   }
 
-  // ===========================================================================
-  // GROUPING TASK (Menggabungkan Array & Fallback Data Lama)
-  // ===========================================================================
   Future<List<GroupedTask>> dapatkanTugasTerkelompok(
     List<TaskModel> rawTasks,
   ) async {
     final Map<String, GroupedTask> groups = {};
 
     for (var task in rawTasks) {
-      // Karena kita sudah murni menyimpan nama_mk tanpa embel-embel kelas (1A-D3),
-      // kita tinggal memasukkannya langsung!
       String matkulName = task.namaMkSnapshot ?? 'Umum';
       List<String> namaKelasTerkonversi = [];
 
@@ -155,8 +143,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
 
       String timeKey =
           "${task.deadline.year}-${task.deadline.month}-${task.deadline.day}_${task.deadline.hour}:${task.deadline.minute}";
-
-      // BERUBAH: Key grouping sekarang menggunakan kodeMk
       String key = "${task.kodeMk}_${timeKey}_${task.namaTugas}";
 
       if (groups.containsKey(key)) {
@@ -172,8 +158,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           baseId: task.id,
           namaTugas: task.namaTugas,
           deskripsi: task.deskripsi,
-          kodeMk: task.kodeMk, // BERUBAH
-          matkulNamaSaja: matkulName, // Langsung bersih!
+          kodeMk: task.kodeMk,
+          matkulNamaSaja: matkulName,
           targetKelasList: namaKelasTerkonversi,
           deadline: task.deadline,
           isSynced: task.isSynced,
@@ -191,16 +177,13 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     final user = context.read<LoginViewModel>().user;
     if (user == null || user.role.toUpperCase() != 'DOSEN') return {};
 
-    final String cleanUserId = user.id
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-        .trim();
+    final String cleanUserId = _extractId(user.id);
     final matkulSet = <String>{};
 
     for (final task in _taskBox.values) {
-      if (task.idUser == cleanUserId && task.namaMkSnapshot != null) {
+      if (_extractId(task.idUser) == cleanUserId &&
+          task.namaMkSnapshot != null) {
         String snapshot = task.namaMkSnapshot!;
-
-        // Buang bagian dalam kurung untuk mendapatkan nama matkulnya saja
         if (snapshot.contains('(')) {
           int openBracket = snapshot.lastIndexOf('(');
           matkulSet.add(snapshot.substring(0, openBracket).trim());
@@ -209,23 +192,17 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
       }
     }
-
     return matkulSet;
   }
 
   List<TaskModel> get _myRawTasks {
     final userId = context.read<LoginViewModel>().user?.id ?? '';
-    final String cleanId = userId
-        .replaceAll('ObjectId("', '')
-        .replaceAll('")', '');
+    final String cleanId = _extractId(userId);
 
     return _taskBox.values.where((task) {
-      if (task.idUser != cleanId) return false;
-
-      // Jika ada filter matkul yang dicentang
+      if (_extractId(task.idUser) != cleanId) return false;
       if (_selectedFilterMatkul.isNotEmpty) {
         if (task.namaMkSnapshot == null) return false;
-
         bool matches = false;
         for (String matkul in _selectedFilterMatkul) {
           if (task.namaMkSnapshot!.contains(matkul)) {
@@ -235,39 +212,8 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         }
         return matches;
       }
-
-      // Jika tidak ada filter yang dicentang
       return true;
     }).toList();
-  }
-
-  // ===========================================================================
-  // SYNC & UPLOAD
-  // ===========================================================================
-  Future<void> _uploadPendingTasks() async {
-    try {
-      final pendingTasks = _taskBox.values.where((t) => !t.isSynced).toList();
-      if (pendingTasks.isEmpty) return;
-
-      print(
-        "☁️ Mengunggah ${pendingTasks.length} tugas offline secara paralel...",
-      );
-
-      await Future.wait(
-        pendingTasks.map((task) async {
-          bool success = await _taskService.updateTask(task);
-          if (!success) {
-            success = await _taskService.createTask(task);
-          }
-          if (success) {
-            task.isSynced = true;
-            await task.save();
-          }
-        }),
-      );
-    } catch (e) {
-      print("❌ Gagal upload tugas offline: $e");
-    }
   }
 
   Future<void> _syncDataFromServer() async {
@@ -275,9 +221,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       final user = context.read<LoginViewModel>().user;
       if (user == null) return;
 
-      String cleanId = user.id
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+      String cleanId = _extractId(user.id);
 
       final connectivityResult = await Connectivity().checkConnectivity();
       bool isOffline = (connectivityResult as List).contains(
@@ -285,9 +229,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       );
       if (isOffline) return;
 
-      // 🔥 1. SOLUSI UTAMA: Bangunkan kembali MongoDB jika sebelumnya mati (Cold Start)
       if (MongoDatabase.isOffline) {
-        print("🔄 Menghubungkan ulang ke MongoDB karena sebelumnya offline...");
         await MongoDatabase.connect();
       }
 
@@ -297,11 +239,17 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
 
       for (var data in rawCloudTasks) {
         try {
+          if (data['_id'] != null)
+            data['_id'] = _extractId(data['_id'].toString());
+          if (data['id_user'] != null)
+            data['id_user'] = _extractId(data['id_user'].toString());
+
           final t = TaskModel.fromMongo(data);
-          // 🔥 2. WAJIB: Tandai tugas dari server sebagai tersinkronisasi
           t.isSynced = true;
           cloudTasks.add(t);
-        } catch (_) {}
+        } catch (e) {
+          print("⚠️ Error parsing TaskModel: $e");
+        }
       }
 
       Set<String> cloudIds = cloudTasks.map((t) => t.id).toSet();
@@ -309,11 +257,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       bool hasNewUploads = false;
 
       if (pendingTasks.isNotEmpty) {
-        print("☁️ Mengunggah ${pendingTasks.length} tugas offline...");
         await Future.wait(
           pendingTasks.map((task) async {
             bool success = false;
-            if (cloudIds.contains(task.id)) {
+            final taskHexId = _extractId(task.id);
+            if (cloudIds.contains(taskHexId)) {
               success = await _taskService.updateTask(task);
             } else {
               success = await _taskService.createTask(task);
@@ -328,15 +276,19 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         );
       }
 
-      // Jika ada data yang baru saja terupload, tarik ulang dari server agar sinkron
       if (hasNewUploads) {
         rawCloudTasks = await _taskService.getTasksByUser(cleanId);
         cloudTasks.clear();
         cloudIds.clear();
         for (var data in rawCloudTasks) {
           try {
+            if (data['_id'] != null)
+              data['_id'] = _extractId(data['_id'].toString());
+            if (data['id_user'] != null)
+              data['id_user'] = _extractId(data['id_user'].toString());
+
             final t = TaskModel.fromMongo(data);
-            t.isSynced = true; // 🔥 Set true lagi di sini
+            t.isSynced = true;
             cloudTasks.add(t);
             cloudIds.add(t.id);
           } catch (_) {}
@@ -358,15 +310,20 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         final taskInHive = _taskBox.get(key);
         if (taskInHive != null &&
             taskInHive.isSynced &&
-            !cloudIds.contains(key)) {
+            !cloudIds.contains(_extractId(key))) {
           keysToDelete.add(key);
         }
       }
 
-      if (tasksToPut.isNotEmpty) await _taskBox.putAll(tasksToPut);
-      if (keysToDelete.isNotEmpty) await _taskBox.deleteAll(keysToDelete);
+      if (rawCloudTasks.isNotEmpty && cloudTasks.isEmpty) {
+        print(
+          "⚠️ Parsing data dari Server gagal. Membatalkan penghapusan data lokal.",
+        );
+      } else {
+        if (tasksToPut.isNotEmpty) await _taskBox.putAll(tasksToPut);
+        if (keysToDelete.isNotEmpty) await _taskBox.deleteAll(keysToDelete);
+      }
 
-      // Memaksa layar untuk memuat ulang UI berdasarkan data Hive terbaru
       if (mounted) setState(() {});
     } catch (e) {
       print("❌ Gagal Sinkronisasi: $e");
@@ -434,9 +391,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     }
   }
 
-  // ===========================================================================
-  // RENDER UI
-  // ===========================================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -459,7 +413,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         child: CircularProgressIndicator(color: secondaryBlue),
                       );
                     }
-
                     final groupedTasks = snapshot.data ?? [];
 
                     return RefreshIndicator(
@@ -504,15 +457,12 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   Widget _buildFilterBar(List<String> matkulList) {
     List<String> selectedMatkuls = [];
     List<String> unselectedMatkuls = [];
-
     for (String m in matkulList) {
-      if (_selectedFilterMatkul.contains(m)) {
+      if (_selectedFilterMatkul.contains(m))
         selectedMatkuls.add(m);
-      } else {
+      else
         unselectedMatkuls.add(m);
-      }
     }
-
     List<String> displayMatkul = [...selectedMatkuls, ...unselectedMatkuls];
 
     return Container(
@@ -564,15 +514,11 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                     ),
                   ),
                   selected: isSelected,
-                  onSelected: (_) {
-                    setState(() {
-                      if (isSelected) {
-                        _selectedFilterMatkul.remove(matkul);
-                      } else {
-                        _selectedFilterMatkul.add(matkul);
-                      }
-                    });
-                  },
+                  onSelected: (_) => setState(() {
+                    isSelected
+                        ? _selectedFilterMatkul.remove(matkul)
+                        : _selectedFilterMatkul.add(matkul);
+                  }),
                   backgroundColor: Colors.white,
                   selectedColor: secondaryBlue,
                   showCheckmark: false,
@@ -581,7 +527,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -641,12 +587,10 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           onTap: () => _showTaskDetailBottomSheet(context, groupedTask),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            // Karena garis biru dihapus, kita samakan padding kiri dan kanannya
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- Header: Nama Tugas & Status ---
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -664,23 +608,17 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: secondaryBlue,
-                            height:
-                                1.3, // Menambah sedikit spasi antar baris jika teks panjang
+                            height: 1.3,
                           ),
-                          softWrap:
-                              true, // Memastikan teks panjang membentang ke bawah
-                          // Tidak ada maxLines agar judul bisa tampil utuh tanpa terpotong
+                          softWrap: true,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Status ditempatkan di kanan atas, tidak akan menimpa judul yang panjang
                       _buildStatusChip(representatifTask.status),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // --- Info: Mata Kuliah & Kelas ---
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -725,8 +663,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // --- Info: Deadline & Lampiran ---
                 Row(
                   children: [
                     const Icon(
@@ -765,17 +701,13 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                     ],
                   ],
                 ),
-
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1, thickness: 1),
                 ),
-
-                // --- Footer: Sync Status & Aksi ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Sync Status
                     Row(
                       children: [
                         Icon(
@@ -802,8 +734,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         ),
                       ],
                     ),
-
-                    // Tombol Aksi (Edit & Hapus)
                     Row(
                       children: [
                         InkWell(
@@ -886,7 +816,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   Widget _buildStatusChip(String status) {
     Color color;
     String label;
-
     switch (status) {
       case 'SELESAI':
         color = Colors.green;
@@ -898,7 +827,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         label = 'Aktif';
         break;
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -938,7 +866,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Garis handle abu-abu di atas
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 12, bottom: 16),
@@ -977,7 +904,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 🔥 HEADER: Nama Tugas dengan Background Biru Lembut
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -1013,8 +939,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Info lainnya
                       _buildDetailRow(
                         Icons.book,
                         "Mata Kuliah",
@@ -1036,7 +960,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         iconColor: accentOrange,
                       ),
                       const SizedBox(height: 24),
-
                       const Text(
                         "Deskripsi",
                         style: TextStyle(
@@ -1063,8 +986,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           ),
                         ),
                       ),
-
-                      // Daftar Lampiran
                       if (representatifTask.lampiran != null &&
                           representatifTask.lampiran!.isNotEmpty) ...[
                         const SizedBox(height: 24),
@@ -1078,36 +999,109 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                         ),
                         const SizedBox(height: 8),
                         ...representatifTask.lampiran!.map((lamp) {
-                          final fileName = lamp['title'] ?? 'Lampiran';
+                          final fileName =
+                              lamp['title'] ?? lamp['name'] ?? 'Lampiran';
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
+                            // 🔥 LOGIKA PREVIEW LAMPIRAN
                             onTap: () async {
-                              String uriString = lamp['uri'] ?? '';
-                              if (uriString.isEmpty) return;
+                              String dataBase64 =
+                                  lamp['data']?.toString() ?? '';
+                              String uriString = lamp['uri']?.toString() ?? '';
 
-                              final file = File(uriString);
-
-                              // Cek apakah file benar-benar ada di storage HP
-                              if (await file.exists()) {
+                              // ==========================================================
+                              // SKENARIO 1: FILE CLOUD (BASE 64)
+                              // ==========================================================
+                              if (dataBase64.isNotEmpty &&
+                                  dataBase64 != 'null') {
                                 try {
-                                  // open_file akan otomatis mencarikan aplikasi PDF Viewer/Image Viewer di HP
-                                  final result = await OpenFilex.open(uriString);
-                                  
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Mengunduh & Membuka file dari cloud...",
+                                      ),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+
+                                  final bytes = base64Decode(dataBase64);
+                                  final tempDir = await getTemporaryDirectory();
+                                  final tempFile = File(
+                                    '${tempDir.path}/$fileName',
+                                  );
+                                  await tempFile.writeAsBytes(bytes);
+
+                                  final result = await OpenFilex.open(
+                                    tempFile.path,
+                                  );
                                   if (result.type != ResultType.done) {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("Tidak dapat membuka file: ${result.message}")),
+                                      SnackBar(
+                                        content: Text(
+                                          "Gagal membuka file: ${result.message}",
+                                        ),
+                                      ),
                                     );
                                   }
+                                  return;
                                 } catch (e) {
-                                  print("Error membuka file: $e");
+                                  debugPrint("Error decode Base64: $e");
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "⚠️ File rusak atau tidak valid.",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                              // ==========================================================
+                              // SKENARIO 2: FILE LOKAL (DRAFT)
+                              // ==========================================================
+                              else if (uriString.isNotEmpty &&
+                                  uriString != 'null') {
+                                final file = File(uriString);
+                                if (await file.exists()) {
+                                  try {
+                                    final result = await OpenFilex.open(
+                                      uriString,
+                                    );
+                                    if (result.type != ResultType.done) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            "Gagal membuka file: ${result.message}",
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    debugPrint("Error membuka file: $e");
+                                  }
+                                } else {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "⚠️ File draf lokal tidak ditemukan (cache HP dibersihkan).",
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
                                 }
                               } else {
-                                // 🔥 Jika file tidak ditemukan (karena cache dibersihkan/reinstall)
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text("⚠️ File tidak ditemukan di perangkat. Harap lampirkan ulang tugas."),
+                                    content: Text("⚠️ Data lampiran kosong."),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -1143,9 +1137,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                           );
                         }),
                       ],
-                      const SizedBox(
-                        height: 40,
-                      ), // Jarak kosong di paling bawah scroll
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),

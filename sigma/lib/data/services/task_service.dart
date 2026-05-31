@@ -3,23 +3,26 @@ import '../../core/network/mongo_database.dart';
 import '../models/task_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
-import 'dart:convert';  
+import 'dart:convert';
 
 class TaskService {
+  // 🔥 FIX 1: Fungsi pembersih ID yang jauh lebih aman menggunakan Regex
   ObjectId _safeObjectId(String id) {
-    String cleanId = id
-        .replaceAll('ObjectId("', '')
-        .replaceAll('")', '')
-        .replaceAll("'", "")
-        .trim();
-    return ObjectId.fromHexString(cleanId);
+    try {
+      final match = RegExp(r'[a-fA-F0-9]{24}').firstMatch(id.toString());
+      if (match != null) {
+        return ObjectId.fromHexString(match.group(0)!);
+      }
+      return ObjectId(); // Fallback darurat
+    } catch (e) {
+      return ObjectId();
+    }
   }
 
-  // Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
+  // 1. Tarik Semua Tugas milik Mahasiswa (Tugas Dosen + Tugas Personal)
   Future<List<Map<String, dynamic>>> getTasksByUser(String userId) async {
     try {
       final data = await MongoDatabase.runSafe(
-        // BUG FIX: .find() mengembalikan Cursor, jadi kita harus menggunakan .toList()
         () => MongoDatabase.tasksCollection
             .find(where.eq('id_user', _safeObjectId(userId)))
             .toList(),
@@ -36,17 +39,12 @@ class TaskService {
     try {
       final doc = task.toJson();
 
-      // 🔥 INTERCEPTOR: Paksa cari nama asli dari tabel master mata_kuliah!
+      // INTERCEPTOR: Paksa cari nama asli dari tabel master mata_kuliah!
       if (task.kodeMk != null && task.kodeMk!.isNotEmpty) {
         final masterMk = await MongoDatabase.runSafe(
-          () => MongoDatabase.db
-              .collection('mata_kuliah')
-              .findOne(
-                where.eq(
-                  'kode_mk',
-                  task.kodeMk!.trim(),
-                ), // Cari berdasarkan kode_mk
-              ),
+          () => MongoDatabase.db.collection('mata_kuliah').findOne(
+            where.eq('kode_mk', task.kodeMk!.trim()),
+          ),
         );
 
         // Jika ketemu, timpa nama_mk_snapshot yang kotor dengan nama asli
@@ -54,7 +52,7 @@ class TaskService {
           String namaAsli = masterMk['nama_mk'].toString();
           doc['nama_mk_snapshot'] = namaAsli;
 
-          // Perbaiki juga data di layar HP (Hive) agar langsung berubah tanpa perlu refresh
+          // Perbaiki juga data di layar HP (Hive) agar langsung berubah
           task.namaMkSnapshot = namaAsli;
           if (task.isInBox) {
             await task.save();
@@ -82,7 +80,7 @@ class TaskService {
     }
   }
 
-  // Update Status Tugas (Bisa untuk semua jenis tugas)
+  // 3. Update Status Tugas
   Future<bool> updateTaskStatus(String taskId, String status) async {
     try {
       await MongoDatabase.runSafe(
@@ -120,7 +118,7 @@ class TaskService {
     try {
       String finalNamaMk = task.namaMkSnapshot ?? '';
 
-      // 🔥 INTERCEPTOR: Paksa cari nama asli dari tabel master mata_kuliah!
+      // INTERCEPTOR: Paksa cari nama asli dari tabel master mata_kuliah!
       if (task.kodeMk != null && task.kodeMk!.isNotEmpty) {
         final masterMk = await MongoDatabase.runSafe(
           () => MongoDatabase.db.collection('mata_kuliah').findOne(
@@ -131,7 +129,6 @@ class TaskService {
         if (masterMk != null && masterMk['nama_mk'] != null) {
           finalNamaMk = masterMk['nama_mk'].toString();
           
-          // Perbaiki juga data di layar HP
           task.namaMkSnapshot = finalNamaMk;
           if (task.isInBox) {
             await task.save();
@@ -146,17 +143,15 @@ class TaskService {
               .set('nama_tugas', task.namaTugas)
               .set('deskripsi', task.deskripsi)
               .set('kode_mk', task.kodeMk) 
-              .set('nama_mk_snapshot', finalNamaMk) // Masukkan nama yang sudah bersih
+              .set('nama_mk_snapshot', finalNamaMk)
               .set('deadline', task.deadline)
               .set('lampiran', task.lampiran)
-              // BUG FIX: Tangani map List string -> ObjectId dengan null-safety yang baik
               .set(
                 'target_kelas', 
                 task.targetKelas
                     ?.where((id) => id.trim().isNotEmpty)
                     .map((id) => _safeObjectId(id))
-                    .toList() ?? 
-                []
+                    .toList() ?? []
               )
               .set('nama_dosen', task.namaDosen)
               .set('updated_at', DateTime.now()),
@@ -176,18 +171,16 @@ class TaskService {
     String? kelas,
   ) async {
     try {
-      // BUG FIX: .find() mengembalikan Cursor, pastikan diakhiri dengan .toList()
       final personalTasks = await MongoDatabase.runSafe(
         () => MongoDatabase.tasksCollection
             .find(where.eq('id_user', _safeObjectId(userId)))
             .toList(),
       );
       
-      // Ambil tugas Dosen berdasarkan Kelas Mahasiswa
       List<Map<String, dynamic>> dosenTasks = [];
 
       if (kelas != null && kelas.isNotEmpty) {
-        String namaKelasSaja = kelas.split('-')[0].trim(); // Ambil "1B" dari "1B-D3"
+        String namaKelasSaja = kelas.split('-')[0].trim(); 
 
         final kelasDoc = await MongoDatabase.runSafe(
           () => MongoDatabase.kelasCollection.findOne(
@@ -196,7 +189,6 @@ class TaskService {
         );
 
         if (kelasDoc != null) {
-          // Cari tugas di mana ID kelas Mahasiswa terdapat di dalam Array target_kelas
           final idKelasObj = kelasDoc['_id'];
           dosenTasks = await MongoDatabase.runSafe(
             () => MongoDatabase.tasksCollection
@@ -204,7 +196,7 @@ class TaskService {
                 .toList(),
           );
         } else {
-          // Fallback (Jaga-jaga) jika data kelas tidak ketemu, gunakan pencarian snapshot lama
+          // Fallback regex pencarian nama kelas
           dosenTasks = await MongoDatabase.runSafe(
             () => MongoDatabase.tasksCollection
                 .find(
@@ -217,30 +209,40 @@ class TaskService {
                 .toList(),
           );
         }
-        print("📚 [TaskService] Tugas dari Dosen untuk kelas $kelas: ${dosenTasks.length}");
       }
 
-      return [...personalTasks, ...dosenTasks];
+      // 🔥 FIX 2: Mencegah duplikasi data (Misal tugas kelas juga masuk ke personal)
+      final allTasks = [...personalTasks, ...dosenTasks];
+      final Map<String, Map<String, dynamic>> uniqueTasks = {};
+      
+      for (var t in allTasks) {
+        uniqueTasks[t['_id'].toString()] = t;
+      }
+
+      print("📚 [TaskService] Total tugas unik untuk Mahasiswa: ${uniqueTasks.length}");
+      return uniqueTasks.values.toList();
+      
     } catch (e) {
       print("❌ Error Get Tasks For Mahasiswa (Mongo): $e");
       return [];
     }
   }
 
+  // 7. Upload Lampiran File
   Future<String?> uploadFileToServer(File file) async {
-  try {
-    var request = http.MultipartRequest('POST', Uri.parse('https://api.sigma.com/api/upload'));
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
-    var response = await request.send();
-    
-    if (response.statusCode == 200) {
-      final responseData = await response.stream.bytesToString();
-      final json = jsonDecode(responseData);
-      return json['url']; // URL publik dari Laravel
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse('https://api.sigma.com/api/upload'));
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+      var response = await request.send();
+      
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final json = jsonDecode(responseData);
+        return json['url']; // Return URL publik
+      }
+    } catch (e) {
+      print("Error uploading: $e");
     }
-  } catch (e) {
-    print("Error uploading: $e");
+    return null;
   }
-  return null;
-}
 }

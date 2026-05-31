@@ -67,34 +67,86 @@ class TaskModel extends HiveObject {
 
   bool get isPersonal => kodeMk == null || kodeMk!.isEmpty;
 
-  factory TaskModel.fromMongo(Map<String, dynamic> map) {
+  factory TaskModel.fromMongo(Map<String, dynamic> json) {
+    // 1. Ekstraksi ID yang aman
+    String extractSafeId(dynamic idValue) {
+      if (idValue == null) return '';
+      if (idValue is ObjectId) return idValue.toHexString();
+      String raw = idValue.toString();
+      final match = RegExp(r'[a-fA-F0-9]{24}').firstMatch(raw);
+      return match?.group(0) ?? raw;
+    }
+
+    // 2. Ekstraksi dan proteksi lampiran
+    List<Map<String, String>> parsedLampiran = [];
+    if (json['lampiran'] != null && json['lampiran'] is List) {
+      for (var lamp in json['lampiran']) {
+        if (lamp is Map) {
+          parsedLampiran.add({
+            // Gunakan key 'name' atau 'title', fallback ke string kosong jika null
+            'title': lamp['name']?.toString() ?? lamp['title']?.toString() ?? '',
+            'type': lamp['type']?.toString() ?? 'file',
+            'data': lamp['data'] != null ? lamp['data'].toString() : '',
+            'size': lamp['size'] != null ? lamp['size'].toString() : '',
+          });
+        }
+      }
+    }
+
+    // 3. Ekstraksi Target Kelas
+    List<String> targetKelasList = [];
+    if (json['target_kelas'] != null && json['target_kelas'] is List) {
+      targetKelasList = (json['target_kelas'] as List)
+          .map((e) => extractSafeId(e))
+          .where((id) => id.isNotEmpty)
+          .toList();
+    }
+
+    // 4. Ekstraksi Tanggal
+    DateTime parsedDeadline = DateTime.now();
+    if (json['deadline'] != null) {
+      if (json['deadline'] is DateTime) {
+        parsedDeadline = json['deadline'];
+      } else if (json['deadline'] is String) {
+        parsedDeadline = DateTime.tryParse(json['deadline']) ?? DateTime.now();
+      } else if (json['deadline'] is Map && json['deadline']['\$date'] != null) {
+        parsedDeadline = DateTime.tryParse(json['deadline']['\$date']) ?? DateTime.now();
+      }
+    }
+
+    DateTime parsedCreatedAt = DateTime.now();
+    if (json['created_at'] != null) {
+      if (json['created_at'] is DateTime) {
+        parsedCreatedAt = json['created_at'];
+      } else if (json['created_at'] is Map && json['created_at']['\$date'] != null) {
+        parsedCreatedAt = DateTime.tryParse(json['created_at']['\$date']) ?? DateTime.now();
+      }
+    }
+
+    DateTime parsedUpdatedAt = DateTime.now();
+    if (json['updated_at'] != null) {
+      if (json['updated_at'] is DateTime) {
+        parsedUpdatedAt = json['updated_at'];
+      } else if (json['updated_at'] is Map && json['updated_at']['\$date'] != null) {
+        parsedUpdatedAt = DateTime.tryParse(json['updated_at']['\$date']) ?? DateTime.now();
+      }
+    }
+
     return TaskModel(
-      id: (map['_id'] as ObjectId).toHexString(),
-      idUser: (map['id_user'] as ObjectId).toHexString(),
-      namaTugas: map['nama_tugas'] ?? '',
-      deskripsi: map['deskripsi'],
-      kodeMk: map['kode_mk']?.toString(), // BERUBAH: Ambil dari kode_mk
-      namaMkSnapshot: map['nama_mk_snapshot'],
-      deadline: map['deadline'] as DateTime,
-      status: map['status'] ?? 'BELUM',
-      isSynced:
-          map['is_synced'] ??
-          map['is_synced'] ??
-          true, // Default ke true karena ditarik dari Cloud
-      createdAt: map['created_at'] as DateTime,
-      updatedAt: map['updated_at'] as DateTime,
-      lampiran: map['lampiran'] != null
-          ? (map['lampiran'] as List)
-                .map((e) => Map<String, String>.from(e as Map))
-                .toList()
-          : null,
-      targetKelas: map['target_kelas'] is List
-          ? (map['target_kelas'] as List).map((e) {
-              if (e is ObjectId) return e.toHexString();
-              return e.toString();
-            }).toList()
-          : [],
-      namaDosen: map['nama_dosen'],
+      id: extractSafeId(json['_id']),
+      idUser: extractSafeId(json['id_user']),
+      namaTugas: json['nama_tugas']?.toString() ?? 'Tugas Tanpa Nama',
+      deskripsi: json['deskripsi']?.toString(),
+      kodeMk: json['kode_mk']?.toString(),
+      namaMkSnapshot: json['nama_mk_snapshot']?.toString(),
+      deadline: parsedDeadline,
+      status: json['status']?.toString() ?? 'BELUM',
+      isSynced: json['is_synced'] ?? true,
+      createdAt: parsedCreatedAt,
+      updatedAt: parsedUpdatedAt,
+      lampiran: parsedLampiran.isNotEmpty ? parsedLampiran : null,
+      targetKelas: targetKelasList,
+      namaDosen: json['nama_dosen']?.toString() ?? 'Dosen',
     );
   }
 
@@ -111,7 +163,12 @@ class TaskModel extends HiveObject {
       'is_synced': isSynced,
       'created_at': createdAt,
       'updated_at': updatedAt,
-      'lampiran': lampiran,
+      'lampiran': lampiran?.map((l) => {
+        'name': l['title'] ?? l['name'] ?? 'Lampiran',
+        'type': l['type'],
+        'data': l['data'],  // Base64 data
+        'size': l['size'],
+      }).toList(),
       // Pastikan target_kelas menjadi Array
       'target_kelas':
           targetKelas?.map((idHex) {
@@ -122,6 +179,4 @@ class TaskModel extends HiveObject {
       'nama_dosen': namaDosen,
     };
   }
-
-  
 }

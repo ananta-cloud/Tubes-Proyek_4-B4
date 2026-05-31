@@ -4,8 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mongo_dart/mongo_dart.dart' show ObjectId, where;
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
-
 
 import '../../../../data/models/task_model.dart';
 import '../../../../data/models/user_model.dart';
@@ -39,10 +39,8 @@ class TaskFormViewModel extends ChangeNotifier {
   bool isDisposed = false;
 
   final PengajaranService _pengajaranService = PengajaranService();
-
   final Map<String, String> _kelasCacheNames = {};
   final Map<String, String> _kelasNameToIdMap = {};
-
   final Map<String, String> _matkulRealNames = {};
 
   void initializeForEdit(TaskModel task) {
@@ -53,30 +51,22 @@ class TaskFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ===========================================================================
-  // RESOLVE NAMA KELAS DENGAN HIVE CACHE (KEBAL OFFLINE RESTART)
-  // ===========================================================================
   Future<String> _resolveNamaKelas(String idKelasHex) async {
     if (idKelasHex.length != 24) return idKelasHex;
-    
-    // 1. Cek di memori RAM (Paling Cepat)
     if (_kelasCacheNames.containsKey(idKelasHex)) return _kelasCacheNames[idKelasHex]!;
 
-    // 2. Cek di memori internal HP (Hive Box)
     final cacheBox = Hive.box<String>('kelasCacheBox');
     if (cacheBox.containsKey(idKelasHex)) {
       String cachedName = cacheBox.get(idKelasHex)!;
-      _kelasCacheNames[idKelasHex] = cachedName; // Masukkan ke RAM lagi
+      _kelasCacheNames[idKelasHex] = cachedName;
       return cachedName;
     }
 
-    // 3. Jika di memori tidak ada, baru cari ke MongoDB (Harus Online)
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
       bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
       
       if (isOffline || MongoDatabase.isOffline) {
-         // Jika offline dan tidak pernah dicache sebelumnya, gunakan ID sementara
          return "Kelas (${idKelasHex.substring(0, 4)})";
       }
 
@@ -88,7 +78,6 @@ class TaskFormViewModel extends ChangeNotifier {
         if (kelasDoc['id_prodi'] != null) {
           final dynamic rawProdiId = kelasDoc['id_prodi'];
           final ObjectId prodiObjId = rawProdiId is ObjectId ? rawProdiId : ObjectId.parse(rawProdiId.toString());
-
           final prodiDoc = await MongoDatabase.db.collection('prodi').findOne(where.id(prodiObjId));
 
           if (prodiDoc != null && prodiDoc['nama_prodi'] != null) {
@@ -101,9 +90,7 @@ class TaskFormViewModel extends ChangeNotifier {
           }
         }
         
-        // Simpan ke RAM
         _kelasCacheNames[idKelasHex] = name;
-        // 🔥 SIMPAN KE HIVE AGAR TIDAK HILANG SAAT APLIKASI DITUTUP
         await cacheBox.put(idKelasHex, name);
         
         return name;
@@ -114,10 +101,7 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> loadPengajaran(
-    DosenModel currentDosen, {
-    TaskModel? taskToEdit,
-  }) async {
+  Future<void> loadPengajaran(DosenModel currentDosen, {TaskModel? taskToEdit}) async {
     if (isDisposed) return;
     isLoadingPengajaran = true;
     notifyListeners();
@@ -127,7 +111,7 @@ class TaskFormViewModel extends ChangeNotifier {
       listPengajaran = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
       if (listPengajaran.isNotEmpty && !isDisposed) {
-        await _generateUniqueMatkul(); 
+        await _generateUniqueMatkul();
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
         notifyListeners();
       }
@@ -135,11 +119,9 @@ class TaskFormViewModel extends ChangeNotifier {
       await _pengajaranRepo.syncPengajaran(kodeDosenLogin);
       final updatedList = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
-      if (!isDisposed &&
-          (updatedList.length != listPengajaran.length ||
-              listPengajaran.isEmpty)) {
+      if (!isDisposed && (updatedList.length != listPengajaran.length || listPengajaran.isEmpty)) {
         listPengajaran = updatedList;
-        await _generateUniqueMatkul(); 
+        await _generateUniqueMatkul();
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
         notifyListeners();
       }
@@ -155,21 +137,15 @@ class TaskFormViewModel extends ChangeNotifier {
 
   Future<void> _generateUniqueMatkul() async {
     Set<String> tempMatkul = {};
-
-    // 💡 CEK KONEKSI INTERNET
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(
-      ConnectivityResult.none,
-    );
+    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
 
     for (var p in listPengajaran) {
       String realName = p.namaMk;
-
       if (p.namaMk == p.kodeMk || p.namaMk.isEmpty) {
         if (_matkulRealNames.containsKey(p.kodeMk)) {
           realName = _matkulRealNames[p.kodeMk]!;
         } else if (!isOffline) {
-          // 🔥 HANYA CARI KE MONGO JIKA ONLINE
           try {
             final masterMk = await MongoDatabase.db
                 .collection('mata_kuliah')
@@ -185,19 +161,14 @@ class TaskFormViewModel extends ChangeNotifier {
       } else {
         _matkulRealNames[p.kodeMk] = p.namaMk;
       }
-
       tempMatkul.add("${p.kodeMk} - $realName");
     }
-
     uniqueMatkulList = tempMatkul.toList();
   }
 
   Future<void> _initDropdownsForEdit(TaskModel task) async {
     try {
-      final int matchIndex = listPengajaran.indexWhere((p) {
-        return task.kodeMk == p.kodeMk;
-      });
-
+      final int matchIndex = listPengajaran.indexWhere((p) => task.kodeMk == p.kodeMk);
       if (matchIndex == -1) return;
 
       final matched = listPengajaran[matchIndex];
@@ -207,7 +178,6 @@ class TaskFormViewModel extends ChangeNotifier {
       await _updateAvailableKelas();
 
       List<String> loadedKelasNames = [];
-
       if (task.targetKelas != null && task.targetKelas!.isNotEmpty) {
         for (String idKelas in task.targetKelas!) {
           String name = await _resolveNamaKelas(idKelas);
@@ -215,10 +185,7 @@ class TaskFormViewModel extends ChangeNotifier {
         }
       }
 
-      selectedTargetKelas = loadedKelasNames
-          .where((k) => availableKelasList.contains(k))
-          .toSet()
-          .toList();
+      selectedTargetKelas = loadedKelasNames.where((k) => availableKelasList.contains(k)).toSet().toList();
       notifyListeners();
     } catch (e) {
       print('Error init dropdown edit: $e');
@@ -240,7 +207,6 @@ class TaskFormViewModel extends ChangeNotifier {
       return;
     }
 
-    // Ambil KODE MK dari dropdown (Misal dari "25IF1107 - Pemrograman", kita ambil "25IF1107")
     String kodeMkSelected = selectedMatkulDisplay!.split(' - ').first.trim();
     final matchedDocs = listPengajaran.where((p) => p.kodeMk == kodeMkSelected);
 
@@ -278,61 +244,56 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  // ==================== LAMPIRAN & UPLOAD ====================
-  void addAttachment(String type, String title, String uri) {
-    lampiran.add({'type': type, 'title': title, 'uri': uri});
-    notifyListeners();
-  }
-
   void removeAttachment(int index) {
     lampiran.removeAt(index);
     notifyListeners();
   }
 
-  Future<PlatformFile?> pickFile() async {
-  try {
-    // 1. Cek dan Minta Izin sesuai versi Android
-    if (Platform.isAndroid) {
-      final info = await DeviceInfoPlugin().androidInfo;
-      
-      bool granted = false;
-      if (info.version.sdkInt >= 33) {
-        // Android 13+
-        granted = await Permission.photos.request().isGranted || 
-                  await Permission.mediaLibrary.request().isGranted;
-      } else {
-        // Android < 13
-        granted = await Permission.storage.request().isGranted;
+  // 🔥 PERBAIKAN UTAMA: Konversi ke Base64 (Null & Size Safe)
+  Future<String?> pickFileAndConvert() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result != null) {
+        final platformFile = result.files.single;
+        
+        // Cek ukuran max 5MB agar MongoDB tidak kepenuhan
+        final fileSizeInMB = platformFile.size / (1024 * 1024);
+        if (fileSizeInMB > 5.0) {
+            return 'Ukuran file terlalu besar! Maksimal 5MB.';
+        }
+
+        File file = File(platformFile.path!);
+        String fileName = platformFile.name;
+
+        // 1. Baca file & 2. Konversi ke Base64
+        List<int> fileBytes = await file.readAsBytes();
+        String base64Data = base64Encode(fileBytes);
+
+        // 3. Simpan Base64 ke array Lampiran 
+        lampiran.add({
+          'type': 'file',
+          'name': fileName,
+          'data': base64Data, // Data yang akan di-save ke MongoDB
+          'size': platformFile.size.toString(),
+          'uri': platformFile.path ?? '', // Opsi path lokal (Jaga-jaga)
+        });
+
+        notifyListeners();
+        return null; // Tidak ada error
       }
-
-      if (!granted) {
-        print("❌ Izin akses penyimpanan ditolak");
-        return null; 
-      }
+    } catch (e) {
+      print("Error picking file: $e");
+      return "Gagal membaca file: $e";
     }
-
-    // 2. Buka FilePicker
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      allowMultiple: false,
-    );
-
-    if (result != null) {
-      return result.files.single;
-    }
-  } catch (e) {
-    print('❌ Error picking file: $e');
+    return null;
   }
-  return null;
-}
 
-  // =========================================================================
-  // FUNGSI CREATE
-  // =========================================================================
   Future<bool> createTaskForStudents(UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty ||
-        selectedDeadline == null ||
-        selectedTargetKelas.isEmpty) return false;
+    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
@@ -368,7 +329,6 @@ class TaskFormViewModel extends ChangeNotifier {
       final taskBox = Hive.box<TaskModel>('tasks');
       await taskBox.put(newTaskId, newTask);
       
-      // Jalankan sync tanpa menunggu (fire and forget)
       _backgroundSync(newTask, isCreate: true);
       notifyListeners();
       return true;
@@ -378,9 +338,6 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  // ===========================================================================
-  // FUNGSI EDIT (DIPERBAIKI)
-  // ===========================================================================
   Future<bool> updateTaskForStudents(TaskModel taskLama, UserModel currentUser) async {
     if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
 
@@ -390,7 +347,6 @@ class TaskFormViewModel extends ChangeNotifier {
     try {
       final taskBox = Hive.box<TaskModel>('tasks');
 
-      // Update data di model lokal
       taskLama.namaTugas = namaTugasController.text;
       taskLama.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
       taskLama.kodeMk = matched.kodeMk;
@@ -399,12 +355,9 @@ class TaskFormViewModel extends ChangeNotifier {
       taskLama.lampiran = lampiran.isNotEmpty ? lampiran : null;
       taskLama.updatedAt = DateTime.now();
       taskLama.targetKelas = selectedTargetKelas.map((n) => _kelasNameToIdMap[n]!).toList();
-      taskLama.isSynced = false; // Tandai perlu sync ulang
+      taskLama.isSynced = false;
 
-      // Simpan perubahan ke Hive
       await taskBox.put(taskLama.id, taskLama);
-      
-      // Sync ke server
       _backgroundSync(taskLama, isCreate: false);
 
       notifyListeners();
@@ -415,9 +368,6 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  // ===========================================================================
-  // SYNC (DIPERBAIKI)
-  // ===========================================================================
   Future<void> _backgroundSync(TaskModel task, {required bool isCreate}) async {
     try {
       final result = await Connectivity().checkConnectivity();
@@ -432,7 +382,7 @@ class TaskFormViewModel extends ChangeNotifier {
           task.isSynced = true;
           final taskBox = Hive.box<TaskModel>('tasks');
           await taskBox.put(task.id, task);
-          notifyListeners(); // Update UI setelah sync
+          notifyListeners(); 
         }
       }
     } catch (e) {

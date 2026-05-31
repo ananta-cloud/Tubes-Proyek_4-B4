@@ -133,42 +133,24 @@ class _TaskFormPageState extends State<TaskFormPage> {
   // =========================================================================
   Future<void> _pickFile() async {
     try {
-      final file = await _viewModel.pickFile(); // Mengambil PlatformFile
-
-      if (file != null) {
-        final fileName = file.name;
-        final fileSizeInBytes = file.size; // Aman untuk Web & Mobile
-        final fileSizeInMB = fileSizeInBytes / (1024 * 1024);
-
-        print(
-          '📎 File picked: $fileName, Size: ${fileSizeInMB.toStringAsFixed(2)}MB',
+      // Memanggil fungsi baru yang menangani Base64 sekaligus memvalidasi ukuran
+      final errorMsg = await _viewModel.pickFileAndConvert();
+      
+      // Jika ada error (ukuran lebih dari 5MB atau gagal baca)
+      if (errorMsg != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+          ),
         );
-
-        if (fileSizeInMB > 5) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Ukuran file maksimal 5MB (${fileSizeInMB.toStringAsFixed(2)}MB)',
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-          return;
-        }
-
-        final filePath = file.path ?? 'Web_File_$fileName';
-        
-        // Langsung masukkan ke state ViewModel
-        _viewModel.addAttachment('file', fileName, filePath);
       }
     } catch (e) {
-      print('❌ Error picking file: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal membaca file: $e'),
+          content: Text('Terjadi kesalahan saat memilih file: $e'),
           backgroundColor: Colors.red,
         ),
       );
