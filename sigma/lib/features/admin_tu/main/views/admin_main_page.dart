@@ -2,27 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'package:sigma/shared/app_colors.dart';
 import '../viewmodels/admin_main_viewodel.dart';
 import '../../schedules/views/admin_schedule_page.dart';
 import '../../../announcements/views/admin_announcement_page.dart';
 import '../../master_matkul/views/admin_matkul_page.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  WARNA BRAND SIGMA
-// ─────────────────────────────────────────────────────────────────────────────
-class SigmaColors {
-  static const navy = Color(0xFF1E2A6E);
-  static const navyDark = Color(0xFF151E55);
-  static const navyLight = Color(0xFF2D3E8C);
-  static const gold = Color(0xFFF5A623);
-  static const accent = Color(0xFF5C6BC0);
-  static const bgPage = Color(0xFFF4F6FA);
-  static const textSub = Color(0xFF8A94AD);
-  static const success = Color(0xFF00897B);
-  static const danger = Color(0xFFE53935);
-  static const white = Color(0xFFFFFFFF);
-  static const cardBorder = Color(0xFFE8ECF4);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ADMIN MAIN PAGE
@@ -30,7 +14,7 @@ class SigmaColors {
 class AdminMainPage extends StatelessWidget {
   const AdminMainPage({super.key});
 
-  static const _semester = 'Semester Genap 2025/2026';
+  // static const _semester = 'Semester Genap 2025/2026';
 
   static final _pages = [
     const AdminSchedulePage(),
@@ -60,7 +44,7 @@ class AdminMainPage extends StatelessWidget {
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: SigmaColors.navy,
+        statusBarColor: AppColors.navy,
         statusBarIconBrightness: Brightness.light,
       ),
     );
@@ -68,7 +52,7 @@ class AdminMainPage extends StatelessWidget {
     final vm = context.watch<AdminMainViewModel>();
 
     return Scaffold(
-      backgroundColor: SigmaColors.bgPage,
+      backgroundColor: AppColors.bgPage,
       body: IndexedStack(index: vm.selectedIndex, children: _pages),
       bottomNavigationBar: _SigmaBottomNav(
         selectedIndex: vm.selectedIndex,
@@ -111,10 +95,8 @@ class _SigmaBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: SigmaColors.white,
-        border: Border(
-          top: BorderSide(color: SigmaColors.cardBorder, width: 1),
-        ),
+        color: AppColors.white,
+        border: Border(top: BorderSide(color: AppColors.cardBorder, width: 1)),
         boxShadow: [
           BoxShadow(
             color: Color(0x14000000),
@@ -148,7 +130,7 @@ class _SigmaBottomNav extends StatelessWidget {
                           height: 3,
                           margin: const EdgeInsets.only(bottom: 6),
                           decoration: BoxDecoration(
-                            color: SigmaColors.navy,
+                            color: AppColors.navy,
                             borderRadius: BorderRadius.circular(99),
                           ),
                         ),
@@ -158,8 +140,8 @@ class _SigmaBottomNav extends StatelessWidget {
                             isActive ? item.activeIcon : item.icon,
                             key: ValueKey(isActive),
                             color: isActive
-                                ? SigmaColors.navy
-                                : SigmaColors.textSub,
+                                ? AppColors.navy
+                                : AppColors.textSub,
                             size: 22,
                           ),
                         ),
@@ -172,8 +154,8 @@ class _SigmaBottomNav extends StatelessWidget {
                                 ? FontWeight.w700
                                 : FontWeight.w400,
                             color: isActive
-                                ? SigmaColors.navy
-                                : SigmaColors.textSub,
+                                ? AppColors.navy
+                                : AppColors.textSub,
                           ),
                           child: Text(item.label),
                         ),
@@ -190,88 +172,6 @@ class _SigmaBottomNav extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  SHARED WIDGETS
-// ─────────────────────────────────────────────────────────────────────────────
-
-class SigmaPageHeader extends StatelessWidget {
-  const SigmaPageHeader({
-    super.key,
-    required this.title,
-    this.subtitle = 'Semester Genap 2025/2026',
-    this.action,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: SigmaColors.white,
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 20,
-        right: 20,
-        bottom: 16,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: SigmaColors.navy,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.school_rounded,
-              color: SigmaColors.gold,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: SigmaColors.navy,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.schedule_rounded,
-                      size: 11,
-                      color: SigmaColors.textSub,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: SigmaColors.textSub,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (action != null) action!,
-        ],
-      ),
-    );
-  }
-}
-
 /// FIX: Hapus `Expanded` dari dalam SigmaStatCard.
 /// Widget ini sekarang return Container biasa — Expanded diurus oleh
 /// pemanggil (Row di halaman masing-masing) jika memang dibutuhkan.
@@ -283,7 +183,7 @@ class SigmaStatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.sublabel,
-    this.accentColor = SigmaColors.navy,
+    this.accentColor = AppColors.navy,
   });
 
   final String label;
@@ -298,7 +198,7 @@ class SigmaStatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SigmaColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border(left: BorderSide(color: accentColor, width: 3)),
         boxShadow: const [
@@ -325,7 +225,7 @@ class SigmaStatCard extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: SigmaColors.navy,
+              color: AppColors.navy,
               fontSize: 28,
               fontWeight: FontWeight.w800,
               height: 1,
@@ -334,7 +234,7 @@ class SigmaStatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             sublabel,
-            style: const TextStyle(color: SigmaColors.textSub, fontSize: 11),
+            style: const TextStyle(color: AppColors.textSub, fontSize: 11),
           ),
         ],
       ),
@@ -362,12 +262,12 @@ class SigmaEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: SigmaColors.cardBorder),
+            Icon(icon, size: 56, color: AppColors.cardBorder),
             const SizedBox(height: 16),
             Text(
               message,
               style: const TextStyle(
-                color: SigmaColors.textSub,
+                color: AppColors.textSub,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -377,10 +277,7 @@ class SigmaEmptyState extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 sub!,
-                style: const TextStyle(
-                  color: SigmaColors.textSub,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: AppColors.textSub, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -390,58 +287,3 @@ class SigmaEmptyState extends StatelessWidget {
     );
   }
 }
-
-class SigmaPrimaryButton extends StatelessWidget {
-  const SigmaPrimaryButton({
-    super.key,
-    required this.label,
-    required this.onTap,
-    this.icon,
-    this.isLoading = false,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: isLoading ? SigmaColors.textSub : SigmaColors.navy,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isLoading)
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(SigmaColors.white),
-                ),
-              )
-            else if (icon != null)
-              Icon(icon, color: SigmaColors.white, size: 18),
-            if (!isLoading && icon != null) const SizedBox(width: 8),
-            Text(
-              isLoading ? 'Memuat...' : label,
-              style: const TextStyle(
-                color: SigmaColors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-//new

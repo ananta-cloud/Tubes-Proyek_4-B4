@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../main/views/admin_main_page.dart';
 import '../viewmodels/admin_schedule_viewmodel.dart';
-import '../../../../data/models/schedule_model.dart';
+import 'package:sigma/data/models/schedule_model.dart';
 import 'import_schedule_page.dart';
 import 'package:sigma/shared/app_colors.dart';
 import 'package:sigma/shared/widgets/page_header.dart';
@@ -402,4 +402,3 @@ String _capitalizeFirst(String s) {
   if (s.isEmpty) return s;
   return s[0].toUpperCase() + s.substring(1).toLowerCase();
 }
-//new

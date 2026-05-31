@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-// import 'package:sigma/shared/widgets/empty_state.dart';
-// import 'package:sigma/shared/widgets/page_header.dart';
-// import 'package:sigma/shared/widgets/primary_button.dart';
 import 'package:sigma/shared/widgets/stat_card.dart';
 
 class AdminDashboardPage extends StatelessWidget {
@@ -28,24 +25,4 @@ class AdminDashboardPage extends StatelessWidget {
       ),
     );
   }
-
-  // Widget _card(String title, int value, Color color) {
-  //   return Container(
-  //     padding: const EdgeInsets.all(16),
-  //     decoration: BoxDecoration(
-  //       color: color.withOpacity(0.15),
-  //       borderRadius: BorderRadius.circular(16),
-  //     ),
-  //     child: Row(
-  //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //       children: [
-  //         Text(title, style: const TextStyle(fontSize: 16)),
-  //         Text(
-  //           value.toString(),
-  //           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 }
