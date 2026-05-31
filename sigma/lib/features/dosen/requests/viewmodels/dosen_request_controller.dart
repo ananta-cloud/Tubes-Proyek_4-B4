@@ -4,6 +4,7 @@ import 'package:sigma/data/services/dosen_request_service.dart';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sigma/core/network/mongo_database.dart';
 
 class DosenRequestController extends ChangeNotifier {
   final DosenRequestService service;
@@ -221,7 +222,7 @@ class DosenRequestController extends ChangeNotifier {
     required String alasan,
   }) async {
     if (selectedJadwal == null || selectedTanggalBaru == null) return false;
-
+    print('DEBUG selectedJadwal: $selectedJadwal');
     // final hariLama = selectedJadwal!['hari']?.toString() ?? '';
     final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
     final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
@@ -246,8 +247,16 @@ class DosenRequestController extends ChangeNotifier {
         'nama_dosen': namaDosen,
         'tipe_request': autoTipeRequest ?? 'KEDUANYA',
         'alasan': alasan,
+        'nama_matkul':
+            selectedJadwal!['nama_matkul'] ?? selectedJadwal!['nama_mk'] ?? '',
         'status': 'PENDING',
         'offline_id': offlineId,
+        'jadwal_lama': {
+          'hari': selectedJadwal!['hari'],
+          'jam_mulai': selectedJadwal!['jam_mulai'],
+          'jam_selesai': selectedJadwal!['jam_selesai'],
+          'ruangan': selectedJadwal!['ruangan'],
+        },
         'detail_perubahan': {
           'tanggal_baru': selectedTanggalBaru!.toIso8601String(),
           'hari_baru': _hariDari(selectedTanggalBaru!),
@@ -262,7 +271,16 @@ class DosenRequestController extends ChangeNotifier {
 
     isSubmitting = true;
     notifyListeners();
-
+    final jadwalLamaData = {
+      'hari': selectedJadwal!['hari'],
+      'jam_mulai': selectedJadwal!['jam_mulai'],
+      'jam_selesai': selectedJadwal!['jam_selesai'],
+      'ruangan': selectedJadwal!['ruangan'],
+    };
+    print('DEBUG jadwalLama: $jadwalLamaData');
+    print(
+      'DEBUG jadwalLama: ${{'hari': selectedJadwal!['hari'], 'jam_mulai': selectedJadwal!['jam_mulai'], 'jam_selesai': selectedJadwal!['jam_selesai'], 'ruangan': selectedJadwal!['ruangan']}}',
+    );
     final ok = await service.submitRequest(
       idSchedule: selectedJadwal!['_id'].toString(),
       idDosen: idDosen,
@@ -270,6 +288,14 @@ class DosenRequestController extends ChangeNotifier {
       tipeRequest: autoTipeRequest ?? 'KEDUANYA',
       detailPerubahan: detailPerubahan,
       alasan: alasan,
+      namaMatkul:
+          selectedJadwal!['nama_matkul'] ?? selectedJadwal!['nama_mk'] ?? '',
+      jadwalLama: {
+        'hari': selectedJadwal!['hari'],
+        'jam_mulai': selectedJadwal!['jam_mulai'],
+        'jam_selesai': selectedJadwal!['jam_selesai'],
+        'ruangan': selectedJadwal!['ruangan'],
+      },
       offlineId: DateTime.now().millisecondsSinceEpoch.toString(),
     );
 
@@ -352,20 +378,31 @@ class DosenRequestController extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _normalizeJam(String jam) => jam.replaceAll('.', ':');
+
   String? get autoTipeRequest {
     if (selectedJadwal == null || selectedTanggalBaru == null) return null;
 
     final hariLama = selectedJadwal!['hari']?.toString() ?? '';
-    final jamMulaiLama = selectedJadwal!['jam_mulai']?.toString() ?? '';
-    final jamSelesaiLama = selectedJadwal!['jam_selesai']?.toString() ?? '';
+    final jamMulaiLama = _normalizeJam(
+      selectedJadwal!['jam_mulai']?.toString() ?? '',
+    );
+    final jamSelesaiLama = _normalizeJam(
+      selectedJadwal!['jam_selesai']?.toString() ?? '',
+    );
+    final ruanganLama = selectedJadwal!['ruangan']?.toString() ?? '';
 
     final hariTanggalBaru = _hariDari(selectedTanggalBaru!);
-    final samaTanggal = hariTanggalBaru == hariLama;
-    final samaJamMulai = (selectedJamMulaiBaru ?? jamMulaiLama) == jamMulaiLama;
+    final samaHari = hariTanggalBaru == hariLama;
+    final samaJamMulai =
+        _normalizeJam(selectedJamMulaiBaru ?? jamMulaiLama) == jamMulaiLama;
     final samaJamSelesai =
-        (selectedJamSelesaiBaru ?? jamSelesaiLama) == jamSelesaiLama;
+        _normalizeJam(selectedJamSelesaiBaru ?? jamSelesaiLama) ==
+        jamSelesaiLama;
+    final samaRuangan = (selectedRuanganBaru ?? ruanganLama) == ruanganLama;
 
-    if (samaTanggal && samaJamMulai && samaJamSelesai) return 'PINDAH_RUANGAN';
+    if (samaHari && samaJamMulai && samaJamSelesai) return 'PINDAH_RUANGAN';
+    if (samaRuangan) return 'PINDAH_JAM';
     return 'KEDUANYA';
   }
 
@@ -398,6 +435,7 @@ class DosenRequestController extends ChangeNotifier {
     _isSyncing = true;
 
     try {
+      await MongoDatabase.ensureConnected();
       // Sync pending requests
       if (_pendingBox.isNotEmpty) {
         final keys = _pendingBox.keys.toList();
@@ -406,6 +444,7 @@ class DosenRequestController extends ChangeNotifier {
           final detail = Map<String, dynamic>.from(
             data['detail_perubahan'] ?? {},
           );
+          print('DEBUG sync jadwalLama: ${data['jadwal_lama']}');
           final ok = await service.submitRequest(
             idSchedule: data['id_schedule'],
             idDosen: data['id_dosen'],
@@ -413,6 +452,8 @@ class DosenRequestController extends ChangeNotifier {
             tipeRequest: data['tipe_request'],
             detailPerubahan: detail,
             alasan: data['alasan'],
+            namaMatkul: data['nama_matkul'] ?? '',
+            jadwalLama: Map<String, dynamic>.from(data['jadwal_lama'] ?? {}),
             offlineId: data['offline_id'],
           );
           if (ok) await _pendingBox.delete(key);

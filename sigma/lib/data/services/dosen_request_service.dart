@@ -32,7 +32,17 @@ class DosenRequestService {
 
       // Cache semua jadwal sekali per sesi (untuk cek ruangan offline)
       if (!_allSchedulesCached) {
-        final allSchedules = await _schCol.find().toList();
+        final allSchedules = await _schCol
+            .find(
+              where.ne('status', 'DRAFT').fields([
+                'ruangan',
+                'hari',
+                'jam_mulai',
+                'jam_selesai',
+                '_id',
+              ]),
+            )
+            .toList();
         final allSanitized = allSchedules.map(_sanitizeDoc).toList();
         await _scheduleCache.put('all_schedules', allSanitized);
         _allSchedulesCached = true;
@@ -174,6 +184,8 @@ class DosenRequestService {
     required String tipeRequest,
     required Map<String, dynamic> detailPerubahan,
     required String alasan,
+    required String namaMatkul,
+    required Map<String, dynamic> jadwalLama,
     bool isLate = false,
     String? idPeriodeRevisi,
     required String? offlineId,
@@ -206,6 +218,8 @@ class DosenRequestService {
         'tipe_request': tipeRequest,
         'detail_perubahan': detailPerubahan,
         'alasan': alasan,
+        'nama_matkul': namaMatkul,
+        'jadwal_lama': jadwalLama,
         'status': 'PENDING',
         'is_late': isLate,
         'id_periode_revisi': idPeriodeRevisi != null
@@ -246,27 +260,34 @@ class DosenRequestService {
           )
           .toList();
 
+      if (requests.isEmpty) return [];
+
+      // ✅ Ambil semua jadwal sekaligus, bukan satu-satu
+      final scheduleIds = requests
+          .where((r) => r['id_schedule'] != null)
+          .map((r) => r['id_schedule'] as ObjectId)
+          .toList();
+
+      final jadwalList = await _schCol
+          .find(where.oneFrom('_id', scheduleIds))
+          .toList();
+
+      final jadwalMap = {for (var j in jadwalList) j['_id'].toString(): j};
+
       final List<ScheduleRequestModel> result = [];
       final List<Map<String, dynamic>> rawForCache = [];
 
       for (final req in requests) {
-        Map<String, dynamic>? jadwal;
-        if (req['id_schedule'] != null) {
-          final schId = req['id_schedule'] is ObjectId
-              ? req['id_schedule']
-              : ObjectId.fromHexString(
-                  req['id_schedule']
-                      .toString()
-                      .replaceAll('ObjectId("', '')
-                      .replaceAll('")', ''),
-                );
-          jadwal = await _schCol.findOne(where.id(schId));
-        }
-
+        final jadwal = jadwalMap[req['id_schedule']?.toString()];
         final model = ScheduleRequestModel.fromJson(req, jadwal: jadwal);
         result.add(model);
 
-        // Simpan ke cache
+        final jadwalLamaRaw = req['jadwal_lama'] != null
+            ? _sanitizeMap(Map<String, dynamic>.from(req['jadwal_lama']))
+            : jadwal != null
+            ? _sanitizeMap(jadwal)
+            : null;
+
         rawForCache.add({
           '_id': model.id,
           'id_schedule': model.idSchedule,
@@ -282,13 +303,13 @@ class DosenRequestService {
           'is_late': model.isLate,
           'created_at': model.createdAt?.toIso8601String(),
           'updated_at': model.updatedAt?.toIso8601String(),
-          // Data jadwal embed
           'nama_mk': model.namaMk,
           'kode_mk': model.kodeMk,
-          'hari': model.hariJadwal,
-          'jam_mulai': model.jamMulaiJadwal,
-          'jam_selesai': model.jamSelesaiJadwal,
-          'ruangan': model.ruanganJadwal,
+          'jadwal_lama': jadwalLamaRaw,
+          'hari': jadwalLamaRaw?['hari'],
+          'jam_mulai': jadwalLamaRaw?['jam_mulai'],
+          'jam_selesai': jadwalLamaRaw?['jam_selesai'],
+          'ruangan': jadwalLamaRaw?['ruangan'],
           'kelas': model.kelas,
         });
       }
@@ -299,6 +320,26 @@ class DosenRequestService {
       print('Error getMyRequests: $e');
       return _getMyRequestsFromCache(idDosen);
     }
+  }
+
+  Map<String, dynamic> _sanitizeMap(Map<String, dynamic> map) {
+    return map.map((k, v) {
+      if (v is ObjectId) return MapEntry(k, v.toHexString());
+      if (v is DateTime) return MapEntry(k, v.toIso8601String());
+      if (v is Map)
+        return MapEntry(k, _sanitizeMap(Map<String, dynamic>.from(v)));
+      if (v is List)
+        return MapEntry(
+          k,
+          v
+              .map(
+                (e) =>
+                    e is Map ? _sanitizeMap(Map<String, dynamic>.from(e)) : e,
+              )
+              .toList(),
+        );
+      return MapEntry(k, v);
+    });
   }
 
   List<ScheduleRequestModel> _getMyRequestsFromCache(String idDosen) {
@@ -350,6 +391,13 @@ class DosenRequestService {
     return doc.map((k, v) {
       if (v is ObjectId) return MapEntry(k, v.toHexString());
       if (v is DateTime) return MapEntry(k, v.toIso8601String());
+
+      if (v is Map) return MapEntry(k, Map<String, dynamic>.from(v));
+      if (v is List)
+        return MapEntry(
+          k,
+          v.map((e) => e is Map ? Map<String, dynamic>.from(e) : e).toList(),
+        );
       return MapEntry(k, v);
     });
   }

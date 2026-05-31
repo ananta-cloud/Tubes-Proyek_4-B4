@@ -93,10 +93,10 @@ void main() async {
 
   // Buka box cache dosen — harus sebelum runApp agar parser bisa akses
   await DosenCacheService.openBox();
-
-  // Isi cache dosen dari MongoDB (best-effort — tidak fatal jika offline)
-  await DosenCacheService.warmUp();
-
+  if (!MongoDatabase.isOffline) {
+    await DosenCacheService.warmUp();
+  }
+  // await MongoDatabase.connect();
   runApp(
     MultiProvider(
       providers: [
@@ -124,11 +124,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sigma',
-      debugShowCheckedModeBanner: false,
-      home: const LoginPage(),
-      builder: (context, child) => _ConnectivityListener(child: child!),
+    return _ConnectivityListener(
+      child: MaterialApp(
+        title: 'Sigma',
+        debugShowCheckedModeBanner: false,
+        home: const LoginPage(),
+      ),
     );
   }
 }
@@ -150,6 +151,19 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     super.initState();
     Connectivity().onConnectivityChanged.listen((result) {
       final isOffline = (result as List).contains(ConnectivityResult.none);
+      debugPrint('CONNECTIVITY CHANGED: isOffline=$isOffline');
+
+      MongoDatabase.isOffline = isOffline;
+      if (mounted) {
+        context.read<ScheduleRequestController>().setOffline(isOffline);
+        debugPrint('setOffline called: $isOffline');
+      }
+      if (isOffline) {
+        MongoDatabase.isOffline = true;
+        if (mounted) {
+          context.read<ScheduleRequestController>().setOffline(true);
+        }
+      }
 
       if (_wasOffline && !isOffline) {
         debugPrint(' Koneksi kembali online, memulai sync...');

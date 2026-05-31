@@ -165,20 +165,11 @@ class _RequestsIndexPageState extends State<RequestsIndexPage> {
                           onRefresh: () => ctrl.loadRequests(widget.idJurusan),
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-                            itemCount:
-                                ctrl.requests.length + (ctrl.isOffline ? 1 : 0),
-                            separatorBuilder: (_, i) => i == 0 && ctrl.isOffline
-                                ? const SizedBox.shrink()
-                                : const SizedBox(height: 8),
+                            itemCount: ctrl.requests.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
                             itemBuilder: (_, i) {
-                              if (ctrl.isOffline && i == 0) {
-                                return const Padding(
-                                  padding: EdgeInsets.only(bottom: 4),
-                                  child: OfflineBanner(),
-                                );
-                              }
-                              final req =
-                                  ctrl.requests[ctrl.isOffline ? i - 1 : i];
+                              final req = ctrl.requests[i];
                               return _RequestCard(
                                 request: req,
                                 onDetail: () => Navigator.push(
