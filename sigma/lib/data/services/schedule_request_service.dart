@@ -56,7 +56,6 @@ class ScheduleRequestService {
     'is_late': r.isLate,
     'created_at': r.createdAt?.toIso8601String(),
     'updated_at': r.updatedAt?.toIso8601String(),
-    // field jadwal
     'nama_matkul': r.namaMk,
     'nama_mk': r.namaMk,
     'kode_mk': r.kodeMk,
@@ -92,80 +91,56 @@ class ScheduleRequestService {
     String? status,
   }) async {
     final statusKey = status ?? 'SEMUA';
+
+    try {
+      await onEnsureConnected();
+    } catch (_) {
+      return _loadCache(idJurusan, statusKey);
+    }
+
+    if (MongoDatabase.isOffline) {
+      return _loadCache(idJurusan, statusKey);
+    }
+
     try {
       final cleanId = idJurusan
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
-      for (int i = 0; i < 5; i++) {
-        try {
-          await onEnsureConnected();
-          if (!MongoDatabase.isOffline) break;
-        } catch (_) {
-          await Future.delayed(const Duration(milliseconds: 800));
-        }
-        if (MongoDatabase.isOffline) return _loadCache(idJurusan, statusKey);
-      }
 
-      print('DEBUG idJurusan=$cleanId');
-
-      // Step 1: ambil dosen dari jurusan
       final dosenList = await MongoDatabase.db
           .collection('dosen')
           .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanId)))
           .toList();
-      print('DEBUG dosenList=${dosenList.length}');
       if (dosenList.isEmpty) return _loadCache(idJurusan, statusKey);
 
       final kodeDosens = dosenList
           .map((d) => d['kode_dosen']?.toString())
           .where((k) => k != null)
           .toList();
-      print('DEBUG kodeDosens=$kodeDosens');
 
-      // Step 2: ambil schedules milik dosen tersebut
+      final dosenIds = dosenList.map((d) => d['_id'] as ObjectId).toList();
+
       final schedules = await _schCol
           .find(where.oneFrom('kode_dosen', kodeDosens))
           .toList();
-      print('DEBUG schedules=${schedules.length}');
-      if (schedules.isEmpty) return _loadCache(idJurusan, statusKey);
 
-      final objectIdList = schedules.map((s) => s['_id'] as ObjectId).toList();
       final scheduleMap = {for (var s in schedules) s['_id'].toString(): s};
-      print('DEBUG scheduleIds count=${objectIdList.length}');
 
-      // Step 3: ambil requests
-      // final selector = where.oneFrom('id_schedule', objectIdList);
-      final selector = where.sortBy('created_at', descending: true);
-      if (status != null && status != 'SEMUA') selector.eq('status', status);
+      SelectorBuilder selector = where.oneFrom('id_dosen', dosenIds);
+
+      if (status != null && status != 'SEMUA') {
+        selector.eq('status', status);
+      }
+
       selector.sortBy('created_at', descending: true);
 
       final requests = await _reqCol.find(selector).toList();
-      print('DEBUG requests=${requests.length}');
 
       final result = requests.map((r) {
         final jadwal = scheduleMap[r['id_schedule']?.toString()];
         return ScheduleRequestModel.fromJson(r, jadwal: jadwal);
       }).toList();
 
-      print('DEBUG requests=${requests.length}');
-      if (requests.isEmpty) {
-        // Cek manual — apakah ada request dengan id_schedule yang ada di schedules?
-        final sampleReq = await _reqCol.findOne(where.exists('id_schedule'));
-        print('DEBUG sample request dari DB: $sampleReq');
-        print(
-          'DEBUG sample objectIdList[0]: ${objectIdList.isNotEmpty ? objectIdList.first : 'kosong'}',
-        );
-      }
-      if (requests.isNotEmpty) {
-        final r = requests.first;
-        final idSch = r['id_schedule'];
-        print('DEBUG id_schedule=$idSch type=${idSch.runtimeType}');
-        print(
-          'DEBUG scheduleMap keys sample=${scheduleMap.keys.take(3).toList()}',
-        );
-        final jadwal = scheduleMap[idSch?.toString()];
-        print('DEBUG jadwal lookup=$jadwal');
-      }
       _saveCache(idJurusan, statusKey, result);
       return result;
     } catch (e) {
@@ -187,8 +162,13 @@ class ScheduleRequestService {
     return ScheduleRequestModel.fromJson(req, jadwal: jadwal);
   }
 
+  // pake query terpisah per status
   Future<Map<String, int>> getStats(String idJurusan) async {
     try {
+      if (MongoDatabase.isOffline) {
+        return {'pending': 0, 'approved': 0, 'rejected': 0};
+      }
+
       final cleanId = idJurusan
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
@@ -211,20 +191,22 @@ class ScheduleRequestService {
       if (schedules.isEmpty)
         return {'pending': 0, 'approved': 0, 'rejected': 0};
 
-      final ids = schedules.map((s) => s['_id'] as ObjectId).toList();
+      final dosenIds = dosenList.map((d) => d['_id'] as ObjectId).toList();
 
       final pending = await _reqCol.count(
-        where.oneFrom('id_schedule', ids).eq('status', 'PENDING'),
-      );
-      final approved = await _reqCol.count(
-        where.oneFrom('id_schedule', ids).eq('status', 'APPROVED'),
-      );
-      final rejected = await _reqCol.count(
-        where.oneFrom('id_schedule', ids).eq('status', 'REJECTED'),
+        where.oneFrom('id_dosen', dosenIds).eq('status', 'PENDING'),
       );
 
+      final approved = await _reqCol.count(
+        where.oneFrom('id_dosen', dosenIds).eq('status', 'APPROVED'),
+      );
+
+      final rejected = await _reqCol.count(
+        where.oneFrom('id_dosen', dosenIds).eq('status', 'REJECTED'),
+      );
       return {'pending': pending, 'approved': approved, 'rejected': rejected};
-    } catch (_) {
+    } catch (e) {
+      print('getStats ERROR: $e');
       return {'pending': 0, 'approved': 0, 'rejected': 0};
     }
   }
@@ -317,7 +299,6 @@ class ScheduleRequestService {
     required String processorId,
     required String catatanAdmin,
   }) async {
-    print('rejectRequest isOffline=${MongoDatabase.isOffline}');
     if (MongoDatabase.isOffline) {
       _enqueueAction({
         'type': 'REJECT',
@@ -326,10 +307,8 @@ class ScheduleRequestService {
         'catatanAdmin': catatanAdmin,
         'queuedAt': DateTime.now().toIso8601String(),
       });
-      print('rejectRequest enqueued');
       return true;
     }
-    print('rejectRequest online, calling _doReject');
     return _doReject(
       requestId: requestId,
       processorId: processorId,

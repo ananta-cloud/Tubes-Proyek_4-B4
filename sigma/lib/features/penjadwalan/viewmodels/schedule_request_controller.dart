@@ -28,21 +28,16 @@ class ScheduleRequestController extends ChangeNotifier {
     _lastIdJurusan = idJurusan;
     _setLoading(true);
     errorMsg = null;
-    isOffline = MongoDatabase.isOffline;
-    debugPrint('DEBUG loadRequests isOffline=$isOffline');
 
     try {
       requests = await service.getRequests(
         idJurusan: idJurusan,
         status: filterStatus == 'SEMUA' ? null : filterStatus,
       );
-      // Jika berhasil dari Mongo, isOffline = false
       isOffline = MongoDatabase.isOffline;
       await _loadStats(idJurusan);
     } catch (e) {
       isOffline = true;
-      debugPrint('DEBUG loadRequests catch isOffline=$isOffline');
-
       errorMsg = e.toString();
       await _loadStats(idJurusan);
     }
@@ -57,6 +52,7 @@ class ScheduleRequestController extends ChangeNotifier {
       countApproved = stats['approved'] ?? 0;
       countRejected = stats['rejected'] ?? 0;
     } catch (_) {
+      //Hitung dari cache jika stats gagal
       countPending = requests.where((r) => r.status == 'PENDING').length;
       countApproved = requests.where((r) => r.status == 'APPROVED').length;
       countRejected = requests.where((r) => r.status == 'REJECTED').length;
@@ -111,20 +107,22 @@ class ScheduleRequestController extends ChangeNotifier {
   }
 
   // ─────────────────────────────────────────────
-  // SYNC (dipanggil dari _ConnectivityListener)
+  // SYNC
   // ─────────────────────────────────────────────
   Future<void> onConnectionRestored() async {
     isSyncing = true;
-    isOffline = false; // ← set false duluan
     notifyListeners();
-    Future<void> Function() onEnsureConnected = MongoDatabase.ensureConnected;
 
     try {
-      await onEnsureConnected();
-      await Future.delayed(const Duration(milliseconds: 1500)); // ← tambah
+      await MongoDatabase.ensureConnected();
+
+      isOffline = false;
+      notifyListeners();
+
+      await Future.delayed(const Duration(milliseconds: 500));
 
       final synced = await service.flushQueue();
-      if (synced > 0) {
+      if (synced > 0 && _lastIdJurusan != null) {
         await service.clearCache(_lastIdJurusan!, 'SEMUA');
       }
       if (_lastIdJurusan != null) {
@@ -135,6 +133,7 @@ class ScheduleRequestController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('onConnectionRestored ERROR: $e');
+      isOffline = true;
     } finally {
       isSyncing = false;
       notifyListeners();
