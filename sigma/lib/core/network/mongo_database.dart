@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:mongo_dart/mongo_dart.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MongoDatabase {
@@ -15,6 +16,10 @@ class MongoDatabase {
   static late DbCollection dosenCollection;
   static late DbCollection timPenjadwalanCollection;
 
+  static StreamSubscription? _connectivitySub;
+
+  static final StreamController<bool> connectionController =
+      StreamController<bool>.broadcast();
   static bool isOffline = true;
   static bool _isConnecting = false;
   static final List<Completer<void>> _waiters = [];
@@ -97,18 +102,36 @@ class MongoDatabase {
       await connect();
       return;
     }
+    // try {
+    //   await connect();
+    // } catch (_) {
+    //   isOffline = true;
+    // }
 
-    // Verifikasi koneksi masih hidup
+    // // Verifikasi koneksi masih hidup
+    // try {
+    //   await db
+    //       .collection('users')
+    //       .findOne(where.eq('_id', '000000000000000000000000'))
+    //       .timeout(const Duration(seconds: 5));
+    // } catch (_) {
+    //   // Koneksi mati, reconnect
+    //   _dbInitialized = false;
+    //   isOffline = true;
+    //   await connect();
+    // }
     try {
       await db
           .collection('users')
           .findOne(where.eq('_id', '000000000000000000000000'))
           .timeout(const Duration(seconds: 5));
     } catch (_) {
-      // Koneksi mati, reconnect
       _dbInitialized = false;
       isOffline = true;
-      await connect();
+
+      try {
+        await connect();
+      } catch (_) {}
     }
   }
 
@@ -116,5 +139,37 @@ class MongoDatabase {
     if (isOffline) throw Exception("Aplikasi dalam mode offline.");
     await ensureConnected();
     return await operation();
+  }
+
+  static void startConnectionMonitor() {
+    _connectivitySub?.cancel();
+
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) async {
+      final connected = !result.contains(ConnectivityResult.none);
+
+      if (!connected) {
+        isOffline = true;
+        connectionController.add(false);
+
+        print("OFFLINE");
+        return;
+      }
+
+      try {
+        await ensureConnected();
+
+        isOffline = false;
+        connectionController.add(true);
+
+        print("ONLINE");
+      } catch (e) {
+        isOffline = true;
+        connectionController.add(false);
+
+        print("Mongo masih gagal connect");
+      }
+    });
   }
 }

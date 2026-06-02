@@ -81,6 +81,15 @@ class ScheduleRequestService {
     await Hive.box<Map>(_queueBox).clear();
   }
 
+  String _cleanObjectId(String id) {
+    return id
+        .replaceAll('ObjectId("', '')
+        .replaceAll('")', '')
+        .replaceAll('ObjectId(', '')
+        .replaceAll(')', '')
+        .trim();
+  }
+
   Future<void> Function() onEnsureConnected = MongoDatabase.ensureConnected;
 
   // ─────────────────────────────────────────────
@@ -118,8 +127,14 @@ class ScheduleRequestService {
           .where((k) => k != null)
           .toList();
 
-      final dosenIds = dosenList.map((d) => d['_id'] as ObjectId).toList();
+      final dosenIds = dosenList
+          .map((d) => d['_id'])
+          .whereType<ObjectId>()
+          .toList();
 
+      if (dosenIds.isEmpty) {
+        return [];
+      }
       final schedules = await _schCol
           .find(where.oneFrom('kode_dosen', kodeDosens))
           .toList();
@@ -246,47 +261,57 @@ class ScheduleRequestService {
     required ScheduleRequestModel request,
   }) async {
     try {
-      final cleanReqId = requestId
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
-      final cleanProcId = processorId
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
-      final cleanSchId = request.idSchedule
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+      await MongoDatabase.ensureConnected();
 
-      await _reqCol.updateOne(
-        where.id(ObjectId.fromHexString(cleanReqId)),
+      final reqId = ObjectId.fromHexString(_cleanObjectId(requestId));
+
+      final procId = ObjectId.fromHexString(_cleanObjectId(processorId));
+
+      final schId = ObjectId.fromHexString(_cleanObjectId(request.idSchedule));
+
+      final updateReq = await _reqCol.updateOne(
+        where.id(reqId),
         modify
             .set('status', 'APPROVED')
-            .set('catatan_admin', catatanAdmin ?? 'Disetujui.')
-            .set('id_processor', ObjectId.fromHexString(cleanProcId))
+            .set('catatan_admin', catatanAdmin ?? 'Disetujui')
+            .set('id_processor', procId)
             .set('updated_at', DateTime.now()),
       );
 
-      final detail = request.detailPerubahan;
-      final updateFields = <String, dynamic>{
-        'updated_at': DateTime.now(),
-        'status': 'PUBLISHED',
-      };
-      if (detail.hariBaru != null) updateFields['hari'] = detail.hariBaru;
-      if (detail.jamMulaiBaru != null)
-        updateFields['jam_mulai'] = detail.jamMulaiBaru;
-      if (detail.jamSelesaiBaru != null)
-        updateFields['jam_selesai'] = detail.jamSelesaiBaru;
-      if (detail.ruanganBaru != null)
-        updateFields['ruangan'] = detail.ruanganBaru;
+      if (!updateReq.isSuccess) {
+        print('Approve request gagal');
+        return false;
+      }
 
-      final modifier = modify;
-      updateFields.forEach((k, v) => modifier.set(k, v));
-      await _schCol.updateOne(
-        where.id(ObjectId.fromHexString(cleanSchId)),
-        modifier,
-      );
-      return true;
-    } catch (e) {
-      print('_doApprove ERROR: $e');
+      final detail = request.detailPerubahan;
+
+      final modifier = modify
+          .set('updated_at', DateTime.now())
+          .set('status', 'PUBLISHED');
+
+      if (detail.hariBaru != null) {
+        modifier.set('hari', detail.hariBaru);
+      }
+
+      if (detail.jamMulaiBaru != null) {
+        modifier.set('jam_mulai', detail.jamMulaiBaru);
+      }
+
+      if (detail.jamSelesaiBaru != null) {
+        modifier.set('jam_selesai', detail.jamSelesaiBaru);
+      }
+
+      if (detail.ruanganBaru != null) {
+        modifier.set('ruangan', detail.ruanganBaru);
+      }
+
+      final updateSchedule = await _schCol.updateOne(where.id(schId), modifier);
+
+      return updateSchedule.isSuccess;
+    } catch (e, s) {
+      print('_doApprove ERROR');
+      print(e.toString());
+      print(s.toString());
       return false;
     }
   }
@@ -322,24 +347,26 @@ class ScheduleRequestService {
     required String catatanAdmin,
   }) async {
     try {
-      final cleanReqId = requestId
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
-      final cleanProcId = processorId
-          .replaceAll('ObjectId("', '')
-          .replaceAll('")', '');
+      await MongoDatabase.ensureConnected();
 
-      await _reqCol.updateOne(
-        where.id(ObjectId.fromHexString(cleanReqId)),
+      final reqId = ObjectId.fromHexString(_cleanObjectId(requestId));
+
+      final procId = ObjectId.fromHexString(_cleanObjectId(processorId));
+
+      final result = await _reqCol.updateOne(
+        where.id(reqId),
         modify
             .set('status', 'REJECTED')
             .set('catatan_admin', catatanAdmin)
-            .set('id_processor', ObjectId.fromHexString(cleanProcId))
+            .set('id_processor', procId)
             .set('updated_at', DateTime.now()),
       );
-      return true;
-    } catch (e) {
-      print('_doReject ERROR: $e');
+
+      return result.isSuccess;
+    } catch (e, s) {
+      print('_doReject ERROR');
+      print(e.toString());
+      print(s.toString());
       return false;
     }
   }
@@ -357,7 +384,8 @@ class ScheduleRequestService {
         bool ok = false;
         if (action['type'] == 'APPROVE') {
           final req = ScheduleRequestModel.fromJson(
-            Map<String, dynamic>.from(action['requestJson'] as Map),
+            Map<String, dynamic>.from(action['requestJson']),
+            jadwal: Map<String, dynamic>.from(action['requestJson']),
           );
           ok = await _doApprove(
             requestId: action['requestId'],

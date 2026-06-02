@@ -119,6 +119,50 @@ class ScheduleRequestModel {
     this.kelas,
   });
 
+  // factory ScheduleRequestModel.fromJson(
+  //   Map<String, dynamic> json, {
+  //   Map<String, dynamic>? jadwal,
+  // }) {
+  //   final jadwalLama = json['jadwal_lama'] != null
+  //       ? Map<String, dynamic>.from(json['jadwal_lama'])
+  //       : jadwal;
+
+  //   return ScheduleRequestModel(
+  //     id: json['_id']?.toString() ?? '',
+  //     idSchedule: json['id_schedule']?.toString() ?? '',
+  //     idDosen: json['id_dosen']?.toString() ?? '',
+  //     namaDosen: json['nama_dosen'] ?? '',
+  //     tipeRequest: json['tipe_request'] ?? '',
+  //     offlineId: json['offline_id'],
+  //     detailPerubahan: DetailPerubahan.fromJson(
+  //       Map<String, dynamic>.from(json['detail_perubahan'] ?? {}),
+  //     ),
+  //     alasan: json['alasan'] ?? '',
+  //     status: json['status'] ?? 'PENDING',
+  //     catatanAdmin: json['catatan_admin'],
+  //     idProcessor: json['id_processor']?.toString(),
+  //     isLate: json['is_late'],
+  //     createdAt: json['created_at'] != null
+  //         ? DateTime.tryParse(json['created_at'].toString())
+  //         : null,
+  //     updatedAt: json['updated_at'] != null
+  //         ? DateTime.tryParse(json['updated_at'].toString())
+  //         : null,
+  //     namaMk:
+  //         jadwalLama?['nama_matkul'] ??
+  //         jadwalLama?['nama_mk'] ??
+  //         json['nama_matkul'] ??
+  //         json['nama_mk'] ??
+  //         'Jadwal telah diubah',
+  //     kodeMk: jadwalLama?['kode_mk'],
+  //     hariJadwal: jadwalLama?['hari'],
+  //     jamMulaiJadwal: jadwalLama?['jam_mulai'],
+  //     jamSelesaiJadwal: jadwalLama?['jam_selesai'],
+  //     ruanganJadwal: jadwalLama?['ruangan'],
+  //     kelas: jadwalLama?['kelas'],
+  //   );
+  // }
+
   factory ScheduleRequestModel.fromJson(
     Map<String, dynamic> json, {
     Map<String, dynamic>? jadwal,
@@ -127,10 +171,24 @@ class ScheduleRequestModel {
         ? Map<String, dynamic>.from(json['jadwal_lama'])
         : jadwal;
 
+    String objectIdToString(dynamic value) {
+      if (value == null) return '';
+
+      if (value is String) {
+        return value
+            .replaceAll('ObjectId("', '')
+            .replaceAll('")', '')
+            .replaceAll('ObjectId(', '')
+            .replaceAll(')', '');
+      }
+
+      return value.toString();
+    }
+
     return ScheduleRequestModel(
-      id: json['_id']?.toString() ?? '',
-      idSchedule: json['id_schedule']?.toString() ?? '',
-      idDosen: json['id_dosen']?.toString() ?? '',
+      id: objectIdToString(json['_id']),
+      idSchedule: objectIdToString(json['id_schedule']),
+      idDosen: objectIdToString(json['id_dosen']),
       namaDosen: json['nama_dosen'] ?? '',
       tipeRequest: json['tipe_request'] ?? '',
       offlineId: json['offline_id'],
@@ -140,7 +198,7 @@ class ScheduleRequestModel {
       alasan: json['alasan'] ?? '',
       status: json['status'] ?? 'PENDING',
       catatanAdmin: json['catatan_admin'],
-      idProcessor: json['id_processor']?.toString(),
+      idProcessor: objectIdToString(json['id_processor']),
       isLate: json['is_late'],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())

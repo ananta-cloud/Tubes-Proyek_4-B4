@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:sigma/core/network/mongo_database.dart';
 import 'package:sigma/data/models/schedule_request_model.dart';
 import 'package:sigma/data/services/schedule_request_service.dart';
 
 class ScheduleRequestController extends ChangeNotifier {
   final ScheduleRequestService service;
-  ScheduleRequestController(this.service);
+  StreamSubscription? _connectionSub;
+  ScheduleRequestController(this.service) {
+    _connectionSub = MongoDatabase.connectionController.stream.listen((
+      online,
+    ) async {
+      if (!online) {
+        setOffline(true);
+        return;
+      }
 
+      setOffline(false);
+
+      await onConnectionRestored();
+    });
+  }
   List<ScheduleRequestModel> requests = [];
   bool isLoading = false;
   bool isOffline = MongoDatabase.isOffline;
@@ -20,6 +34,11 @@ class ScheduleRequestController extends ChangeNotifier {
 
   String filterStatus = 'SEMUA';
   String? _lastIdJurusan;
+  @override
+  void dispose() {
+    _connectionSub?.cancel();
+    super.dispose();
+  }
 
   // ─────────────────────────────────────────────
   // LOAD
@@ -84,7 +103,19 @@ class ScheduleRequestController extends ChangeNotifier {
       catatanAdmin: catatan,
       request: request,
     );
-    if (ok) await loadRequests(idJurusan);
+
+    if (ok) {
+      final idx = requests.indexWhere((e) => e.id == requestId);
+
+      if (idx != -1) {
+        requests.removeAt(idx);
+      }
+
+      notifyListeners();
+
+      await _loadStats(idJurusan);
+    }
+
     return ok;
   }
 
@@ -102,7 +133,19 @@ class ScheduleRequestController extends ChangeNotifier {
       processorId: processorId,
       catatanAdmin: catatan,
     );
-    if (ok) await loadRequests(idJurusan);
+
+    if (ok) {
+      final idx = requests.indexWhere((e) => e.id == requestId);
+
+      if (idx != -1) {
+        requests.removeAt(idx);
+      }
+
+      notifyListeners();
+
+      await _loadStats(idJurusan);
+    }
+
     return ok;
   }
 

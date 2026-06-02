@@ -77,6 +77,7 @@ void main() async {
   if (!Hive.isAdapterRegistered(9))
     Hive.registerAdapter(PengajaranModelAdapter());
   if (!Hive.isAdapterRegistered(10)) Hive.registerAdapter(TaskModelAdapter());
+  MongoDatabase.startConnectionMonitor();
 
   runApp(
     MultiProvider(
@@ -222,14 +223,23 @@ class _ConnectivityListenerState extends State<_ConnectivityListener> {
     ) {
       final isOffline = result.contains(ConnectivityResult.none);
 
+      // if (isOffline) {
+      //   MongoDatabase.isOffline = true;
+      //   if (mounted) {
+      //     context.read<ScheduleRequestController>().setOffline(true);
+      //   }
+      // }
+
+      // if (_wasOffline && !isOffline) {
+      //   debugPrint('🌐 Koneksi kembali online, memulai auto-sync...');
+      //   _syncAll();
+      // }
       if (isOffline) {
         MongoDatabase.isOffline = true;
-        if (mounted) {
-          context.read<ScheduleRequestController>().setOffline(true);
-        }
-      }
-
-      if (_wasOffline && !isOffline) {
+        context.read<ScheduleRequestController>().setOffline(true);
+      } else {
+        MongoDatabase.isOffline = false;
+        context.read<ScheduleRequestController>().setOffline(false);
         debugPrint('🌐 Koneksi kembali online, memulai auto-sync...');
         _syncAll();
       }

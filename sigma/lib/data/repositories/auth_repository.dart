@@ -198,10 +198,14 @@ class AuthRepository {
 
   Future<TimPenjadwalanModel?> getTimPenjadwalanByUserId(String userId) async {
     try {
+      await MongoDatabase.ensureConnected();
+
       final doc = await MongoDatabase.timPenjadwalanCollection.findOne({
         "user_id": ObjectId.fromHexString(userId),
       });
+
       if (doc == null) return null;
+
       return TimPenjadwalanModel.fromMongo(doc);
     } catch (e) {
       debugPrint("GET TIM PENJADWALAN ERROR: $e");
