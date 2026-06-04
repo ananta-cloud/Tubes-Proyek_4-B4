@@ -64,7 +64,6 @@ class AuthRepository {
 
       // 3. Jika ia MAHASISWA, ambil data relasinya!
       if (user["role"] == "MAHASISWA") {
-        // 🔥 PERBAIKAN: Cari berdasarkan email dari tabel users, bukan user_id!
         final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
           "email": user["email"], 
         });

@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:convert'; // Tambahkan ini untuk jsonEncode
+import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Pesan masuk di latar belakang: ${message.messageId}");
-  // Note: Di background, Android otomatis memutar suara berdasarkan setting channel.
-  // Jadi kita biarkan saja.
 }
 
 class NotificationService {
@@ -18,15 +16,8 @@ class NotificationService {
   static final StreamController<void> onNewNotification =
       StreamController<void>.broadcast();
 
-  final AndroidNotificationChannel _channel = const AndroidNotificationChannel(
-    'pengumuman_kampus_channel',
-    'Pengumuman Kampus',
-    description: 'Saluran untuk pengumuman kampus',
-    importance: Importance.max,
-    playSound: true,
-  );
-
   Future<void> initNotification() async {
+    // 1. Minta Izin
     NotificationSettings settings = await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
@@ -39,7 +30,7 @@ class NotificationService {
       print('Izin Notifikasi Ditolak.');
     }
 
-    // Setup Local Notifications
+    // 2. Setup Local Notifications
     const AndroidInitializationSettings androidInitSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initSettings = InitializationSettings(
@@ -84,24 +75,20 @@ class NotificationService {
       );
     }
 
-    // Berlangganan Topik
+    // 3. Berlangganan Topik
     await _firebaseMessaging.unsubscribeFromTopic('pengumuman_kampus');
     print("Membersihkan sisa langganan topik lama...");
 
-    // Tangkap Notifikasi saat aplikasi TERBUKA (Foreground)
+    // 4. Tangkap Notifikasi saat aplikasi TERBUKA (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print("Pesan masuk saat aplikasi dibuka (Foreground)!");
       onNewNotification.add(null);
 
       RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
+      
+      if (notification != null) {
+        String tipe = message.data['tipe'] ?? message.data['tipe_pengumuman'] ?? 'BIASA';
 
-      if (notification != null && android != null) {
-        // Ambil tipe pengumuman dari data payload (jika ada)
-        String tipe =
-            message.data['tipe'] ?? message.data['tipe_pengumuman'] ?? 'BIASA';
-
-        // 👉 PANGGIL FUNGSI SHOW NOTIFICATION KITA DI SINI
         showNotification(
           id: notification.hashCode,
           title: notification.title ?? 'KampusKu',
@@ -112,13 +99,10 @@ class NotificationService {
       }
     });
 
-    // Tangkap di Background
+    // 5. Tangkap di Latar Belakang (Background)
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
-  // =========================================================
-  // 👉 FUNGSI BARU ANDA DENGAN CUSTOM SOUND DILETAKKAN DI SINI
-  // =========================================================
   Future<void> showNotification({
     required int id,
     required String title,
@@ -127,28 +111,28 @@ class NotificationService {
     String tipePengumuman = 'BIASA',
   }) async {
     String channelId =
-        'channel_biasa_1'; // Ubah nama channel agar HP mau membaca sound baru
+        'channel_biasa_1';
     String channelName = 'Pengumuman Biasa';
-    String soundFile = 'biasa'; // Nama file di folder raw (biasa.wav)
+    String soundFile = 'biasa';
     Importance importance = Importance.defaultImportance;
     Priority priority = Priority.defaultPriority;
 
     if (tipePengumuman == 'PENTING') {
       channelId = 'channel_penting_1';
       channelName = 'Pengumuman Penting';
-      soundFile = 'penting'; // file penting.wav
+      soundFile = 'penting';
       importance = Importance.high;
       priority = Priority.high;
     } else if (tipePengumuman == 'SANGAT PENTING' ||
         tipePengumuman == 'SANGAT_PENTING') {
       channelId = 'channel_sangat_penting_1';
       channelName = 'Pengumuman Sangat Penting';
-      soundFile = 'sangat_penting'; // file sangat_penting.wav
+      soundFile = 'sangat_penting';
       importance = Importance.max;
       priority = Priority.max;
     }
 
-    // Siapkan konfigurasi Android dengan Custom Sound
+    // Konfigurasi Android dengan Custom Sound
     final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
           channelId,
@@ -156,7 +140,6 @@ class NotificationService {
           channelDescription: 'Notifikasi untuk $channelName',
           importance: importance,
           priority: priority,
-          // PENTING: Memanggil file dari res/raw
           sound: RawResourceAndroidNotificationSound(soundFile),
           playSound: true,
           enableVibration: true,
@@ -209,10 +192,7 @@ class NotificationService {
       await fcm.unsubscribeFromTopic(topic);
     }
 
-    // SEMUA ROLE BERLANGGANAN TOPIK GLOBAL PENGUMUMAN
-    await fcm.subscribeToTopic('pengumuman_semua');
-
-    // BERLANGGANAN BERDASARKAN ROLE
+    // 2. BERLANGGANAN BERDASARKAN ROLE
     if (userRole == 'MAHASISWA') {
       await fcm.subscribeToTopic('pengumuman_semua');
       await fcm.subscribeToTopic('pengumuman_mahasiswa');

@@ -57,8 +57,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
           context.read<LoginViewModel>().user!,
         );
       }
-
-      NotificationService().initNotification();
     });
   }
 

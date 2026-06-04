@@ -32,6 +32,8 @@ import 'data/repositories/auth_repository.dart';
 import 'data/services/schedule_request_service.dart';
 import 'data/services/dosen_cache_service.dart';
 import 'package:sigma/data/services/dosen_request_service.dart';
+import 'package:sigma/data/services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // ================= IMPORT VIEWMODELS =================
 import 'features/auth/viewmodels/login_viewmodel.dart';
@@ -47,6 +49,11 @@ import 'package:sigma/features/admin_tu/master_matkul/viewmodels/admin_matkul_vi
 import 'package:sigma/features/dosen/requests/viewmodels/dosen_request_controller.dart';
 import 'features/penjadwalan/viewmodels/schedule_request_controller.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -55,6 +62,9 @@ void main() async {
   debugPrint("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await NotificationService().initNotification();
   
 
   await Hive.initFlutter();
