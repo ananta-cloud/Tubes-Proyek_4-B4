@@ -145,8 +145,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
   // ─── Sync dari MongoDB ────────────────────────────────────────────────────
   Future<void> syncFromMongo() async {
-    // FIX: pakai _ensureOnline() agar reconnect ke Mongo jika perlu,
-    //      bukan hanya _checkOnline() yang hanya cek koneksi internet.
     if (!await _ensureOnline()) return;
 
     _isLoading = true;
@@ -187,7 +185,10 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     String? idProdi,
   }) async {
     final newId = ObjectId().toHexString();
-    final now = DateTime.now();
+
+    // FIX: Selalu gunakan UTC agar konsisten saat disimpan ke MongoDB
+    // dan dibaca kembali. Tampilan ke user akan dikonversi ke lokal di layer UI.
+    final nowUtc = DateTime.now().toUtc();
 
     final newAnnouncement = AnnouncementModel(
       id: newId,
@@ -197,8 +198,8 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       targetAudience: target,
       tingkatKepentingan: tingkatKepentingan,
       attachments: attachments,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowUtc, // simpan sebagai UTC
+      updatedAt: nowUtc, // simpan sebagai UTC
       idPublisher: idPublisher,
       namaPublisher: namaPublisher,
       rolePublisher: rolePublisher,
@@ -221,9 +222,10 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       'kategori': kategoriList,
       'target': target,
       'tingkat_kepentingan': tingkatKepentingan,
-      if (deadline != null) 'deadline': deadline.toIso8601String(),
+      // FIX: simpan timestamp sebagai UTC ISO string (berakhiran 'Z')
+      if (deadline != null) 'deadline': deadline.toUtc().toIso8601String(),
       'attachments': attachments,
-      'timestamp': now.toIso8601String(),
+      'timestamp': nowUtc.toIso8601String(), // sudah UTC, berakhiran 'Z'
       'id_publisher': idPublisher,
       'nama_publisher': namaPublisher,
       'role_publisher': rolePublisher,
@@ -273,6 +275,14 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     return ['Umum'];
   }
 
+  // ─── Helper: parse DateTime dari queue (handle UTC & lokal) ──────────────
+  DateTime _parseQueueDateTime(String isoString) {
+    final dt = DateTime.parse(isoString);
+    // Jika sudah UTC (string berakhiran 'Z' atau '+00:00'), kembalikan apa adanya.
+    // Jika bukan (string lama tanpa timezone info = lokal), konversi ke UTC.
+    return dt.isUtc ? dt : dt.toUtc();
+  }
+
   // ─── Drain Queue ──────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
     final isOnline = await _checkOnline();
@@ -299,6 +309,11 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             op['kategori'] ?? op['kategoriList'],
           );
 
+          // FIX: gunakan _parseQueueDateTime agar timestamp selalu UTC
+          final timestampStr =
+              (op['timestamp'] ?? op['createdAt'])?.toString() ?? '';
+          final createdAtUtc = _parseQueueDateTime(timestampStr);
+
           final doc = {
             '_id': ObjectId.parse(op['id'].toString()),
             'judul': op['judul'],
@@ -309,11 +324,11 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
                 op['tingkat_kepentingan'] ??
                 op['tingkatKepentingan'] ??
                 'BIASA',
-            'created_at': DateTime.parse(op['timestamp'] ?? op['createdAt']),
-            'updated_at': DateTime.parse(op['timestamp'] ?? op['createdAt']),
+            'created_at': createdAtUtc,
+            'updated_at': createdAtUtc,
             'attachments': op['attachments'] ?? [],
             if (op['deadline'] != null)
-              'deadline': DateTime.parse(op['deadline']),
+              'deadline': _parseQueueDateTime(op['deadline'].toString()),
             'id_publisher': _safeParseObjectId(
               op['id_publisher'],
               op['idPublisher'],

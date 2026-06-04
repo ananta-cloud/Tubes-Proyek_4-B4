@@ -38,10 +38,11 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
     final tingkatIcon =
         _tingkatIcons[announcement.tingkatKepentingan] ??
         Icons.info_outline_rounded;
+
     final tanggal = DateFormat(
       'd MMMM yyyy, HH:mm',
       'id_ID',
-    ).format(announcement.createdAt);
+    ).format(announcement.createdAt.toLocal());
 
     final List<String> kategoriList = _parseKategori(announcement.kategori);
 
@@ -219,7 +220,7 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    tanggal,
+                                    tanggal, // sudah .toLocal()
                                     style: const TextStyle(
                                       color: AppColors.textSub,
                                       fontSize: 12,
@@ -324,17 +325,14 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
   List<String> _parseKategori(dynamic raw) {
     if (raw == null) return ['Umum'];
 
-    // Jika sudah List<String>, langsung kembalikan
     if (raw is List) {
       final result = raw.map((e) => e.toString().trim()).toList();
       return result.isEmpty ? ['Umum'] : result;
     }
 
-    // Jika String (misal "[Umum, Pengajaran, Beasiswa]"), strip kurung lalu split
     if (raw is String) {
       final cleaned = raw.trim();
       if (cleaned.isEmpty) return ['Umum'];
-      // Hapus karakter [ dan ]
       final stripped = cleaned.replaceAll('[', '').replaceAll(']', '');
       final parts = stripped
           .split(',')
@@ -380,7 +378,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row info file
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -417,7 +414,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                   ),
                 ),
 
-                // Tombol expand/collapse untuk gambar
                 if (isImage && data.isNotEmpty)
                   GestureDetector(
                     onTap: () =>
@@ -442,7 +438,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                     ),
                   ),
 
-                // Label PDF (tidak bisa preview)
                 if (!isImage)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -466,7 +461,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
             ),
           ),
 
-          // Preview gambar (expand)
           if (isImage && _imageExpanded && data.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
