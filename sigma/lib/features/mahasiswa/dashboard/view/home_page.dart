@@ -57,8 +57,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
           context.read<LoginViewModel>().user!,
         );
       }
-
-      NotificationService().initNotification();
     });
   }
 
@@ -288,7 +286,9 @@ class _HomePageMhsState extends State<HomePageMhs> {
   // ================= HOME / PENGUMUMAN =================
   Widget _home(AnnouncementViewModel viewModel) {
     final user = context.read<LoginViewModel>().user;
-    viewModel.setUserRole(user?.role ?? 'MAHASISWA');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      viewModel.setUserRole(user?.role ?? 'MAHASISWA');
+    });
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -374,16 +374,6 @@ class _HomePageMhsState extends State<HomePageMhs> {
     final grouped = viewModel.scheduleByDay;
     final user = context.read<LoginViewModel>().user;
 
-    // 🔥 Dinamis: Ambil semester & tahun dari data pertama (jika ada jadwal)
-    String periodeTeks = "Belum Ada Jadwal";
-    if (viewModel.schedules.isNotEmpty) {
-      final s = viewModel.schedules.first;
-      if (s.semester.isNotEmpty && s.tahunAkademik.isNotEmpty) {
-        // Akan menghasilkan "Semester GENAP 2025/2026"
-        periodeTeks = "Semester ${s.semester} ${s.tahunAkademik}";
-      }
-    }
-
     return RefreshIndicator(
       onRefresh: () async {
         if (user != null) {
@@ -402,21 +392,20 @@ class _HomePageMhsState extends State<HomePageMhs> {
             ),
           ),
           const SizedBox(height: 4),
-          // 🔥 TEKS SEMESTER DINAMIS
           Text(
-            periodeTeks,
+            "Semester Genap 2025/2026",
             style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 16),
-
+      
           // Jadwal Hari Ini
           _todayCard(viewModel),
           const SizedBox(height: 20),
-
+      
           // Loading indicator
           if (viewModel.isLoading)
             const Center(child: CircularProgressIndicator()),
-
+      
           // Error message
           if (viewModel.errorMessage != null)
             Container(
@@ -443,7 +432,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 ],
               ),
             ),
-
+      
           // Kosong
           if (!viewModel.isLoading && grouped.isEmpty)
             Container(
@@ -469,7 +458,7 @@ class _HomePageMhsState extends State<HomePageMhs> {
                 ),
               ),
             ),
-
+      
           // Jadwal per Hari
           ...grouped.entries.map((entry) {
             return Column(

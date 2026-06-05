@@ -145,8 +145,9 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
 
   // ─── Sync dari MongoDB ────────────────────────────────────────────────────
   Future<void> syncFromMongo() async {
-    final isOnline = await _checkOnline();
-    if (!isOnline) return;
+    // FIX: pakai _ensureOnline() agar reconnect ke Mongo jika perlu,
+    //      bukan hanya _checkOnline() yang hanya cek koneksi internet.
+    if (!await _ensureOnline()) return;
 
     _isLoading = true;
     notifyListeners();
@@ -188,7 +189,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     final newId = ObjectId().toHexString();
     final now = DateTime.now();
 
-    // 1. Update UI secara lokal (agar terasa cepat tanpa loading)
     final newAnnouncement = AnnouncementModel(
       id: newId,
       judul: judul,
@@ -206,12 +206,13 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       idProdi: idProdi,
     );
 
+    await _announcementsBox.put(newId, newAnnouncement);
+
     _announcements.insert(0, newAnnouncement);
     _pendingIds.add(newId);
+    _syncStatus = SyncStatus.pending;
     notifyListeners();
 
-    // 2. Simpan ke Queue — gunakan key 'kategori' secara konsisten
-    //    dan simpan sebagai List<String> (bukan dikonversi ke String)
     await _queueBox.put(newId, {
       'id': newId,
       'action': 'create',
@@ -230,7 +231,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       'id_prodi': idProdi,
     });
 
-    // 3. Panggil proses upload
     _drainQueue();
   }
 
@@ -249,7 +249,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     if (raw == null) return ['Umum'];
 
     if (raw is List) {
-      // Kasus normal: List<String> atau List<dynamic>
       final result = raw
           .map((e) => e.toString().trim())
           .where((s) => s.isNotEmpty)
@@ -260,7 +259,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     if (raw is String) {
       final cleaned = raw.trim();
       if (cleaned.isEmpty) return ['Umum'];
-      // Strip kurung siku jika ada: "[Umum, Karir]" → "Umum, Karir"
       final stripped = cleaned.startsWith('[') && cleaned.endsWith(']')
           ? cleaned.substring(1, cleaned.length - 1)
           : cleaned;
@@ -326,7 +324,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
                 op['role_publisher'] ?? op['rolePublisher'] ?? 'ADMIN_TU',
           };
 
-          // Validasi opsional Jurusan
           if (op['id_jurusan'] != null &&
               op['id_jurusan'].toString().isNotEmpty) {
             doc['id_jurusan'] = ObjectId.parse(op['id_jurusan'].toString());
@@ -335,7 +332,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             doc['id_jurusan'] = ObjectId.parse(op['idJurusan'].toString());
           }
 
-          // Validasi opsional Prodi
           if (op['id_prodi'] != null && op['id_prodi'].toString().isNotEmpty) {
             doc['id_prodi'] = ObjectId.parse(op['id_prodi'].toString());
           } else if (op['idProdi'] != null &&
@@ -392,9 +388,26 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
     await syncFromMongo();
   }
 
-  // ─── Helper ───────────────────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   Future<bool> _checkOnline() async {
     final result = await Connectivity().checkConnectivity();
     return !(result as List).contains(ConnectivityResult.none);
+  }
+
+  Future<bool> _ensureOnline() async {
+    if (!await _checkOnline()) return false;
+
+    if (MongoDatabase.isOffline) {
+      try {
+        debugPrint('MongoDatabase offline — mencoba reconnect...');
+        await MongoDatabase.connect();
+        debugPrint('Reconnect berhasil.');
+      } catch (e) {
+        debugPrint('Reconnect gagal: $e');
+        return false;
+      }
+    }
+
+    return !MongoDatabase.isOffline;
   }
 }

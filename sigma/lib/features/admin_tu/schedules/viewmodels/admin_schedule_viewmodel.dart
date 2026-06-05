@@ -82,7 +82,8 @@ class AdminScheduleViewModel extends ChangeNotifier {
   // ── Sync dari MongoDB → Hive ───────────────────────────────────────────────
   Future<void> _syncFromMongo() async {
     if (_isSyncInProgress) return;
-    if (!await _checkOnline()) return;
+    // FIX: pakai _ensureOnline() agar reconnect ke Mongo jika perlu
+    if (!await _ensureOnline()) return;
 
     _isSyncInProgress = true;
     _isLoading = true;
@@ -143,7 +144,8 @@ class AdminScheduleViewModel extends ChangeNotifier {
       for (final k in keysToDelete) await _schedulesBox.delete(k);
 
       // 2. Hapus jadwal lama dari MongoDB jika online
-      final isOnline = await _checkOnline();
+      // FIX: pakai _ensureOnline() agar reconnect ke Mongo jika perlu
+      final isOnline = await _ensureOnline();
       if (isOnline) {
         for (final kelasKey in kelasKeys) {
           final parts = kelasKey.split('|');
@@ -224,7 +226,8 @@ class AdminScheduleViewModel extends ChangeNotifier {
 
   // ── Drain offline queue ────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
-    if (!await _checkOnline() || _queueBox.isEmpty) return;
+    // FIX: pakai _ensureOnline() agar reconnect ke Mongo jika perlu
+    if (!await _ensureOnline() || _queueBox.isEmpty) return;
 
     _syncStatus = SyncStatus.syncing;
     notifyListeners();
@@ -281,7 +284,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
             );
           }
 
-          //  Tandai ID ini untuk enrichment nama MK & dosen
+          // Tandai ID ini untuk enrichment nama MK & dosen
           enrichIds.addAll(ids);
         }
 
@@ -300,7 +303,7 @@ class AdminScheduleViewModel extends ChangeNotifier {
       _syncStatus = SyncStatus.synced;
       notifyListeners();
 
-      //  Enrich nama MK & dosen yang masih berupa kode (diimport saat offline)
+      // Enrich nama MK & dosen yang masih berupa kode (diimport saat offline)
       if (enrichIds.isNotEmpty) {
         await enrichPendingSchedules(enrichIds);
       }
@@ -322,7 +325,8 @@ class AdminScheduleViewModel extends ChangeNotifier {
   // ──────────────────────────────────────────────────────────────────────────
   Future<void> enrichPendingSchedules(List<String> ids) async {
     if (ids.isEmpty) return;
-    if (!await _checkOnline()) return;
+    // FIX: pakai _ensureOnline() agar reconnect ke Mongo jika perlu
+    if (!await _ensureOnline()) return;
 
     debugPrint(' Enriching ${ids.length} jadwal (patch nama MK & dosen)...');
 
@@ -454,10 +458,28 @@ class AdminScheduleViewModel extends ChangeNotifier {
     await _syncFromMongo();
   }
 
-  // ── Helper ─────────────────────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  // Cek apakah ada koneksi jaringan (WiFi / data)
   Future<bool> _checkOnline() async {
     final result = await Connectivity().checkConnectivity();
     return !(result as List).contains(ConnectivityResult.none);
   }
+
+  Future<bool> _ensureOnline() async {
+    if (!await _checkOnline()) return false;
+
+    if (MongoDatabase.isOffline) {
+      try {
+        debugPrint(' MongoDatabase offline — mencoba reconnect...');
+        await MongoDatabase.connect();
+        debugPrint(' Reconnect berhasil.');
+      } catch (e) {
+        debugPrint(' Reconnect gagal: $e');
+        return false;
+      }
+    }
+
+    return !MongoDatabase.isOffline;
+  }
 }
-//new

@@ -8,7 +8,7 @@ import 'package:sigma/data/models/dosen_model.dart';
 import 'package:sigma/data/models/tpj_model.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:sigma/data/models/schedule_local_model.dart';
+import 'package:sigma/data/models/schedule_model.dart';
 import 'package:sigma/data/models/task_model.dart';
 import 'package:sigma/data/models/announcement_model.dart';
 
@@ -149,7 +149,7 @@ class LoginViewModel extends ChangeNotifier {
 
       // 2. Bersihkan Data Cache Hive dengan Tipe yang Aman
       if (Hive.isBoxOpen('schedules')) {
-        await Hive.box<ScheduleLocalModel>('schedules').clear();
+        await Hive.box<ScheduleModel>('schedules').clear();
       }
       if (Hive.isBoxOpen('tasks')) {
         await Hive.box<TaskModel>('tasks').clear();

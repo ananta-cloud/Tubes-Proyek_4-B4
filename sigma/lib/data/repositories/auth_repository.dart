@@ -49,40 +49,93 @@ class AuthRepository {
         await MongoDatabase.db.open();
       }
 
-      // Cari user
+      // 1. Cari user di collection 'users'
       final user = await MongoDatabase.usersCollection.findOne({
         "email": email,
       });
       if (user == null) return null;
 
-      // Cek password
-      if (!BCrypt.checkpw(password, user["password"] as String)) return null;
+      final hashedPassword = user["password"];
+      final isValid = BCrypt.checkpw(password, hashedPassword);
+      if (!isValid) return null;
 
-      final String safeId = (user["_id"] is ObjectId)
-          ? (user["_id"] as ObjectId).toHexString()
-          : user["_id"].toString();
-      final String safeNama = user["nama"]?.toString() ?? "Pengguna Tanpa Nama";
+      // 2. Siapkan wadah untuk Profil Akademik
+      Map<String, dynamic>? profilLengkap;
+
+      // 3. Jika ia MAHASISWA, ambil data relasinya!
+      if (user["role"] == "MAHASISWA") {
+        final profilMahasiswa = await MongoDatabase.mahasiswaCollection.findOne({
+          "email": user["email"], 
+        });
+
+        if (profilMahasiswa != null) {
+          // 3A. Ambil Data Kelas
+          if (profilMahasiswa["id_kelas"] != null) {
+            var searchIdKelas = profilMahasiswa["id_kelas"];
+            if (searchIdKelas is String && searchIdKelas.length == 24) {
+              searchIdKelas = ObjectId.fromHexString(searchIdKelas);
+            }
+            final dataKelas = await MongoDatabase.kelasCollection.findOne({
+              "_id": searchIdKelas,
+            });
+            profilMahasiswa["kelas"] = dataKelas;
+          }
+
+          // 3B. Ambil Data Prodi (Terdapat di profilMahasiswa atau Kelas)
+          // Kode kueri prodi Anda yang kemarin ditaruh di sini tetap sama dan aman
+          var searchIdProdi = profilMahasiswa["id_prodi"] ?? (profilMahasiswa["kelas"] != null ? profilMahasiswa["kelas"]["id_prodi"] : null);
+          if (searchIdProdi != null) {
+            if (searchIdProdi is String && searchIdProdi.length == 24) {
+              searchIdProdi = ObjectId.fromHexString(searchIdProdi);
+            }
+            final dataProdi = await MongoDatabase.prodiCollection.findOne({
+              "_id": searchIdProdi
+            });
+            if (dataProdi != null) {
+              if (profilMahasiswa["kelas"] != null) {
+                profilMahasiswa["kelas"]["nama_prodi"] = dataProdi["nama_prodi"] ?? dataProdi["nama"];
+              } else {
+                profilMahasiswa["kelas"] = {"nama_prodi": dataProdi["nama_prodi"] ?? dataProdi["nama"]};
+              }
+            }
+          }
+          
+          profilLengkap = profilMahasiswa;
+          print("✅ PROFIL MAHASISWA DITEMUKAN VIA EMAIL: ${profilLengkap['nama']}");
+        } else {
+          print("❌ WARNING: Profil mahasiswa TIDAK DITEMUKAN untuk email: ${user["email"]}");
+        }
+      }
+
+      // 4. Saring Data Mentah ke Model
+      MahasiswaModel? modelMahasiswa;
+      if (user["role"] == "MAHASISWA" && profilLengkap != null) {
+        modelMahasiswa = MahasiswaModel.fromJson(profilLengkap);
+      }
+
+      // 🔥 PERBAIKAN NAMA: Prioritaskan nama dari koleksi MAHASISWA!
+      final String safeId = (user["_id"] is ObjectId) ? (user["_id"] as ObjectId).toHexString() : user["_id"].toString();
+      
+      final String namaDariProfil = profilLengkap?["nama"]?.toString() ?? "";
+      final String namaDariUser = user["nama"]?.toString() ?? "";
+      
+      // Jika profil mahasiswa punya nama, pakai itu. Jika kosong, baru pakai dari users.
+      final String safeNama = namaDariProfil.isNotEmpty ? namaDariProfil : (namaDariUser.isNotEmpty ? namaDariUser : "Mahasiswa");
+      
       final String safeEmail = user["email"]?.toString() ?? "";
       final String safeRole = user["role"]?.toString() ?? "MAHASISWA";
 
-      MahasiswaModel? modelMahasiswa;
-
-      if (safeRole == "MAHASISWA") {
-        modelMahasiswa = await _fetchProfilMahasiswa(safeEmail);
-      } else if (safeRole == "DOSEN") {
-        await _fetchAndSaveDosen(user["_id"]);
-      } else if (safeRole == "TIM_PENJADWALAN") {
-        await _fetchAndSaveTPJ(user["_id"]);
+      // 5. Simpan ke Secure Storage
+      await _storage.write(key: "user_id", value: safeId);
+      await _storage.write(key: "user_nama", value: safeNama);
+      await _storage.write(key: "user_role", value: safeRole);
+      await _storage.write(key: "user_email", value: safeEmail);
+      
+      if (modelMahasiswa != null) {
+        await _storage.write(key: "user_profil", value: jsonEncode(modelMahasiswa.toJson()));
       }
 
-      await _saveUserSession(
-        id: safeId,
-        nama: safeNama,
-        role: safeRole,
-        email: safeEmail,
-        mahasiswa: modelMahasiswa,
-      );
-
+      // 6. Kembalikan UserModel
       return UserModel(
         id: safeId,
         nama: safeNama,

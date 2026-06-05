@@ -18,6 +18,9 @@ class AdminMatkulViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _isSyncing = false;
+
+  // FIX: pisah flag fetch-level dari flag sync-level agar tidak saling blok
+  bool _isFetchInProgress = false;
   bool _isSyncInProgress = false;
 
   SyncStatus _syncStatus = SyncStatus.idle;
@@ -40,11 +43,16 @@ class AdminMatkulViewModel extends ChangeNotifier {
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   Future<void> fetchMatkul() async {
-    if (_isSyncInProgress) return;
-    _loadFromLocal();
-    _rebuildPendingIds();
-    await _drainQueue();
-    await _syncFromMongo();
+    if (_isFetchInProgress) return;
+    _isFetchInProgress = true;
+    try {
+      _loadFromLocal();
+      _rebuildPendingIds();
+      await _drainQueue();
+      await _syncFromMongo();
+    } finally {
+      _isFetchInProgress = false;
+    }
   }
 
   // ─── Load lokal ───────────────────────────────────────────────────────────
@@ -85,8 +93,7 @@ class AdminMatkulViewModel extends ChangeNotifier {
   // ─── Sync dari MongoDB ────────────────────────────────────────────────────
   Future<void> _syncFromMongo() async {
     if (_isSyncInProgress) return;
-    final isOnline = await _checkOnline();
-    if (!isOnline) return;
+    if (!await _ensureOnline()) return;
 
     _isSyncInProgress = true;
     _isLoading = true;
@@ -226,8 +233,7 @@ class AdminMatkulViewModel extends ChangeNotifier {
 
   // ─── Queue drain ──────────────────────────────────────────────────────────
   Future<void> _drainQueue() async {
-    final isOnline = await _checkOnline();
-    if (!isOnline || _queueBox.isEmpty) return;
+    if (!await _ensureOnline() || _queueBox.isEmpty) return;
 
     _isSyncing = true;
     _syncStatus = SyncStatus.syncing;
@@ -284,7 +290,7 @@ class AdminMatkulViewModel extends ChangeNotifier {
       } catch (e) {
         failCount++;
         debugPrint(
-          '❌ Matkul queue item $key gagal: $e — lanjut ke item berikutnya',
+          'Matkul queue item $key gagal: $e — lanjut ke item berikutnya',
         );
       }
     }
@@ -314,10 +320,26 @@ class AdminMatkulViewModel extends ChangeNotifier {
     await _syncFromMongo();
   }
 
-  // ─── Helper ───────────────────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   Future<bool> _checkOnline() async {
     final result = await Connectivity().checkConnectivity();
     return !(result as List).contains(ConnectivityResult.none);
   }
+
+  Future<bool> _ensureOnline() async {
+    if (!await _checkOnline()) return false;
+
+    if (MongoDatabase.isOffline) {
+      try {
+        debugPrint('MongoDatabase offline — mencoba reconnect...');
+        await MongoDatabase.connect();
+        debugPrint('Reconnect berhasil.');
+      } catch (e) {
+        debugPrint('Reconnect gagal: $e');
+        return false;
+      }
+    }
+
+    return !MongoDatabase.isOffline;
+  }
 }
-//new

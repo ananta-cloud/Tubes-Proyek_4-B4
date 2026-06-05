@@ -31,16 +31,28 @@ class FcmSenderService {
       final String fcmEndpoint = 
           'https://fcm.googleapis.com/v1/projects/$_projectId/messages:send';
 
-      // Menggabungkan modul dan target untuk membentuk topik
-      // Contoh hasil: "pengumuman_mahasiswa", "jadwal_admin_tu"
       String targetTopic = '${module.toLowerCase()}_${targetAudience.toLowerCase()}';
 
+      // 1. PERBAIKAN: Tentukan Channel ID dari sisi Server
+      String channelId = 'channel_biasa_1';
+      if (tingkatKepentingan == 'PENTING') {
+        channelId = 'channel_penting_1';
+      } else if (tingkatKepentingan == 'SANGAT PENTING' || tingkatKepentingan == 'SANGAT_PENTING') {
+        channelId = 'channel_sangat_penting_1';
+      }
+
+      // 2. PERBAIKAN: Tambahkan blok "android" di payload JSON
       final Map<String, dynamic> body = {
         "message": {
           "topic": targetTopic,
           "notification": {
             "title": judul,
             "body": isi,
+          },
+          "android": {
+            "notification": {
+              "channel_id": channelId
+            }
           },
           "data": {
             "tipe": tingkatKepentingan, 
