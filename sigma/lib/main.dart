@@ -61,19 +61,33 @@ void main() async {
   await initializeDateFormatting('id_ID', null);
   debugPrint("MONGO_URL: ${dotenv.env['MONGO_URL']}");
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 5));
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await NotificationService().initNotification();
-  
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    await NotificationService().initNotification().timeout(
+      const Duration(seconds: 5),
+    );
+  } catch (e) {
+    debugPrint(
+      "Peringatan: Firebase/Notifikasi gagal diinisialisasi (Timeout/Network Error). Lanjut tanpa notifikasi. Error: $e",
+    );
+  }
 
   await Hive.initFlutter();
 
   // Registrasi Adapter Hive
-  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(AnnouncementModelAdapter());
-  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(DetailPerubahanAdapter());
-  if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(ScheduleRequestModelAdapter());
-  if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(ScheduleModelAdapter());
+  if (!Hive.isAdapterRegistered(2))
+    Hive.registerAdapter(AnnouncementModelAdapter());
+  if (!Hive.isAdapterRegistered(3))
+    Hive.registerAdapter(DetailPerubahanAdapter());
+  if (!Hive.isAdapterRegistered(4))
+    Hive.registerAdapter(ScheduleRequestModelAdapter());
+  if (!Hive.isAdapterRegistered(5))
+    Hive.registerAdapter(ScheduleModelAdapter());
   if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(MatkulModelAdapter());
   if (!Hive.isAdapterRegistered(7)) Hive.registerAdapter(DosenModelAdapter());
   if (!Hive.isAdapterRegistered(8))
