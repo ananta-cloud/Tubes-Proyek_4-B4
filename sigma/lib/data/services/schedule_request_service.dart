@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:sigma/core/network/mongo_database.dart';
+import 'package:sigma/data/services/fcm_sender_service.dart';
 import '../models/schedule_request_model.dart';
 
 class ScheduleRequestService {
@@ -306,6 +307,25 @@ class ScheduleRequestService {
       }
 
       final updateSchedule = await _schCol.updateOne(where.id(schId), modifier);
+
+      if (updateSchedule.isSuccess) {
+        try {
+          final hari = detail.hariBaru ?? request.hariJadwal;
+          final jam = detail.jamMulaiBaru ?? request.jamMulaiJadwal;
+          final ruang = detail.ruanganBaru ?? request.ruanganJadwal;
+          
+          await FcmSenderService.sendNotificationToTarget(
+            judul: 'Perubahan Jadwal Disetujui',
+            isi: 'Mata Kuliah ${request.namaMk} (Kelas ${request.kelas}) dipindahkan ke hari $hari, jam $jam di $ruang.',
+            module: 'jadwal',
+            targetAudience: 'mahasiswa',
+            tingkatKepentingan: 'PENTING',
+          );
+          print("Notifikasi perubahan jadwal berhasil dikirim ke mahasiswa.");
+        } catch (e) {
+          print("Gagal mengirim notifikasi: $e");
+        }
+      }
 
       return updateSchedule.isSuccess;
     } catch (e, s) {
