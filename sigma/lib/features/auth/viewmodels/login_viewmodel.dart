@@ -98,6 +98,7 @@ class LoginViewModel extends ChangeNotifier {
       NotificationService.subscribeToRole(
         result.role,
         userId: result.id,
+        prodi: user?.prodi,
       ).catchError((e) {
         debugPrint("FCM Tertunda karena offline: $e");
       });

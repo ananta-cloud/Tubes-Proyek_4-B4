@@ -343,11 +343,25 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             () => MongoDatabase.announcementsCollection.insertOne(doc),
           );
 
+          String rawTarget = op['target'] ?? op['target_audience'] ?? 'Semua';
+          String targetNotif = 'semua'; // Default
+
+          if (rawTarget == 'Mahasiswa (Semua Prodi)' || rawTarget == 'Mahasiswa') {
+            targetNotif = 'mahasiswa';
+          } else if (rawTarget == 'Dosen') {
+            targetNotif = 'dosen';
+          } else if (rawTarget != 'Semua') {
+            // Jika admin memilih prodi spesifik (Misal: "D3 Teknik Informatika")
+            String prodiFormatted = rawTarget.replaceAll(' ', '_').toLowerCase();
+            targetNotif = 'mahasiswa_$prodiFormatted';
+          }
+
+          // Panggil Service Pengirim Notifikasi
           await FcmSenderService.sendNotificationToTarget(
             judul: op['judul'],
             isi: op['isi'],
             module: 'pengumuman',
-            targetAudience: op['target'],
+            targetAudience: targetNotif,
             tingkatKepentingan:
                 op['tingkat_kepentingan'] ??
                 op['tingkatKepentingan'] ??

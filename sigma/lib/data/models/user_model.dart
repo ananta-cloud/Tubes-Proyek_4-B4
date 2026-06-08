@@ -57,4 +57,5 @@ class UserModel {
   bool get isManajemen => role == 'MANAJEMEN';
 
   String? get namaKelasStr => profilMahasiswa?.kelas?.namaKelas;
+  String? get prodi => profilMahasiswa?.kelas?.namaProdi;
 }

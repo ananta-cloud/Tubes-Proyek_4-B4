@@ -173,7 +173,7 @@ class NotificationService {
   // =========================================================
   // Fungsi untuk mengatur langganan topik berdasarkan Role
   // =========================================================
-  static Future<void> subscribeToRole(String role, {required String userId}) async {
+  static Future<void> subscribeToRole(String role, {required String userId, String? prodi}) async {
     final fcm = FirebaseMessaging.instance;
     final userRole = role.trim().toUpperCase();
 
@@ -206,6 +206,14 @@ class NotificationService {
       await fcm.subscribeToTopic('pengumuman_mahasiswa');
       await fcm.subscribeToTopic('task_mahasiswa');
       await fcm.subscribeToTopic('jadwal_mahasiswa');
+
+      if (prodi != null && prodi.isNotEmpty) {
+        String prodiTopic = prodi.replaceAll(' ', '_').toLowerCase();
+        await fcm.subscribeToTopic('pengumuman_mahasiswa_$prodiTopic');
+        print("Langganan Notif: MAHASISWA Aktif (Prodi: $prodiTopic)");
+      } else {
+        print("Langganan Notif: MAHASISWA Aktif (Tanpa Prodi)");
+      }
       print("Langganan Notif: MAHASISWA Aktif");
     } else if (userRole == 'DOSEN') {
       await fcm.subscribeToTopic('pengumuman_semua');
