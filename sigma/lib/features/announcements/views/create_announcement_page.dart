@@ -205,7 +205,7 @@ class _CreateAnnouncementPageState extends State<CreateAnnouncementPage> {
     // Susun target string: kalau MAHASISWA + prodi dipilih, tambahkan info prodi
     String targetFinal = _selectedTarget;
     if (_isTargetMahasiswa && _selectedProdi != null) {
-      targetFinal = 'MAHASISWA - $_selectedProdi';
+      targetFinal = 'Mahasiswa ($_selectedProdi)';
     }
 
     final vm = context.read<AdminAnnouncementViewModel>();
