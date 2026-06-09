@@ -5,15 +5,39 @@ import 'package:hive/hive.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class DosenRequestService {
-  DbCollection get _schCol => MongoDatabase.db.collection('schedules');
-  DbCollection get _reqCol => MongoDatabase.db.collection('schedule_requests');
-  final Box _scheduleCache = Hive.box('schedule_cache');
+  final DbCollection? _schColOverride;
+  final DbCollection? _reqColOverride;
+  final Box? _cacheOverride;
+  final Connectivity? _connectivityOverride;
+
+  DosenRequestService()
+    : _schColOverride = null,
+      _reqColOverride = null,
+      _cacheOverride = null,
+      _connectivityOverride = null;
+
+  DosenRequestService.withMocks({
+    required DbCollection schCol,
+    required DbCollection reqCol,
+    required Box cacheBox,
+    required Connectivity connectivity,
+  }) : _schColOverride = schCol,
+       _reqColOverride = reqCol,
+       _cacheOverride = cacheBox,
+       _connectivityOverride = connectivity;
+
+  DbCollection get _schCol =>
+      _schColOverride ?? MongoDatabase.db.collection('schedules');
+  DbCollection get _reqCol =>
+      _reqColOverride ?? MongoDatabase.db.collection('schedule_requests');
+  Box get _scheduleCache => _cacheOverride ?? Hive.box('schedule_cache');
+  Connectivity get _connectivity => _connectivityOverride ?? Connectivity();
 
   bool _allSchedulesCached = false;
 
   Future<bool> _isOnline() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    return !connectivity.contains(ConnectivityResult.none);
+    final result = await _connectivity.checkConnectivity();
+    return !result.contains(ConnectivityResult.none);
   }
 
   // ─────────────────────────────────────────────
@@ -30,7 +54,6 @@ class DosenRequestService {
       await MongoDatabase.ensureConnected();
       print('ONLINE: fetch jadwal dari MongoDB');
 
-      // Cache semua jadwal sekali per sesi (untuk cek ruangan offline)
       if (!_allSchedulesCached) {
         final allSchedules = await _schCol
             .find(
@@ -57,7 +80,6 @@ class DosenRequestService {
       return sanitized;
     } catch (e) {
       print('Error getMySchedules: $e');
-      // cache kalau ada error
       final cached = _scheduleCache.get('my_schedules_$kodeDosen');
       return cached != null ? List<Map<String, dynamic>>.from(cached) : [];
     }
@@ -109,8 +131,6 @@ class DosenRequestService {
             selesaiDoc.compareTo(jamMulai) > 0;
       }).toList();
 
-      print('BENTROK count: ${bentrok.length}');
-
       final ruanganTerpakai = bentrok
           .map((s) => s['ruangan']?.toString() ?? '')
           .where((r) => r.isNotEmpty)
@@ -120,11 +140,9 @@ class DosenRequestService {
           allRuangan.where((r) => !ruanganTerpakai.contains(r)).toList()
             ..sort();
 
-      print('TERSEDIA: $tersedia');
       return tersedia;
     } catch (e) {
       print('ERROR getRuanganTersedia: $e');
-      // kalkulasi offline
       return _getRuanganTersediaOffline(
         hari: hari,
         jamMulai: jamMulai,
@@ -262,7 +280,6 @@ class DosenRequestService {
 
       if (requests.isEmpty) return [];
 
-      // ✅ Ambil semua jadwal sekaligus, bukan satu-satu
       final scheduleIds = requests
           .where((r) => r['id_schedule'] != null)
           .map((r) => r['id_schedule'] as ObjectId)
@@ -347,7 +364,6 @@ class DosenRequestService {
     if (cached == null) return [];
 
     return List<Map<String, dynamic>>.from(cached).map((e) {
-      // Pisahkan data jadwal dari data request
       final jadwal = {
         'nama_mk': e['nama_mk'],
         'kode_mk': e['kode_mk'],
@@ -362,7 +378,7 @@ class DosenRequestService {
   }
 
   // ─────────────────────────────────────────────
-  // CANCEL REQUEST (hanya jika PENDING)
+  // CANCEL REQUEST
   // ─────────────────────────────────────────────
 
   Future<bool> cancelRequest(String requestId) async {
@@ -391,7 +407,6 @@ class DosenRequestService {
     return doc.map((k, v) {
       if (v is ObjectId) return MapEntry(k, v.toHexString());
       if (v is DateTime) return MapEntry(k, v.toIso8601String());
-
       if (v is Map) return MapEntry(k, Map<String, dynamic>.from(v));
       if (v is List)
         return MapEntry(
