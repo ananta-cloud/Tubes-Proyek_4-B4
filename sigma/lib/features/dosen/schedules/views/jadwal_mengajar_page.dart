@@ -41,6 +41,7 @@ class _JadwalMengajarPageState extends State<JadwalMengajarPage> {
       if (mounted) {
         context.read<DosenRequestController>().loadMySchedules(
           widget.dosen.kodeDosen,
+          forceRefresh: true,
         );
       }
     });
