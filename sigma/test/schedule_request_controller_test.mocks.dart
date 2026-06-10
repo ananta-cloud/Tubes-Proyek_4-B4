@@ -6,10 +6,7 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
-<<<<<<< HEAD
 import 'package:mongo_dart/mongo_dart.dart' as _i5;
-=======
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
 import 'package:sigma/data/models/schedule_request_model.dart' as _i4;
 import 'package:sigma/data/services/schedule_request_service.dart' as _i2;
 
@@ -36,7 +33,6 @@ class MockScheduleRequestService extends _i1.Mock
   }
 
   @override
-<<<<<<< HEAD
   _i3.Future<void> Function() get onEnsureConnected => (super.noSuchMethod(
         Invocation.getter(#onEnsureConnected),
         returnValue: () => _i3.Future<void>.value(),
@@ -53,8 +49,6 @@ class MockScheduleRequestService extends _i1.Mock
       );
 
   @override
-=======
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
   _i3.Future<List<_i4.ScheduleRequestModel>> getRequests({
     required String? idJurusan,
     String? status,
@@ -140,7 +134,6 @@ class MockScheduleRequestService extends _i1.Mock
         ),
         returnValue: _i3.Future<int>.value(0),
       ) as _i3.Future<int>);
-<<<<<<< HEAD
 
   @override
   _i3.Future<void> clearCache(
@@ -177,6 +170,4 @@ class MockScheduleRequestService extends _i1.Mock
         ),
         returnValueForMissingStub: null,
       );
-=======
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
 }

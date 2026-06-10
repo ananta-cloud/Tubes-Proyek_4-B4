@@ -268,7 +268,7 @@ class ScheduleRequestService {
     required ScheduleRequestModel request,
   }) async {
     try {
-      await MongoDatabase.ensureConnected();
+      await onEnsureConnected();
 
       final reqId = ObjectId.fromHexString(_cleanObjectId(requestId));
 
@@ -374,7 +374,7 @@ class ScheduleRequestService {
     required String catatanAdmin,
   }) async {
     try {
-      await MongoDatabase.ensureConnected();
+      await onEnsureConnected();
 
       final reqId = ObjectId.fromHexString(_cleanObjectId(requestId));
 

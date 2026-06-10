@@ -18,10 +18,6 @@ void main() {
   late Box<ScheduleLocalModel> box;
   late Directory tempDir;
 
-<<<<<<< HEAD
-=======
-  // ── Helper ─────────────────────────────────────────────────────────────
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
   ScheduleLocalModel makeModel({
     String id = 'id1',
     String namaMk = 'Basis Data',
@@ -58,7 +54,6 @@ void main() {
     'nama_dosen': namaDosen,
   };
 
-<<<<<<< HEAD
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('hive_sc_');
     Hive.init(tempDir.path);
@@ -66,28 +61,12 @@ void main() {
       Hive.registerAdapter(ScheduleLocalModelAdapter());
     }
     box = await Hive.openBox<ScheduleLocalModel>('schedules');
-=======
-  // ── setUp / tearDown ────────────────────────────────────────────────────
-  setUp(() async {
-    // Buka Hive di temp dir agar tidak bentrok antar test
-    tempDir = await Directory.systemTemp.createTemp('hive_test_');
-    Hive.init(tempDir.path);
-
-    // PERBAIKAN: Ubah pengecekan dari 0 ke 1 sesuai dengan typeId asli ScheduleLocalModel
-    if (!Hive.isAdapterRegistered(1)) {
-      Hive.registerAdapter(ScheduleLocalModelAdapter());
-    }
-
-    box = await Hive.openBox<ScheduleLocalModel>('schedules');
-
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
     mockService = MockScheduleService();
     controller = ScheduleController(mockService);
   });
 
   tearDown(() async {
     await box.close();
-<<<<<<< HEAD
     await Hive.close();
     await tempDir.delete(recursive: true);
   });
@@ -156,75 +135,6 @@ void main() {
   // TC03
   group(
     'TC03 - syncSchedules memetakan field MongoDB ke ScheduleLocalModel dengan benar',
-=======
-    await Hive.deleteBoxFromDisk('schedules');
-    // Tambahkan reset internal Hive registry agar bersih saat test case berikutnya berjalan
-    await Hive.close();
-    try {
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
-    } catch (e) {
-      // Mencegah file lock issue pada sistem operasi Windows saat proses penghapusan IO cepat
-    }
-  });
-
-  // ── TC01 ────────────────────────────────────────────────────────────────
-  group('TC01 - syncSchedules berhasil ambil dari MongoDB', () {
-    test(
-      'schedules berisi 3 item, isLoading false, notifyListeners dipanggil',
-      () async {
-        when(mockService.getSchedules()).thenAnswer(
-          (_) async => [
-            makeRaw(id: 'id1', namaMk: 'Basis Data'),
-            makeRaw(id: 'id2', namaMk: 'Pemrograman Web'),
-            makeRaw(id: 'id3', namaMk: 'Jaringan Komputer'),
-          ],
-        );
-
-        int notifyCount = 0;
-        controller.addListener(() => notifyCount++);
-
-        await controller.syncSchedules();
-
-        expect(controller.schedules.length, 3);
-        expect(controller.isLoading, false);
-        expect(notifyCount, greaterThan(0));
-      },
-    );
-  });
-
-  // ── TC02 ────────────────────────────────────────────────────────────────
-  group('TC02 - syncSchedules membersihkan cache lama', () {
-    test(
-      'schedules hanya berisi data baru (bukan gabungan lama + baru)',
-      () async {
-        // Isi box dengan data lama
-        await box.put('old1', makeModel(id: 'old1', namaMk: 'MK Lama 1'));
-        await box.put('old2', makeModel(id: 'old2', namaMk: 'MK Lama 2'));
-
-        when(mockService.getSchedules()).thenAnswer(
-          (_) async => [
-            makeRaw(id: 'new1', namaMk: 'Data Mining'),
-            makeRaw(id: 'new2', namaMk: 'AI'),
-            makeRaw(id: 'new3', namaMk: 'IoT'),
-            makeRaw(id: 'new4', namaMk: 'Cloud Computing'),
-          ],
-        );
-
-        await controller.syncSchedules();
-
-        expect(controller.schedules.length, 4);
-        expect(controller.schedules.any((s) => s.namaMk == 'MK Lama 1'), false);
-        expect(controller.isLoading, false);
-      },
-    );
-  });
-
-  // ── TC03 ────────────────────────────────────────────────────────────────
-  group(
-    'TC03 - syncSchedules memetakan field MongoDB ke model dengan benar',
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
     () {
       test('setiap field model sesuai dengan data MongoDB', () async {
         when(mockService.getSchedules()).thenAnswer(
@@ -243,10 +153,6 @@ void main() {
 
         await controller.syncSchedules();
 
-<<<<<<< HEAD
-=======
-        expect(controller.schedules.length, 1);
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
         final model = controller.schedules.first;
         expect(model.id, 'abc123');
         expect(model.namaMk, 'Basis Data');
@@ -259,7 +165,6 @@ void main() {
     },
   );
 
-<<<<<<< HEAD
   // TC04
   group(
     'TC04 - syncSchedules menggunakan nilai default \'-\' jika field null',
@@ -343,93 +248,4 @@ void main() {
       });
     },
   );
-=======
-  // ── TC04 ────────────────────────────────────────────────────────────────
-  group('TC04 - syncSchedules menggunakan default "-" jika field null', () {
-    test('semua field null menghasilkan "-" bukan null/crash', () async {
-      when(mockService.getSchedules()).thenAnswer(
-        (_) async => [
-          makeRaw(
-            id: 'nullId',
-            namaMk: null,
-            hari: null,
-            jamMulai: null,
-            jamSelesai: null,
-            ruangan: null,
-            namaDosen: null,
-          ),
-        ],
-      );
-
-      await controller.syncSchedules();
-
-      expect(controller.schedules.length, 1);
-      final model = controller.schedules.first;
-      expect(model.namaMk, '-');
-      expect(model.hari, '-');
-      expect(model.jamMulai, '-');
-      expect(model.jamSelesai, '-');
-      expect(model.ruangan, '-');
-      expect(model.dosen, '-');
-    });
-  });
-
-  // ── TC05 ────────────────────────────────────────────────────────────────
-  group('TC05 - syncSchedules fallback ke cache jika MongoDB exception', () {
-    test('schedules berisi data cache, isLoading false, tidak crash', () async {
-      // Isi box dengan data cache terlebih dahulu
-      await box.put('c1', makeModel(id: 'c1', namaMk: 'Cached MK 1'));
-      await box.put('c2', makeModel(id: 'c2', namaMk: 'Cached MK 2'));
-
-      when(mockService.getSchedules()).thenThrow(Exception('Mongo error'));
-
-      await controller.syncSchedules();
-
-      expect(controller.schedules.length, 2);
-      expect(controller.isLoading, false);
-    });
-  });
-
-  // ── TC06 ────────────────────────────────────────────────────────────────
-  group('TC06 - syncSchedules empty list jika exception dan cache kosong', () {
-    test('schedules = [], isLoading false, tidak crash', () async {
-      when(mockService.getSchedules()).thenThrow(Exception('Mongo error'));
-
-      await controller.syncSchedules();
-
-      expect(controller.schedules, isEmpty);
-      expect(controller.isLoading, false);
-    });
-  });
-
-  // ── TC07 ────────────────────────────────────────────────────────────────
-  group('TC07 - syncSchedules kosongkan box jika MongoDB return []', () {
-    test('schedules = [] dan isLoading false', () async {
-      // Isi box dengan data lama
-      await box.put('old1', makeModel(id: 'old1'));
-
-      when(mockService.getSchedules()).thenAnswer((_) async => []);
-
-      await controller.syncSchedules();
-
-      expect(controller.schedules, isEmpty);
-      expect(controller.isLoading, false);
-    });
-  });
-
-  // ── isLoading lifecycle ─────────────────────────────────────────────────
-  group('isLoading lifecycle', () {
-    test('isLoading true saat sync, false setelah selesai', () async {
-      final loading = <bool>[];
-      controller.addListener(() => loading.add(controller.isLoading));
-
-      when(mockService.getSchedules()).thenAnswer((_) async => []);
-
-      await controller.syncSchedules();
-
-      expect(loading.first, true);
-      expect(loading.last, false);
-    });
-  });
->>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
 }
