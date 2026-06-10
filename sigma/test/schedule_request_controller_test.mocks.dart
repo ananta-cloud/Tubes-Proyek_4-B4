@@ -6,6 +6,7 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mongo_dart/mongo_dart.dart' as _i5;
 import 'package:sigma/data/models/schedule_request_model.dart' as _i4;
 import 'package:sigma/data/services/schedule_request_service.dart' as _i2;
 
@@ -150,4 +151,23 @@ class MockScheduleRequestService extends _i1.Mock
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
       ) as _i3.Future<void>);
+
+  @override
+  void injectCollections({
+    required _i5.DbCollection? reqCol,
+    required _i5.DbCollection? schCol,
+    required _i5.DbCollection? dosenCol,
+  }) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #injectCollections,
+          [],
+          {
+            #reqCol: reqCol,
+            #schCol: schCol,
+            #dosenCol: dosenCol,
+          },
+        ),
+        returnValueForMissingStub: null,
+      );
 }

@@ -8,6 +8,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:hive_test/hive_test.dart';
 
 // ================= IMPORT DATABASE =================
 import 'core/network/mongo_database.dart';

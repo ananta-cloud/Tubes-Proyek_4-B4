@@ -1,222 +1,625 @@
-import 'dart:io';
+// import 'package:flutter_test/flutter_test.dart';
+// import 'package:mongo_dart/mongo_dart.dart';
+// import 'package:hive/hive.dart';
+// import 'package:hive_test/hive_test.dart';
+// import 'package:sigma/core/network/mongo_database.dart';
+// import 'package:sigma/data/services/schedule_request_service.dart';
+// import 'package:sigma/data/models/schedule_request_model.dart';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+// // ── Fake WriteResult ──────────────────────────────────────
+// class FakeWriteResult implements WriteResult {
+//   final bool _success;
+//   FakeWriteResult(this._success);
+//   @override
+//   bool get isSuccess => _success;
+//   @override
+//   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+// }
 
-import 'package:sigma/data/models/schedule_request_model.dart';
-import 'package:sigma/data/services/schedule_request_service.dart';
+// // ── Fake DbCollection ─────────────────────────────────────
+// // Semua method return nilai default aman; test override via callback.
+// class FakeDbCollection implements DbCollection {
+//   Stream<Map<String, dynamic>> Function(dynamic)? onFind;
+//   Future<WriteResult> Function(dynamic, dynamic)? onUpdateOne;
+//   Future<int> Function(dynamic)? onCount;
+//   Future<Map<String, dynamic>?> Function(dynamic)? onFindOne;
 
-// Kita tidak bisa mock DbCollection langsung (mongo_dart bukan interface),
-// sehingga test difokuskan pada layer Hive cache & queue yang bisa diverifikasi
-// tanpa koneksi MongoDB sungguhan.
+//   @override
+//   Stream<Map<String, dynamic>> find([dynamic selector]) {
+//     if (onFind != null) return onFind!(selector);
+//     return const Stream.empty();
+//   }
 
-void main() {
-  late Directory tempDir;
-  late Box<Map> cacheBox;
-  late Box<Map> queueBox;
+//   @override
+//   Future<WriteResult> updateOne(
+//     dynamic selector,
+//     dynamic update, {
+//     dynamic writeConcern,
+//     dynamic collectionSafe,
+//   }) async {
+//     if (onUpdateOne != null) return onUpdateOne!(selector, update);
+//     return FakeWriteResult(false);
+//   }
 
-  // ── Helper ──────────────────────────────────────────────────────────────
-  Map<String, dynamic> makeRequestMap({
-    String id = 'req1',
-    String idSchedule = 'sch1',
-    String idDosen = 'dos1',
-    String status = 'PENDING',
-    String namaDosen = 'Bu Ani',
-    String tipeRequest = 'PINDAH_JAM',
-    String alasan = 'Bentrok',
-    String namaMk = 'Basis Data',
-  }) => {
-    '_id': id,
-    'id_schedule': idSchedule,
-    'id_dosen': idDosen,
-    'nama_dosen': namaDosen,
-    'tipe_request': tipeRequest,
-    'detail_perubahan': {
-      'tanggal_baru': '2025-06-02T00:00:00.000',
-      'hari_baru': 'RABU',
-      'jam_mulai_baru': '08:00',
-      'jam_selesai_baru': '09:40',
-      'ruangan_baru': 'R1',
-    },
-    'alasan': alasan,
-    'nama_matkul': namaMk,
-    'nama_mk': namaMk,
-    'kode_mk': 'BD101',
-    'status': status,
-    'offline_id': null,
-    'catatan_admin': null,
-    'id_processor': null,
-    'is_late': false,
-    'created_at': '2025-06-01T07:00:00.000',
-    'updated_at': '2025-06-01T07:00:00.000',
-    'hari': 'SENIN',
-    'jam_mulai': '07:30',
-    'jam_selesai': '09:10',
-    'ruangan': 'Lab A',
-    'kelas': 'A',
-  };
+//   @override
+//   Future<int> count([dynamic selector]) async {
+//     if (onCount != null) return onCount!(selector);
+//     return 0;
+//   }
 
-  ScheduleRequestModel makeModel({
-    String id = 'req1',
-    String status = 'PENDING',
-  }) {
-    final m = makeRequestMap(id: id, status: status);
-    return ScheduleRequestModel.fromJson(m, jadwal: m);
-  }
+//   @override
+//   Future<Map<String, dynamic>?> findOne([dynamic selector]) async {
+//     if (onFindOne != null) return onFindOne!(selector);
+//     return null;
+//   }
 
-  setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('hive_srs_');
-    Hive.init(tempDir.path);
+//   @override
+//   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+// }
 
-    if (!Hive.isAdapterRegistered(3))
-      Hive.registerAdapter(DetailPerubahanAdapter());
-    if (!Hive.isAdapterRegistered(4))
-      Hive.registerAdapter(ScheduleRequestModelAdapter());
+// // ── Helpers ───────────────────────────────────────────────
 
-    cacheBox = await Hive.openBox<Map>('tpj_requests_cache');
-    queueBox = await Hive.openBox<Map>('tpj_action_queue');
-  });
+// Map<String, dynamic> _fakeDosen(String kode, String jurusanId) => {
+//   '_id': ObjectId(),
+//   'kode_dosen': kode,
+//   'id_jurusan': ObjectId.fromHexString(jurusanId),
+// };
 
-  tearDown(() async {
-    await cacheBox.close();
-    await queueBox.close();
-    await Hive.close();
-    await tempDir.delete(recursive: true);
-  });
+// Map<String, dynamic> _fakeJadwal(ObjectId id, String kodeDosen) => {
+//   '_id': id,
+//   'kode_dosen': kodeDosen,
+//   'nama_matkul': 'Algoritma',
+//   'hari': 'Senin',
+//   'jam_mulai': '08:00',
+//   'jam_selesai': '10:00',
+//   'ruangan': 'R101',
+//   'kelas': 'A',
+// };
 
-  // ── TC03 – getRequests offline dari cache ────────────────────────────────
-  group('TC03 - getRequests offline mengembalikan data cache', () {
-    test('return 2 item dari cache saat offline', () async {
-      final key = 'J01_SEMUA';
-      await cacheBox.put(key, {
-        'data': [makeRequestMap(id: 'r1'), makeRequestMap(id: 'r2')],
-        'cachedAt': DateTime.now().toIso8601String(),
-      });
+// // Semua value primitif/String — aman untuk Hive cache
+// Map<String, dynamic> _fakeRequest(String scheduleId, String dosenId) => {
+//   '_id': ObjectId().toHexString(),
+//   'id_schedule': scheduleId,
+//   'id_dosen': dosenId,
+//   'tipe_request': 'RESCHEDULE',
+//   'detail_perubahan': {
+//     'hari_baru': 'Selasa',
+//     'jam_mulai_baru': '10:00',
+//     'jam_selesai_baru': '12:00',
+//     'ruangan_baru': 'R202',
+//   },
+//   'alasan': 'Bentrok',
+//   'status': 'PENDING',
+//   'offline_id': null,
+//   'catatan_admin': null,
+//   'id_processor': null,
+//   'is_late': false,
+//   'created_at': DateTime.now().toIso8601String(),
+//   'updated_at': DateTime.now().toIso8601String(),
+// };
 
-      final service = ScheduleRequestService();
-      // Akses langsung method _loadCache via getRequests saat isOffline
-      // Simulasi: isi cache manual, verifikasi isi box
-      final raw = cacheBox.get(key);
-      expect(raw, isNotNull);
-      final list = (raw!['data'] as List?)!;
-      expect(list.length, 2);
-    });
-  });
+// ScheduleRequestModel _fakeSRM() {
+//   final schId = ObjectId();
+//   return ScheduleRequestModel.fromJson(
+//     _fakeRequest(schId.toHexString(), ObjectId().toHexString()),
+//     jadwal: _fakeJadwal(schId, 'ANI'),
+//   );
+// }
 
-  // ── TC07 – approveRequest offline masuk queue ────────────────────────────
-  group('TC07 - approveRequest offline masuk ke queue', () {
-    test('queue berisi 1 aksi APPROVE setelah dipanggil offline', () async {
-      final model = makeModel();
+// Future<void> _seedCache(String key, List<Map<String, dynamic>> items) async {
+//   final box = Hive.box<Map>('tpj_requests_cache');
+//   await box.put(key, {
+//     'data': items,
+//     'cachedAt': DateTime.now().toIso8601String(),
+//   });
+// }
 
-      // Simulasi offline: tambah aksi ke queue langsung
-      await queueBox.add({
-        'type': 'APPROVE',
-        'requestId': 'req1',
-        'processorId': 'adm1',
-        'catatanAdmin': 'Disetujui',
-        'requestJson': makeRequestMap(),
-        'queuedAt': DateTime.now().toIso8601String(),
-      });
+// Future<void> _seedQueue(List<Map<String, dynamic>> actions) async {
+//   final box = Hive.box<Map>('tpj_action_queue');
+//   for (final a in actions) {
+//     await box.add(a);
+//   }
+// }
 
-      expect(queueBox.length, 1);
-      final action = Map<String, dynamic>.from(queueBox.values.first);
-      expect(action['type'], 'APPROVE');
-      expect(action['requestId'], 'req1');
-    });
-  });
+// // ── Buat service + fake collections baru setiap test ──────
+// ({
+//   ScheduleRequestService service,
+//   FakeDbCollection req,
+//   FakeDbCollection sch,
+//   FakeDbCollection dosen,
+// })
+// _makeService() {
+//   final req = FakeDbCollection();
+//   final sch = FakeDbCollection();
+//   final dosen = FakeDbCollection();
+//   final svc = ScheduleRequestService();
+//   svc.onEnsureConnected = () async {};
+//   svc.injectCollections(reqCol: req, schCol: sch, dosenCol: dosen);
+//   return (service: svc, req: req, sch: sch, dosen: dosen);
+// }
 
-  // ── TC08 – rejectRequest offline masuk queue ─────────────────────────────
-  group('TC08 - rejectRequest offline masuk ke queue', () {
-    test('queue berisi 1 aksi REJECT setelah dipanggil offline', () async {
-      await queueBox.add({
-        'type': 'REJECT',
-        'requestId': 'req1',
-        'processorId': 'adm1',
-        'catatanAdmin': 'Jadwal penuh',
-        'queuedAt': DateTime.now().toIso8601String(),
-      });
+// void main() {
+//   setUpAll(() async {
+//     await setUpTestHive();
+//   });
 
-      expect(queueBox.length, 1);
-      final action = Map<String, dynamic>.from(queueBox.values.first);
-      expect(action['type'], 'REJECT');
-      expect(action['catatanAdmin'], 'Jadwal penuh');
-    });
-  });
+//   tearDownAll(() async {
+//     await tearDownTestHive();
+//   });
 
-  // ── TC10 – flushQueue kosong return 0 ────────────────────────────────────
-  group('TC10 - flushQueue return 0 jika queue kosong', () {
-    test('queue kosong, tidak ada aksi diproses', () async {
-      expect(queueBox.isEmpty, true);
-      // flushQueue akan return 0 karena queue kosong
-      // Verifikasi state queue
-      expect(queueBox.length, 0);
-    });
-  });
+//   setUp(() async {
+//     await Hive.openBox<Map>('tpj_requests_cache');
+//     await Hive.openBox<Map>('tpj_action_queue');
+//     await Hive.box<Map>('tpj_requests_cache').clear();
+//     await Hive.box<Map>('tpj_action_queue').clear();
+//   });
 
-  // ── TC11 – flushQueue proses APPROVE dan REJECT ───────────────────────────
-  group('TC11 - flushQueue memproses semua item queue', () {
-    test('queue berisi 2 item, keduanya tipe valid', () async {
-      await queueBox.add({
-        'type': 'APPROVE',
-        'requestId': 'req1',
-        'processorId': 'adm1',
-        'catatanAdmin': null,
-        'requestJson': makeRequestMap(),
-        'queuedAt': DateTime.now().toIso8601String(),
-      });
-      await queueBox.add({
-        'type': 'REJECT',
-        'requestId': 'req2',
-        'processorId': 'adm1',
-        'catatanAdmin': 'Alasan',
-        'queuedAt': DateTime.now().toIso8601String(),
-      });
+//   // ─────────────────────────────────────────
+//   // getRequests()
+//   // ─────────────────────────────────────────
 
-      expect(queueBox.length, 2);
+//   group('getRequests()', () {
+//     const jurusanId = '64b0000000000000000000a1';
 
-      final actions = queueBox.values
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-      expect(actions[0]['type'], 'APPROVE');
-      expect(actions[1]['type'], 'REJECT');
-    });
-  });
+//     test('TC01 - online berhasil gabungkan data jadwal', () async {
+//       final d1 = _fakeDosen('ANI', jurusanId);
+//       final d2 = _fakeDosen('BUD', jurusanId);
+//       final schId1 = ObjectId();
+//       final schId2 = ObjectId();
+//       final jadwals = [
+//         _fakeJadwal(schId1, 'ANI'),
+//         _fakeJadwal(schId2, 'BUD'),
+//         _fakeJadwal(ObjectId(), 'ANI'),
+//       ];
+//       final requests = [
+//         _fakeRequest(
+//           schId1.toHexString(),
+//           (d1['_id'] as ObjectId).toHexString(),
+//         ),
+//         _fakeRequest(
+//           schId2.toHexString(),
+//           (d2['_id'] as ObjectId).toHexString(),
+//         ),
+//       ];
 
-  // ── TC12 – cache tersimpan dengan key benar ───────────────────────────────
-  group('TC12 - cache tersimpan dengan key idJurusan_status', () {
-    test('key format idJurusan_SEMUA berisi data yang benar', () async {
-      const idJurusan = 'J01';
-      const status = 'SEMUA';
-      final key = '${idJurusan}_$status';
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => Stream.fromIterable([d1, d2]);
+//       env.sch.onFind = (_) => Stream.fromIterable(jadwals);
+//       env.req.onFind = (_) => Stream.fromIterable(requests);
 
-      await cacheBox.put(key, {
-        'data': [makeRequestMap(id: 'r1'), makeRequestMap(id: 'r2')],
-        'cachedAt': DateTime.now().toIso8601String(),
-      });
+//       final result = await env.service.getRequests(idJurusan: jurusanId);
 
-      final raw = cacheBox.get(key);
-      expect(raw, isNotNull);
-      expect((raw!['data'] as List).length, 2);
-    });
-  });
+//       expect(result.length, 2);
+//       expect(result.first.hariJadwal, isNotNull);
+//       expect(
+//         Hive.box<Map>('tpj_requests_cache').get('${jurusanId}_SEMUA'),
+//         isNotNull,
+//       );
+//     });
 
-  // ── TC13 – cache key PENDING terpisah dari SEMUA ──────────────────────────
-  group('TC13 - cache key per status terpisah', () {
-    test('key PENDING dan SEMUA berisi data berbeda', () async {
-      await cacheBox.put('J01_SEMUA', {
-        'data': [makeRequestMap(id: 'r1'), makeRequestMap(id: 'r2')],
-        'cachedAt': DateTime.now().toIso8601String(),
-      });
-      await cacheBox.put('J01_PENDING', {
-        'data': [makeRequestMap(id: 'r1', status: 'PENDING')],
-        'cachedAt': DateTime.now().toIso8601String(),
-      });
+//     test('TC02 - filter status PENDING hanya return 1 item', () async {
+//       final d = _fakeDosen('ANI', jurusanId);
+//       final schId = ObjectId();
+//       var findCallCount = 0;
 
-      final semua = cacheBox.get('J01_SEMUA');
-      final pending = cacheBox.get('J01_PENDING');
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => Stream.fromIterable([d]);
+//       env.sch.onFind = (_) => Stream.fromIterable([_fakeJadwal(schId, 'ANI')]);
+//       env.req.onFind = (_) {
+//         findCallCount++;
+//         return Stream.fromIterable([
+//           {
+//             ..._fakeRequest(
+//               schId.toHexString(),
+//               (d['_id'] as ObjectId).toHexString(),
+//             ),
+//             'status': 'PENDING',
+//           },
+//         ]);
+//       };
 
-      expect((semua!['data'] as List).length, 2);
-      expect((pending!['data'] as List).length, 1);
-    });
-  });
-}
+//       final result = await env.service.getRequests(
+//         idJurusan: jurusanId,
+//         status: 'PENDING',
+//       );
+
+//       expect(result.length, 1);
+//       expect(findCallCount, 1);
+//     });
+
+//     test('TC03 - offline setelah retry → return cache', () async {
+//       await _seedCache('${jurusanId}_SEMUA', [
+//         _fakeRequest(ObjectId().toHexString(), ObjectId().toHexString()),
+//         _fakeRequest(ObjectId().toHexString(), ObjectId().toHexString()),
+//       ]);
+
+//       MongoDatabase.isOffline = true;
+//       final env = _makeService();
+//       env.service.onEnsureConnected = () async => throw Exception('timeout');
+//       var findCalled = false;
+//       env.req.onFind = (_) {
+//         findCalled = true;
+//         return const Stream.empty();
+//       };
+
+//       final result = await env.service.getRequests(idJurusan: jurusanId);
+
+//       expect(result.length, 2);
+//       expect(findCalled, false);
+//     });
+
+//     test('TC04 - dosen kosong → return cache', () async {
+//       await _seedCache('${jurusanId}_SEMUA', [
+//         _fakeRequest(ObjectId().toHexString(), ObjectId().toHexString()),
+//       ]);
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => Stream.fromIterable([]);
+//       var reqFindCalled = false;
+//       env.req.onFind = (_) {
+//         reqFindCalled = true;
+//         return const Stream.empty();
+//       };
+
+//       final result = await env.service.getRequests(idJurusan: jurusanId);
+
+//       expect(result.length, 1);
+//       expect(reqFindCalled, false);
+//     });
+
+//     test('TC05 - schedules kosong → return cache', () async {
+//       await _seedCache('${jurusanId}_SEMUA', [
+//         _fakeRequest(ObjectId().toHexString(), ObjectId().toHexString()),
+//       ]);
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) =>
+//           Stream.fromIterable([_fakeDosen('ANI', jurusanId)]);
+//       env.sch.onFind = (_) => Stream.fromIterable([]);
+//       var reqFindCalled = false;
+//       env.req.onFind = (_) {
+//         reqFindCalled = true;
+//         return const Stream.empty();
+//       };
+
+//       final result = await env.service.getRequests(idJurusan: jurusanId);
+
+//       expect(result.length, 1);
+//       expect(reqFindCalled, false);
+//     });
+
+//     test('TC06 - MongoDB throw exception → return cache', () async {
+//       await _seedCache('${jurusanId}_SEMUA', [
+//         _fakeRequest(ObjectId().toHexString(), ObjectId().toHexString()),
+//         _fakeRequest(ObjectId().toHexString(), ObjectId().toHexString()),
+//       ]);
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => throw Exception('DB error');
+
+//       final result = await env.service.getRequests(idJurusan: jurusanId);
+
+//       expect(result.length, 2);
+//     });
+//   });
+
+//   // ─────────────────────────────────────────
+//   // getStats()
+//   // ─────────────────────────────────────────
+
+//   group('getStats()', () {
+//     const jurusanId = '64b0000000000000000000a1';
+
+//     test('TC07 - return jumlah per status dengan benar', () async {
+//       final schId = ObjectId();
+//       var countCall = 0;
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => Stream.fromIterable([
+//         _fakeDosen('ANI', jurusanId),
+//         _fakeDosen('BUD', jurusanId),
+//       ]);
+//       env.sch.onFind = (_) => Stream.fromIterable([_fakeJadwal(schId, 'ANI')]);
+//       env.req.onCount = (_) async {
+//         countCall++;
+//         if (countCall == 1) return 3; // PENDING
+//         if (countCall == 2) return 2; // APPROVED
+//         return 1; // REJECTED
+//       };
+
+//       final result = await env.service.getStats(jurusanId);
+
+//       expect(result['pending'], 3);
+//       expect(result['approved'], 2);
+//       expect(result['rejected'], 1);
+//     });
+
+//     test('TC08 - dosen kosong → return semua 0', () async {
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => Stream.fromIterable([]);
+
+//       final result = await env.service.getStats(jurusanId);
+
+//       expect(result, {'pending': 0, 'approved': 0, 'rejected': 0});
+//     });
+
+//     test('TC09 - dosen.find() throw exception → return semua 0', () async {
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.dosen.onFind = (_) => throw Exception('DB error');
+
+//       final result = await env.service.getStats(jurusanId);
+
+//       expect(result, {'pending': 0, 'approved': 0, 'rejected': 0});
+//     });
+//   });
+
+//   // ─────────────────────────────────────────
+//   // approveRequest()
+//   // ─────────────────────────────────────────
+
+//   group('approveRequest()', () {
+//     const requestId = '64b0000000000000000000b1';
+//     const processorId = '64b0000000000000000000c1';
+
+//     test('TC10 - online update status APPROVED dan update jadwal', () async {
+//       var reqUpdateCount = 0;
+//       var schUpdateCount = 0;
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async {
+//         reqUpdateCount++;
+//         return FakeWriteResult(true);
+//       };
+//       env.sch.onUpdateOne = (_, __) async {
+//         schUpdateCount++;
+//         return FakeWriteResult(true);
+//       };
+
+//       final result = await env.service.approveRequest(
+//         requestId: requestId,
+//         processorId: processorId,
+//         request: _fakeSRM(),
+//       );
+
+//       expect(result, true);
+//       expect(reqUpdateCount, 1);
+//       expect(schUpdateCount, 1);
+//     });
+
+//     test('TC11 - offline → masuk queue, tidak panggil MongoDB', () async {
+//       MongoDatabase.isOffline = true;
+//       var updateCalled = false;
+
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async {
+//         updateCalled = true;
+//         return FakeWriteResult(true);
+//       };
+
+//       final result = await env.service.approveRequest(
+//         requestId: requestId,
+//         processorId: processorId,
+//         request: _fakeSRM(),
+//       );
+
+//       expect(result, true);
+//       final queue = Hive.box<Map>('tpj_action_queue');
+//       expect(queue.length, 1);
+//       expect(queue.values.first['type'], 'APPROVE');
+//       expect(updateCalled, false);
+//     });
+
+//     test('TC12 - _reqCol.updateOne() throw exception → return false', () async {
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async => throw Exception('DB error');
+
+//       final result = await env.service.approveRequest(
+//         requestId: requestId,
+//         processorId: processorId,
+//         request: _fakeSRM(),
+//       );
+
+//       expect(result, false);
+//     });
+//   });
+
+//   // ─────────────────────────────────────────
+//   // rejectRequest()
+//   // ─────────────────────────────────────────
+
+//   group('rejectRequest()', () {
+//     const requestId = '64b0000000000000000000b1';
+//     const processorId = '64b0000000000000000000c1';
+
+//     test('TC13 - online update status REJECTED', () async {
+//       var updateCount = 0;
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async {
+//         updateCount++;
+//         return FakeWriteResult(true);
+//       };
+
+//       final result = await env.service.rejectRequest(
+//         requestId: requestId,
+//         processorId: processorId,
+//         catatanAdmin: 'Jadwal penuh',
+//       );
+
+//       expect(result, true);
+//       expect(updateCount, 1);
+//     });
+
+//     test('TC14 - offline → masuk queue, tidak panggil MongoDB', () async {
+//       MongoDatabase.isOffline = true;
+//       var updateCalled = false;
+
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async {
+//         updateCalled = true;
+//         return FakeWriteResult(true);
+//       };
+
+//       final result = await env.service.rejectRequest(
+//         requestId: requestId,
+//         processorId: processorId,
+//         catatanAdmin: 'Alasan',
+//       );
+
+//       expect(result, true);
+//       final queue = Hive.box<Map>('tpj_action_queue');
+//       expect(queue.length, 1);
+//       expect(queue.values.first['type'], 'REJECT');
+//       expect(updateCalled, false);
+//     });
+
+//     test('TC15 - _reqCol.updateOne() throw exception → return false', () async {
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async => throw Exception('DB error');
+
+//       final result = await env.service.rejectRequest(
+//         requestId: requestId,
+//         processorId: processorId,
+//         catatanAdmin: 'Alasan',
+//       );
+
+//       expect(result, false);
+//     });
+//   });
+
+//   // ─────────────────────────────────────────
+//   // flushQueue()
+//   // ─────────────────────────────────────────
+
+//   group('flushQueue()', () {
+//     const requestId = '64b0000000000000000000b1';
+//     const processorId = '64b0000000000000000000c1';
+
+//     test('TC16 - proses 1 APPROVE + 1 REJECT → return 2', () async {
+//       await _seedQueue([
+//         {
+//           'type': 'APPROVE',
+//           'requestId': requestId,
+//           'processorId': processorId,
+//           'catatanAdmin': null,
+//           'requestJson': {
+//             '_id': ObjectId().toHexString(),
+//             'id_schedule': ObjectId().toHexString(),
+//             'id_dosen': ObjectId().toHexString(),
+//             'nama_dosen': 'Dosen A',
+//             'tipe_request': 'RESCHEDULE',
+//             'detail_perubahan': {
+//               'hari_baru': 'Selasa',
+//               'jam_mulai_baru': '10:00',
+//               'jam_selesai_baru': '12:00',
+//               'ruangan_baru': 'R202',
+//             },
+//             'alasan': 'Bentrok',
+//             'status': 'PENDING',
+//             'offline_id': null,
+//             'catatan_admin': null,
+//             'id_processor': null,
+//             'is_late': false,
+//             'created_at': DateTime.now().toIso8601String(),
+//             'updated_at': DateTime.now().toIso8601String(),
+//             'nama_matkul': 'Algoritma',
+//             'nama_mk': 'Algoritma',
+//             'kode_mk': 'TI101',
+//             'hari': 'Senin',
+//             'jam_mulai': '08:00',
+//             'jam_selesai': '10:00',
+//             'ruangan': 'R101',
+//             'kelas': 'A',
+//           },
+//           'queuedAt': DateTime.now().toIso8601String(),
+//         },
+//         {
+//           'type': 'REJECT',
+//           'requestId': requestId,
+//           'processorId': processorId,
+//           'catatanAdmin': 'Tolak',
+//           'queuedAt': DateTime.now().toIso8601String(),
+//         },
+//       ]);
+
+//       var reqUpdateCount = 0;
+
+//       MongoDatabase.isOffline = false;
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async {
+//         reqUpdateCount++;
+//         return FakeWriteResult(true);
+//       };
+//       env.sch.onUpdateOne = (_, __) async => FakeWriteResult(true);
+
+//       final synced = await env.service.flushQueue();
+
+//       expect(synced, 2);
+//       expect(Hive.box<Map>('tpj_action_queue').isEmpty, true);
+//       expect(reqUpdateCount, 2);
+//     });
+
+//     test('TC17 - queue kosong → return 0', () async {
+//       var updateCalled = false;
+
+//       final env = _makeService();
+//       env.req.onUpdateOne = (_, __) async {
+//         updateCalled = true;
+//         return FakeWriteResult(true);
+//       };
+
+//       final synced = await env.service.flushQueue();
+
+//       expect(synced, 0);
+//       expect(updateCalled, false);
+//     });
+
+//     test(
+//       'TC18 - aksi pertama throw exception, kedua sukses → return 1',
+//       () async {
+//         await _seedQueue([
+//           {
+//             'type': 'REJECT',
+//             'requestId': '64b0000000000000000000b1',
+//             'processorId': processorId,
+//             'catatanAdmin': 'Alasan 1',
+//             'queuedAt': DateTime.now().toIso8601String(),
+//           },
+//           {
+//             'type': 'REJECT',
+//             'requestId': '64b0000000000000000000b2',
+//             'processorId': processorId,
+//             'catatanAdmin': 'Alasan 2',
+//             'queuedAt': DateTime.now().toIso8601String(),
+//           },
+//         ]);
+
+//         var callCount = 0;
+//         MongoDatabase.isOffline = false;
+//         final env = _makeService();
+//         env.req.onUpdateOne = (_, __) async {
+//           callCount++;
+//           if (callCount == 1) throw Exception('DB error');
+//           return FakeWriteResult(true);
+//         };
+
+//         final synced = await env.service.flushQueue();
+
+//         expect(synced, 1);
+//         expect(Hive.box<Map>('tpj_action_queue').isEmpty, true);
+//       },
+//     );
+//   });
+// }

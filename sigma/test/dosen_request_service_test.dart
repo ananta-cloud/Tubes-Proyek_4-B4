@@ -123,12 +123,12 @@ void main() {
 
   Map<String, dynamic> makeRequestDoc({
     String id = 'req1',
-    String idDosen = 'D01',
-    String idSchedule = 'S1',
+    String idDosen = 'aabbccddeeff001122334401',
+    String idSchedule = 'aabbccddeeff001122334411',
     String status = 'PENDING',
   }) => {
     '_id': id,
-    'id_schedule': idSchedule,
+    'id_schedule': ObjectId.fromHexString(idSchedule),
     'id_dosen': idDosen,
     'nama_dosen': 'Bu Ani',
     'tipe_request': 'PINDAH_JAM',
@@ -471,22 +471,35 @@ void main() {
     () {
       test('return 2 ScheduleRequestModel, cache tersimpan', () async {
         stubOnline(true);
+        const sch1 = 'aabbccddeeff001122334411';
+        const sch2 = 'aabbccddeeff001122334412';
         final reqDocs = [
-          makeRequestDoc(id: 'req1', idDosen: 'D01', idSchedule: 'S1'),
-          makeRequestDoc(id: 'req2', idDosen: 'D01', idSchedule: 'S2'),
+          makeRequestDoc(
+            id: 'req1',
+            idDosen: 'aabbccddeeff001122334401',
+            idSchedule: sch1,
+          ),
+          makeRequestDoc(
+            id: 'req2',
+            idDosen: 'aabbccddeeff001122334401',
+            idSchedule: sch2,
+          ),
         ];
         final jadwalDocs = [
-          makeScheduleDoc(id: 'S1', namaMk: 'Basis Data', kodeMk: 'BD101'),
-          makeScheduleDoc(id: 'S2', namaMk: 'Algoritma', kodeMk: 'ALG101'),
+          makeScheduleDoc(id: sch1, namaMk: 'Basis Data', kodeMk: 'BD101'),
+          makeScheduleDoc(id: sch2, namaMk: 'Algoritma', kodeMk: 'ALG101'),
         ];
         fakeReqCol.onFind = (_) => Stream.fromIterable(reqDocs);
         fakeSchCol.onFind = (_) => Stream.fromIterable(jadwalDocs);
 
-        final result = await service.getMyRequests('D01');
+        final result = await service.getMyRequests('aabbccddeeff001122334401');
 
         expect(result.length, 2);
         expect(result.first, isA<ScheduleRequestModel>());
-        expect(scheduleCache.get('my_requests_D01'), isNotNull);
+        expect(
+          scheduleCache.get('my_requests_aabbccddeeff001122334401'),
+          isNotNull,
+        );
       });
     },
   );
@@ -498,11 +511,11 @@ void main() {
       () async {
         stubOnline(false);
         await scheduleCache.put(
-          'my_requests_D01',
-          makeCachedRequestList(2, 'D01'),
+          'my_requests_aabbccddeeff001122334401',
+          makeCachedRequestList(2, 'aabbccddeeff001122334401'),
         );
 
-        final result = await service.getMyRequests('D01');
+        final result = await service.getMyRequests('aabbccddeeff001122334401');
 
         expect(result.length, 2);
       },
@@ -516,12 +529,12 @@ void main() {
       test('return 2 item dari cache, app tidak crash', () async {
         stubOnline(true);
         await scheduleCache.put(
-          'my_requests_D01',
-          makeCachedRequestList(2, 'D01'),
+          'my_requests_aabbccddeeff001122334401',
+          makeCachedRequestList(2, 'aabbccddeeff001122334401'),
         );
         fakeReqCol.onFind = (_) => throw Exception('DB error');
 
-        final result = await service.getMyRequests('D01');
+        final result = await service.getMyRequests('aabbccddeeff001122334401');
 
         expect(result.length, 2);
       });
@@ -536,10 +549,13 @@ void main() {
         stubOnline(true);
         fakeReqCol.onFind = (_) => Stream.fromIterable([]);
 
-        final result = await service.getMyRequests('D01');
+        final result = await service.getMyRequests('aabbccddeeff001122334401');
 
         expect(result, isEmpty);
-        expect(scheduleCache.get('my_requests_D01'), isNull);
+        expect(
+          scheduleCache.get('my_requests_aabbccddeeff001122334401'),
+          isNull,
+        );
       });
     },
   );

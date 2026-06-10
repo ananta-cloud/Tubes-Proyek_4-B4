@@ -9,12 +9,14 @@ class DosenRequestService {
   final DbCollection? _reqColOverride;
   final Box? _cacheOverride;
   final Connectivity? _connectivityOverride;
+  final bool _skipEnsureConnected;
 
   DosenRequestService()
     : _schColOverride = null,
       _reqColOverride = null,
       _cacheOverride = null,
-      _connectivityOverride = null;
+      _connectivityOverride = null,
+      _skipEnsureConnected = false;
 
   DosenRequestService.withMocks({
     required DbCollection schCol,
@@ -24,7 +26,8 @@ class DosenRequestService {
   }) : _schColOverride = schCol,
        _reqColOverride = reqCol,
        _cacheOverride = cacheBox,
-       _connectivityOverride = connectivity;
+       _connectivityOverride = connectivity,
+       _skipEnsureConnected = true;
 
   DbCollection get _schCol =>
       _schColOverride ?? MongoDatabase.db.collection('schedules');
@@ -51,7 +54,7 @@ class DosenRequestService {
         return cached != null ? List<Map<String, dynamic>>.from(cached) : [];
       }
 
-      await MongoDatabase.ensureConnected();
+      if (!_skipEnsureConnected) await MongoDatabase.ensureConnected();
       print('ONLINE: fetch jadwal dari MongoDB');
 
       if (!_allSchedulesCached) {
@@ -110,7 +113,7 @@ class DosenRequestService {
     }
 
     try {
-      await MongoDatabase.ensureConnected();
+      if (!_skipEnsureConnected) await MongoDatabase.ensureConnected();
 
       final allRuangan = await getAllRuangan();
       var selector = where.eq('hari', hari).ne('status', 'DRAFT');
@@ -209,7 +212,7 @@ class DosenRequestService {
     required String? offlineId,
   }) async {
     try {
-      await MongoDatabase.ensureConnected();
+      if (!_skipEnsureConnected) await MongoDatabase.ensureConnected();
 
       ObjectId toObjectId(String id) {
         final cleanId = id.replaceAll('ObjectId("', '').replaceAll('")', '');
@@ -266,7 +269,7 @@ class DosenRequestService {
         return _getMyRequestsFromCache(idDosen);
       }
 
-      await MongoDatabase.ensureConnected();
+      if (!_skipEnsureConnected) await MongoDatabase.ensureConnected();
 
       final cleanId = idDosen.replaceAll('ObjectId("', '').replaceAll('")', '');
 
@@ -383,7 +386,7 @@ class DosenRequestService {
 
   Future<bool> cancelRequest(String requestId) async {
     try {
-      await MongoDatabase.ensureConnected();
+      if (!_skipEnsureConnected) await MongoDatabase.ensureConnected();
 
       final cleanId = requestId
           .replaceAll('ObjectId("', '')

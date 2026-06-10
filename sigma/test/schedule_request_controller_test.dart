@@ -317,12 +317,8 @@ void main() {
     });
   });
 
-  // ── TC09 – skip: onConnectionRestored panggil MongoDatabase.ensureConnected (integration test)
-  // ── TC10 – skip: sama seperti TC09
-  // ── TC11 – skip: sama seperti TC09
-
-  // ── TC12 ─────────────────────────────────────────────────────────────────
-  group('TC12 - clearSyncFlag mereset justSynced ke false', () {
+  // ── TC09 ─────────────────────────────────────────────────────────────────
+  group('TC09 - clearSyncFlag mereset justSynced ke false', () {
     test('justSynced = false, notifyListeners terpanggil', () {
       controller.justSynced = true;
 
@@ -336,9 +332,9 @@ void main() {
     });
   });
 
-  // ── TC13 ─────────────────────────────────────────────────────────────────
+  // ── TC10 ─────────────────────────────────────────────────────────────────
   group(
-    'TC13 - setOffline mengubah isOffline dan notifyListeners jika nilai berbeda',
+    'TC10 - setOffline mengubah isOffline dan notifyListeners jika nilai berbeda',
     () {
       test('isOffline true → notifyListeners terpanggil', () {
         // pastikan isOffline = false dulu
@@ -355,9 +351,9 @@ void main() {
     },
   );
 
-  // ── TC14 ─────────────────────────────────────────────────────────────────
+  // ── TC11 ─────────────────────────────────────────────────────────────────
   group(
-    'TC14 - setOffline tidak memanggil notifyListeners jika nilai sama',
+    'TC11 - setOffline tidak memanggil notifyListeners jika nilai sama',
     () {
       test('isOffline tetap false, notifyListeners TIDAK dipanggil', () {
         controller.setOffline(false);

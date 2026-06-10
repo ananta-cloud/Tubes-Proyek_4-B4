@@ -5,8 +5,16 @@ import 'package:sigma/data/services/fcm_sender_service.dart';
 import '../models/schedule_request_model.dart';
 
 class ScheduleRequestService {
-  DbCollection get _reqCol => MongoDatabase.db.collection('schedule_requests');
-  DbCollection get _schCol => MongoDatabase.db.collection('schedules');
+  DbCollection? _injectedReqCol;
+  DbCollection? _injectedSchCol;
+  DbCollection? _injectedDosenCol;
+
+  DbCollection get _reqCol =>
+      _injectedReqCol ?? MongoDatabase.db.collection('schedule_requests');
+  DbCollection get _schCol =>
+      _injectedSchCol ?? MongoDatabase.db.collection('schedules');
+  DbCollection get _dosenCol =>
+      _injectedDosenCol ?? MongoDatabase.db.collection('dosen');
 
   static const _cacheBox = 'tpj_requests_cache';
   static const _queueBox = 'tpj_action_queue';
@@ -117,8 +125,7 @@ class ScheduleRequestService {
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
 
-      final dosenList = await MongoDatabase.db
-          .collection('dosen')
+      final dosenList = await _dosenCol
           .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanId)))
           .toList();
       if (dosenList.isEmpty) return _loadCache(idJurusan, statusKey);
@@ -189,8 +196,7 @@ class ScheduleRequestService {
           .replaceAll('ObjectId("', '')
           .replaceAll('")', '');
 
-      final dosenList = await MongoDatabase.db
-          .collection('dosen')
+      final dosenList = await _dosenCol
           .find(where.eq('id_jurusan', ObjectId.fromHexString(cleanId)))
           .toList();
       if (dosenList.isEmpty)
@@ -313,10 +319,11 @@ class ScheduleRequestService {
           final hari = detail.hariBaru ?? request.hariJadwal;
           final jam = detail.jamMulaiBaru ?? request.jamMulaiJadwal;
           final ruang = detail.ruanganBaru ?? request.ruanganJadwal;
-          
+
           await FcmSenderService.sendNotificationToTarget(
             judul: 'Perubahan Jadwal Disetujui',
-            isi: 'Mata Kuliah ${request.namaMk} (Kelas ${request.kelas}) dipindahkan ke hari $hari, jam $jam di $ruang.',
+            isi:
+                'Mata Kuliah ${request.namaMk} (Kelas ${request.kelas}) dipindahkan ke hari $hari, jam $jam di $ruang.',
             module: 'jadwal',
             targetAudience: 'mahasiswa',
             tingkatKepentingan: 'PENTING',
@@ -431,5 +438,15 @@ class ScheduleRequestService {
   Future<void> clearCache(String idJurusan, String status) async {
     final box = Hive.box<Map>(_cacheBox);
     box.delete('${idJurusan}_$status');
+  }
+
+  void injectCollections({
+    required DbCollection reqCol,
+    required DbCollection schCol,
+    required DbCollection dosenCol,
+  }) {
+    _injectedReqCol = reqCol;
+    _injectedSchCol = schCol;
+    _injectedDosenCol = dosenCol;
   }
 }
