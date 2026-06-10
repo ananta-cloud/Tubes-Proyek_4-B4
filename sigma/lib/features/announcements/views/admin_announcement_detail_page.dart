@@ -36,10 +36,14 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
     final tingkatColor =
         _tingkatColors[announcement.tingkatKepentingan] ?? AppColors.textSub;
     final tingkatIcon =
-        _tingkatIcons[announcement.tingkatKepentingan] ?? Icons.info_outline_rounded;
-    
-    // Format tanggal
-    final tanggalDibuat = DateFormat('d MMMM yyyy, HH:mm', 'id_ID').format(announcement.createdAt);
+        _tingkatIcons[announcement.tingkatKepentingan] ??
+        Icons.info_outline_rounded;
+
+    final tanggal = DateFormat(
+      'd MMMM yyyy, HH:mm',
+      'id_ID',
+    ).format(announcement.createdAt.toLocal());
+
     final List<String> kategoriList = _parseKategori(announcement.kategori);
 
     return Scaffold(
@@ -65,7 +69,11 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                       color: AppColors.bgPage,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.arrow_back_rounded, color: AppColors.navy, size: 20),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: AppColors.navy,
+                      size: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -105,20 +113,38 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                         Wrap(
                           spacing: 8,
                           runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            // ── Semua badge kategori ──
                             ...kategoriList.map((k) {
-                              final color = _kategoriColors[k] ?? AppColors.accent;
+                              final color =
+                                  _kategoriColors[k] ?? AppColors.accent;
                               return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: color.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(99),
                                 ),
-                                child: Text(k, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+                                child: Text(
+                                  k,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               );
                             }),
+
+                            // ── Badge tingkat kepentingan ──
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: tingkatColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(99),
@@ -126,64 +152,167 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(tingkatIcon, color: tingkatColor, size: 12),
+                                  Icon(
+                                    tingkatIcon,
+                                    color: tingkatColor,
+                                    size: 12,
+                                  ),
                                   const SizedBox(width: 4),
-                                  Text(announcement.tingkatKepentingan, style: TextStyle(color: tingkatColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                                  Text(
+                                    announcement.tingkatKepentingan,
+                                    style: TextStyle(
+                                      color: tingkatColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        
+
                         // Judul
-                        Text(announcement.judul, style: const TextStyle(color: AppColors.navy, fontSize: 18, fontWeight: FontWeight.w800, height: 1.3)),
+                        Text(
+                          announcement.judul,
+                          style: const TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            height: 1.3,
+                          ),
+                        ),
                         const SizedBox(height: 12),
 
-                        // 🔥 DEADLINE DISPLAY (Admin View)
-                        if (announcement.deadline != null)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.danger.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.danger.withOpacity(0.5)),
-                            ),
-                            child: Row(
+                        // Meta info (target audience, tanggal, publisher)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                const Icon(Icons.event_available_rounded, color: AppColors.danger, size: 20),
-                                const SizedBox(width: 10),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text("Deadline:", style: TextStyle(fontSize: 10, color: AppColors.danger, fontWeight: FontWeight.bold)),
-                                    Text(
-                                      DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(announcement.deadline!),
-                                      style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.navy, fontSize: 13),
+                                const Icon(
+                                  Icons.people_outline_rounded,
+                                  size: 13,
+                                  color: AppColors.textSub,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'Target: ${announcement.targetAudience}',
+                                    style: const TextStyle(
+                                      color: AppColors.textSub,
+                                      fontSize: 12,
                                     ),
-                                  ],
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 12,
+                                  color: AppColors.textSub,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    tanggal, // sudah .toLocal()
+                                    style: const TextStyle(
+                                      color: AppColors.textSub,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 13,
+                                  color: AppColors.textSub,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'Oleh: ${announcement.namaPublisher}',
+                                    style: const TextStyle(
+                                      color: AppColors.textSub,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
 
-                        // Meta Info
-                        _metaInfoRow(Icons.calendar_today_outlined, tanggalDibuat),
-                        const SizedBox(height: 4),
-                        _metaInfoRow(Icons.person_outline_rounded, 'Oleh: ${announcement.namaPublisher}'),
-                        
                         const SizedBox(height: 16),
                         const Divider(color: AppColors.cardBorder),
                         const SizedBox(height: 16),
 
-                        Text(announcement.isi, style: const TextStyle(color: AppColors.navy, fontSize: 14, height: 1.7)),
+                        // Isi pengumuman
+                        Text(
+                          announcement.isi,
+                          style: const TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 14,
+                            height: 1.7,
+                          ),
+                        ),
                       ],
                     ),
                   ),
 
                   // ── Lampiran ──
-                  // ... (Bagian attachment tetap sama) ...
+                  if (announcement.attachments.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.attach_file_rounded,
+                                color: AppColors.navy,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Lampiran (${announcement.attachments.length})',
+                                style: const TextStyle(
+                                  color: AppColors.navy,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          ...announcement.attachments.map(
+                            (att) => _AttachmentItem(attachment: att),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -193,30 +322,17 @@ class AdminAnnouncementDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _metaInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: AppColors.textSub),
-        const SizedBox(width: 4),
-        Flexible(child: Text(text, style: const TextStyle(color: AppColors.textSub, fontSize: 12))),
-      ],
-    );
-  }
-  
   List<String> _parseKategori(dynamic raw) {
     if (raw == null) return ['Umum'];
 
-    // Jika sudah List<String>, langsung kembalikan
     if (raw is List) {
       final result = raw.map((e) => e.toString().trim()).toList();
       return result.isEmpty ? ['Umum'] : result;
     }
 
-    // Jika String (misal "[Umum, Pengajaran, Beasiswa]"), strip kurung lalu split
     if (raw is String) {
       final cleaned = raw.trim();
       if (cleaned.isEmpty) return ['Umum'];
-      // Hapus karakter [ dan ]
       final stripped = cleaned.replaceAll('[', '').replaceAll(']', '');
       final parts = stripped
           .split(',')
@@ -262,7 +378,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row info file
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -299,7 +414,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                   ),
                 ),
 
-                // Tombol expand/collapse untuk gambar
                 if (isImage && data.isNotEmpty)
                   GestureDetector(
                     onTap: () =>
@@ -324,7 +438,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                     ),
                   ),
 
-                // Label PDF (tidak bisa preview)
                 if (!isImage)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -348,7 +461,6 @@ class _AttachmentItemState extends State<_AttachmentItem> {
             ),
           ),
 
-          // Preview gambar (expand)
           if (isImage && _imageExpanded && data.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
