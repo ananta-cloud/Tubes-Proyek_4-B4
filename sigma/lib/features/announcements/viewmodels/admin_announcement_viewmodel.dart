@@ -304,7 +304,6 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
       final op = Map<String, dynamic>.from(raw);
 
       try {
-        print("LOG_NOTIF: MongoDB sukses, lanjut ke FcmSenderService...");
         if (op['operation'] == 'create' || op['action'] == 'create') {
           final List<String> kategoriList = _parseKategoriFromQueue(
             op['kategori'] ?? op['kategoriList'],
@@ -359,33 +358,16 @@ class AdminAnnouncementViewModel extends ChangeNotifier {
             () => MongoDatabase.announcementsCollection.insertOne(doc),
           );
 
-          String rawTarget = op['target'] ?? op['target_audience'] ?? 'Semua';
-          String targetNotif = 'semua';
-
-          if (rawTarget.toUpperCase().contains('MAHASISWA')) {
-            if (rawTarget.contains('(')) {
-              String prodiRaw = rawTarget.split('(').last.replaceAll(')', '').trim();
-              String prodiFormatted = prodiRaw.replaceAll(' ', '_').toLowerCase();
-              targetNotif = 'mahasiswa_$prodiFormatted';
-            } else {
-              targetNotif = 'mahasiswa';
-            }
-          } else if (rawTarget.toUpperCase() == 'DOSEN') {
-            targetNotif = 'dosen';
-          }
-
-          // Panggil Service Pengirim Notifikasi
           await FcmSenderService.sendNotificationToTarget(
             judul: op['judul'],
             isi: op['isi'],
             module: 'pengumuman',
-            targetAudience: targetNotif,
+            targetAudience: op['target'],
             tingkatKepentingan:
                 op['tingkat_kepentingan'] ??
                 op['tingkatKepentingan'] ??
                 'BIASA',
           );
-          print("LOG_NOTIF: drainQueue selesai untuk ID $key");
         }
 
         await _queueBox.delete(key);
