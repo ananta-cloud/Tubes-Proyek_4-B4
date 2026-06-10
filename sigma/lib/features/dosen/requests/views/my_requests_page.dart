@@ -31,7 +31,10 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<DosenRequestController>().loadMyRequests(widget.dosen.id);
+        context.read<DosenRequestController>().loadMyRequests(
+          widget.dosen.id,
+          forceRefresh: true,
+        );
       }
     });
   }
