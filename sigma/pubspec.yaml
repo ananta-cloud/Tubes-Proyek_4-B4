@@ -68,7 +68,10 @@ dev_dependencies:
   hive_generator: ^2.0.1
   url_launcher: ^6.3.0
   mockito: ^5.4.4
+<<<<<<< HEAD
   hive_test: ^1.0.1
+=======
+>>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

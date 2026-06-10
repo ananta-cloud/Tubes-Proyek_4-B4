@@ -72,6 +72,7 @@ class MockScheduleService extends _i1.Mock implements _i2.ScheduleService {
         ),
         returnValue: _i3.Future<List<String>>.value(<String>[]),
       ) as _i3.Future<List<String>>);
+<<<<<<< HEAD
 
   @override
   _i3.Future<List<Map<String, dynamic>>> getSchedulesMhs(
@@ -84,4 +85,6 @@ class MockScheduleService extends _i1.Mock implements _i2.ScheduleService {
         returnValue: _i3.Future<List<Map<String, dynamic>>>.value(
             <Map<String, dynamic>>[]),
       ) as _i3.Future<List<Map<String, dynamic>>>);
+=======
+>>>>>>> 6362708ef65a92bbdd31114ea2800ec599e2112f
 }

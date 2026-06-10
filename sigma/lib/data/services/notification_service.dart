@@ -208,9 +208,9 @@ class NotificationService {
       await fcm.subscribeToTopic('jadwal_mahasiswa');
 
       if (prodi != null && prodi.isNotEmpty) {
-        String prodiTopic = prodi.replaceAll(' ', '_').toLowerCase();
-        await fcm.subscribeToTopic('pengumuman_mahasiswa_$prodiTopic');
-        print("Langganan Notif: MAHASISWA Aktif (Prodi: $prodiTopic)");
+        String prodiFormatted = prodi.replaceAll(' ', '_').toLowerCase();
+        await fcm.subscribeToTopic('pengumuman_mahasiswa_$prodiFormatted');
+        print("Langganan Notif: MAHASISWA Aktif (Prodi: $prodiFormatted)");
       } else {
         print("Langganan Notif: MAHASISWA Aktif (Tanpa Prodi)");
       }

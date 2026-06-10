@@ -7,10 +7,15 @@ class FcmSenderService {
   static const String _projectId = "sigma-52c03";
 
   static Future<String> _getAccessToken() async {
-    final jsonString = await rootBundle.loadString('assets/service_account.json');
+    final jsonString = await rootBundle.loadString(
+      'assets/service_account.json',
+    );
     final accountCredentials = ServiceAccountCredentials.fromJson(jsonString);
     final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
-    final AuthClient client = await clientViaServiceAccount(accountCredentials, scopes);
+    final AuthClient client = await clientViaServiceAccount(
+      accountCredentials,
+      scopes,
+    );
     final String accessToken = client.credentials.accessToken.data;
     client.close();
     return accessToken;
@@ -26,9 +31,10 @@ class FcmSenderService {
     required String targetAudience,
     String tingkatKepentingan = 'BIASA',
   }) async {
+    print("LOG_NOTIF: Memulai pengiriman ke $targetAudience...");
     try {
       final String serverToken = await _getAccessToken();
-      final String fcmEndpoint = 
+      final String fcmEndpoint =
           'https://fcm.googleapis.com/v1/projects/$_projectId/messages:send';
 
       String targetTopic = '${module.toLowerCase()}_${targetAudience.toLowerCase()}';
@@ -37,7 +43,8 @@ class FcmSenderService {
       String channelId = 'channel_biasa_1';
       if (tingkatKepentingan == 'PENTING') {
         channelId = 'channel_penting_1';
-      } else if (tingkatKepentingan == 'SANGAT PENTING' || tingkatKepentingan == 'SANGAT_PENTING') {
+      } else if (tingkatKepentingan == 'SANGAT PENTING' ||
+          tingkatKepentingan == 'SANGAT_PENTING') {
         channelId = 'channel_sangat_penting_1';
       }
 
@@ -45,20 +52,12 @@ class FcmSenderService {
       final Map<String, dynamic> body = {
         "message": {
           "topic": targetTopic,
-          "notification": {
-            "title": judul,
-            "body": isi,
-          },
+          "notification": {"title": judul, "body": isi},
           "android": {
-            "notification": {
-              "channel_id": channelId
-            }
+            "notification": {"channel_id": channelId},
           },
-          "data": {
-            "tipe": tingkatKepentingan, 
-            "module": module,
-          }
-        }
+          "data": {"tipe": tingkatKepentingan, "module": module},
+        },
       };
 
       final response = await http.post(
