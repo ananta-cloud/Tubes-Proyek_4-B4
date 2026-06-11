@@ -53,7 +53,8 @@ class TaskFormViewModel extends ChangeNotifier {
 
   Future<String> _resolveNamaKelas(String idKelasHex) async {
     if (idKelasHex.length != 24) return idKelasHex;
-    if (_kelasCacheNames.containsKey(idKelasHex)) return _kelasCacheNames[idKelasHex]!;
+    if (_kelasCacheNames.containsKey(idKelasHex))
+      return _kelasCacheNames[idKelasHex]!;
 
     final cacheBox = Hive.box<String>('kelasCacheBox');
     if (cacheBox.containsKey(idKelasHex)) {
@@ -64,35 +65,45 @@ class TaskFormViewModel extends ChangeNotifier {
 
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
-      
+      bool isOffline = (connectivityResult as List).contains(
+        ConnectivityResult.none,
+      );
+
       if (isOffline || MongoDatabase.isOffline) {
-         return "Kelas (${idKelasHex.substring(0, 4)})";
+        return "Kelas (${idKelasHex.substring(0, 4)})";
       }
 
-      final kelasDoc = await MongoDatabase.kelasCollection.findOne(where.id(ObjectId.parse(idKelasHex)));
+      final kelasDoc = await MongoDatabase.kelasCollection.findOne(
+        where.id(ObjectId.parse(idKelasHex)),
+      );
 
       if (kelasDoc != null && kelasDoc.containsKey('nama_kelas')) {
         String name = kelasDoc['nama_kelas'].toString();
 
         if (kelasDoc['id_prodi'] != null) {
           final dynamic rawProdiId = kelasDoc['id_prodi'];
-          final ObjectId prodiObjId = rawProdiId is ObjectId ? rawProdiId : ObjectId.parse(rawProdiId.toString());
-          final prodiDoc = await MongoDatabase.db.collection('prodi').findOne(where.id(prodiObjId));
+          final ObjectId prodiObjId = rawProdiId is ObjectId
+              ? rawProdiId
+              : ObjectId.parse(rawProdiId.toString());
+          final prodiDoc = await MongoDatabase.db
+              .collection('prodi')
+              .findOne(where.id(prodiObjId));
 
           if (prodiDoc != null && prodiDoc['nama_prodi'] != null) {
             String namaProdi = prodiDoc['nama_prodi'].toString().toUpperCase();
             if (namaProdi.contains('D3') || namaProdi.contains('D-III')) {
               name += "-D3";
-            } else if (namaProdi.contains('D4') || namaProdi.contains('D-IV') || namaProdi.contains('SARJANA TERAPAN')) {
+            } else if (namaProdi.contains('D4') ||
+                namaProdi.contains('D-IV') ||
+                namaProdi.contains('SARJANA TERAPAN')) {
               name += "-D4";
             }
           }
         }
-        
+
         _kelasCacheNames[idKelasHex] = name;
         await cacheBox.put(idKelasHex, name);
-        
+
         return name;
       }
       return "Unknown";
@@ -101,9 +112,12 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> loadPengajaran(DosenModel currentDosen, {TaskModel? taskToEdit}) async {
+  Future<void> loadPengajaran(
+    DosenModel currentDosen, {
+    TaskModel? taskToEdit,
+  }) async {
     if (isDisposed) return;
-    
+
     // 🔥 PERBAIKAN: Hanya tampilkan indikator loading jika memori benar-benar masih kosong
     if (listPengajaran.isEmpty) {
       isLoadingPengajaran = true;
@@ -112,14 +126,14 @@ class TaskFormViewModel extends ChangeNotifier {
 
     try {
       String kodeDosenLogin = currentDosen.kodeDosen;
-      
+
       // 1. Tarik dari Memori Lokal (Instan)
       listPengajaran = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
       if (listPengajaran.isNotEmpty && !isDisposed) {
         await _generateUniqueMatkul();
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
-        
+
         // Matikan loading karena data lokal sudah siap dipakai
         isLoadingPengajaran = false;
         notifyListeners();
@@ -130,7 +144,9 @@ class TaskFormViewModel extends ChangeNotifier {
       final updatedList = _pengajaranRepo.getLocalPengajaran(kodeDosenLogin);
 
       // 3. Update UI hanya jika ada kelas/mata kuliah baru dari server
-      if (!isDisposed && (updatedList.length != listPengajaran.length || listPengajaran.isEmpty)) {
+      if (!isDisposed &&
+          (updatedList.length != listPengajaran.length ||
+              listPengajaran.isEmpty)) {
         listPengajaran = updatedList;
         await _generateUniqueMatkul();
         if (taskToEdit != null) await _initDropdownsForEdit(taskToEdit);
@@ -146,10 +162,17 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
+  void setDeadline(DateTime newDeadline) {
+    selectedDeadline = newDeadline;
+    notifyListeners();
+  }
+
   Future<void> _generateUniqueMatkul() async {
     Set<String> tempMatkul = {};
     final connectivityResult = await Connectivity().checkConnectivity();
-    bool isOffline = (connectivityResult as List).contains(ConnectivityResult.none);
+    bool isOffline = (connectivityResult as List).contains(
+      ConnectivityResult.none,
+    );
 
     for (var p in listPengajaran) {
       String realName = p.namaMk;
@@ -179,7 +202,9 @@ class TaskFormViewModel extends ChangeNotifier {
 
   Future<void> _initDropdownsForEdit(TaskModel task) async {
     try {
-      final int matchIndex = listPengajaran.indexWhere((p) => task.kodeMk == p.kodeMk);
+      final int matchIndex = listPengajaran.indexWhere(
+        (p) => task.kodeMk == p.kodeMk,
+      );
       if (matchIndex == -1) return;
 
       final matched = listPengajaran[matchIndex];
@@ -196,7 +221,10 @@ class TaskFormViewModel extends ChangeNotifier {
         }
       }
 
-      selectedTargetKelas = loadedKelasNames.where((k) => availableKelasList.contains(k)).toSet().toList();
+      selectedTargetKelas = loadedKelasNames
+          .where((k) => availableKelasList.contains(k))
+          .toSet()
+          .toList();
       notifyListeners();
     } catch (e) {
       print('Error init dropdown edit: $e');
@@ -270,11 +298,11 @@ class TaskFormViewModel extends ChangeNotifier {
 
       if (result != null) {
         final platformFile = result.files.single;
-        
+
         // Cek ukuran max 5MB agar MongoDB tidak kepenuhan
         final fileSizeInMB = platformFile.size / (1024 * 1024);
         if (fileSizeInMB > 5.0) {
-            return 'Ukuran file terlalu besar! Maksimal 5MB.';
+          return 'Ukuran file terlalu besar! Maksimal 5MB.';
         }
 
         File file = File(platformFile.path!);
@@ -284,7 +312,7 @@ class TaskFormViewModel extends ChangeNotifier {
         List<int> fileBytes = await file.readAsBytes();
         String base64Data = base64Encode(fileBytes);
 
-        // 3. Simpan Base64 ke array Lampiran 
+        // 3. Simpan Base64 ke array Lampiran
         lampiran.add({
           'type': 'file',
           'name': fileName,
@@ -304,12 +332,18 @@ class TaskFormViewModel extends ChangeNotifier {
   }
 
   Future<bool> createTaskForStudents(UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
+    if (namaTugasController.text.isEmpty ||
+        selectedDeadline == null ||
+        selectedTargetKelas.isEmpty)
+      return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
 
-    final String cleanUserId = currentUser.id.replaceAll(RegExp(r'ObjectId\(|"|\)'), '');
+    final String cleanUserId = currentUser.id.replaceAll(
+      RegExp(r'ObjectId\(|"|\)'),
+      '',
+    );
     final String newTaskId = ObjectId().toHexString();
 
     List<String> idsUntukDatabase = selectedTargetKelas
@@ -323,7 +357,9 @@ class TaskFormViewModel extends ChangeNotifier {
       id: newTaskId,
       idUser: cleanUserId,
       namaTugas: namaTugasController.text,
-      deskripsi: deskripsiController.text.isNotEmpty ? deskripsiController.text : null,
+      deskripsi: deskripsiController.text.isNotEmpty
+          ? deskripsiController.text
+          : null,
       kodeMk: matched.kodeMk,
       namaMkSnapshot: namaRealMatkul,
       deadline: selectedDeadline!,
@@ -339,7 +375,7 @@ class TaskFormViewModel extends ChangeNotifier {
     try {
       final taskBox = Hive.box<TaskModel>('tasks');
       await taskBox.put(newTaskId, newTask);
-      
+
       _backgroundSync(newTask, isCreate: true);
       notifyListeners();
       return true;
@@ -349,8 +385,14 @@ class TaskFormViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateTaskForStudents(TaskModel taskLama, UserModel currentUser) async {
-    if (namaTugasController.text.isEmpty || selectedDeadline == null || selectedTargetKelas.isEmpty) return false;
+  Future<bool> updateTaskForStudents(
+    TaskModel taskLama,
+    UserModel currentUser,
+  ) async {
+    if (namaTugasController.text.isEmpty ||
+        selectedDeadline == null ||
+        selectedTargetKelas.isEmpty)
+      return false;
 
     final matched = _getMatchedPengajaran();
     if (matched == null) return false;
@@ -359,13 +401,18 @@ class TaskFormViewModel extends ChangeNotifier {
       final taskBox = Hive.box<TaskModel>('tasks');
 
       taskLama.namaTugas = namaTugasController.text;
-      taskLama.deskripsi = deskripsiController.text.isNotEmpty ? deskripsiController.text : null;
+      taskLama.deskripsi = deskripsiController.text.isNotEmpty
+          ? deskripsiController.text
+          : null;
       taskLama.kodeMk = matched.kodeMk;
-      taskLama.namaMkSnapshot = _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
+      taskLama.namaMkSnapshot =
+          _matkulRealNames[matched.kodeMk] ?? matched.namaMk;
       taskLama.deadline = selectedDeadline!;
       taskLama.lampiran = lampiran.isNotEmpty ? lampiran : null;
       taskLama.updatedAt = DateTime.now();
-      taskLama.targetKelas = selectedTargetKelas.map((n) => _kelasNameToIdMap[n]!).toList();
+      taskLama.targetKelas = selectedTargetKelas
+          .map((n) => _kelasNameToIdMap[n]!)
+          .toList();
       taskLama.isSynced = false;
 
       await taskBox.put(taskLama.id, taskLama);
@@ -393,7 +440,7 @@ class TaskFormViewModel extends ChangeNotifier {
           task.isSynced = true;
           final taskBox = Hive.box<TaskModel>('tasks');
           await taskBox.put(task.id, task);
-          notifyListeners(); 
+          notifyListeners();
         }
       }
     } catch (e) {

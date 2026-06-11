@@ -424,29 +424,32 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
                 InkWell(
                   onTap: () async {
+                    final now = DateTime.now();
+                    final initial = viewModel.selectedDeadline ?? now;
+                    
+                    // Mencegah crash: Jika deadline sebelumnya sudah lewat dari hari ini,
+                    // maka firstDate mundur ke tanggal deadline sebelumnya.
+                    final first = initial.isBefore(now) ? initial : now;
+
                     final date = await showDatePicker(
                       context: context,
-                      initialDate: viewModel.selectedDeadline ?? DateTime.now(),
-                      firstDate: DateTime.now(),
+                      initialDate: initial,
+                      firstDate: first, 
                       lastDate: DateTime(2030),
                     );
                     if (date != null) {
                       final time = await showTimePicker(
                         context: context,
-                        initialTime: TimeOfDay.fromDateTime(
-                          viewModel.selectedDeadline ?? DateTime.now(),
-                        ),
+                        initialTime: TimeOfDay.fromDateTime(initial),
                       );
                       if (time != null) {
-                        setState(() {
-                          viewModel.selectedDeadline = DateTime(
-                            date.year,
-                            date.month,
-                            date.day,
-                            time.hour,
-                            time.minute,
-                          );
-                        });
+                        viewModel.setDeadline(DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        ));
                       }
                     }
                   },
@@ -463,7 +466,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                     ),
                     child: Text(
                       viewModel.selectedDeadline != null
-                          ? "${viewModel.selectedDeadline!.day}/${viewModel.selectedDeadline!.month}/${viewModel.selectedDeadline!.year} - ${viewModel.selectedDeadline!.hour.toString().padLeft(2, '0')}:${viewModel.selectedDeadline!.minute.toString().padLeft(2, '0')}"
+                          ? "${viewModel.selectedDeadline!.day.toString().padLeft(2, '0')}/${viewModel.selectedDeadline!.month.toString().padLeft(2, '0')}/${viewModel.selectedDeadline!.year} - ${viewModel.selectedDeadline!.hour.toString().padLeft(2, '0')}:${viewModel.selectedDeadline!.minute.toString().padLeft(2, '0')}"
                           : "Pilih Tanggal & Waktu",
                       style: TextStyle(
                         color: viewModel.selectedDeadline != null
